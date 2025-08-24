@@ -1,7 +1,6 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { HousePlan, Room } from "../types";
-import { ROOM_CATEGORIES } from "../constants";
+import { HousePlan, Room } from "@/types";
+import { ROOM_CATEGORIES } from "@/constants";
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 
