@@ -1,0 +1,7 @@
+{
+  "name": "Architect 3D Home Modeler",
+  "description": "An AI-powered home design application for architects and homeowners to generate and customize 3D renderings of exteriors and interiors from descriptions or floor plans.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
