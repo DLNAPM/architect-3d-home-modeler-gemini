@@ -13,10 +13,12 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [initialPrompt, setInitialPrompt] = useState('');
 
   const handleGenerationRequest = useCallback(async (description: string, imageFile: File | null) => {
     setIsLoading(true);
     setError(null);
+    setInitialPrompt(description);
 
     let imageBase64: string | undefined = undefined;
     if (imageFile) {
@@ -36,7 +38,7 @@ function App() {
       setHousePlan(plan);
 
       setLoadingMessage('Rendering front exterior...');
-      const frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${plan.style} house. ${description}`;
+      const frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${plan.style} house, based on the description: "${description}"`;
       const frontImageUrl = await generateImage(frontExteriorPrompt);
       const frontRendering: Rendering = {
         id: crypto.randomUUID(),
@@ -48,7 +50,7 @@ function App() {
       };
 
       setLoadingMessage('Rendering back exterior...');
-      const backExteriorPrompt = `Photorealistic 3D rendering of the back exterior of a ${plan.style} house, complementing the front design. ${description}`;
+      const backExteriorPrompt = `Photorealistic 3D rendering of the back exterior of a ${plan.style} house, complementing the front design, based on the description: "${description}"`;
       const backImageUrl = await generateImage(backExteriorPrompt);
       const backRendering: Rendering = {
         id: crypto.randomUUID(),
@@ -108,6 +110,7 @@ function App() {
     setRenderings([]);
     setError(null);
     setIsLoading(false);
+    setInitialPrompt('');
   }
 
   return (
@@ -120,6 +123,7 @@ function App() {
           <ResultsPage
             housePlan={housePlan}
             renderings={renderings}
+            initialPrompt={initialPrompt}
             onNewRendering={handleNewRendering}
             onUpdateRendering={updateRendering}
             onDeleteRenderings={deleteRenderings}

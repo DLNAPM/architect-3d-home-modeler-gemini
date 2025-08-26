@@ -5,10 +5,11 @@ import { Wand2 } from 'lucide-react';
 interface CustomizationPanelProps {
   room: Room;
   housePlan: HousePlan;
+  initialPrompt: string;
   onGenerate: (prompt: string, category: string) => void;
 }
 
-const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, onGenerate }) => {
+const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -33,7 +34,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       .filter(Boolean)
       .join(', ');
 
-    const prompt = `Photorealistic 3D rendering of a ${housePlan.style} ${room.name.toLowerCase()}, ${detailDescriptions}. High-end architectural visualization, detailed, cinematic lighting.`;
+    const prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} for a ${housePlan.style} house. The overall design should be consistent with this main description: "${initialPrompt}". For this specific room, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and cinematic lighting.`;
     onGenerate(prompt, room.name);
   };
 

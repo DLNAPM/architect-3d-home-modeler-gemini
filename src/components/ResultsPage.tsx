@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { HousePlan, Rendering, Room } from '@/types';
-import CustomizationPanel from '@/components/CustomizationPanel';
-import ImageCard from '@/components/ImageCard';
+import CustomizationPanel from './CustomizationPanel';
+import ImageCard from './ImageCard';
 import { LayoutGrid, Trash2, Heart, Star, Download, Send, Play, X } from 'lucide-react';
 
 interface ResultsPageProps {
   housePlan: HousePlan;
   renderings: Rendering[];
+  initialPrompt: string;
   onNewRendering: (prompt: string, category: string) => void;
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewRendering, onUpdateRendering, onDeleteRenderings }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, initialPrompt, onNewRendering, onUpdateRendering, onDeleteRenderings }) => {
   const [selectedRoom, setSelectedRoom] = useState<Room>(housePlan.rooms[0]);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
@@ -42,6 +43,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
   }
 
   const prevSlide = () => {
+    // FIX: Corrected typo from `favorings.length` to `favoritedRenderings.length`
     setCurrentSlide((prev) => (prev - 1 + favoritedRenderings.length) % favoritedRenderings.length);
   }
 
@@ -118,6 +120,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
                 key={selectedRoom.name}
                 room={selectedRoom}
                 housePlan={housePlan}
+                initialPrompt={initialPrompt}
                 onGenerate={onNewRendering}
               />
             </div>
