@@ -55,19 +55,7 @@ function App() {
         favorited: false
       };
 
-      setLoadingMessage('Rendering back exterior...');
-      const backExteriorPrompt = `Photorealistic 3D rendering of the back exterior of a ${plan.style} house, complementing the front design. ${description}`;
-      const backImageUrl = await generateImage(backExteriorPrompt);
-      const backRendering: Rendering = {
-        id: crypto.randomUUID(),
-        category: 'Back Exterior',
-        imageUrl: backImageUrl,
-        prompt: backExteriorPrompt,
-        liked: false,
-        favorited: false
-      };
-
-      setRenderings([frontRendering, backRendering]);
+      setRenderings([frontRendering]);
       setView(AppView.Results);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');

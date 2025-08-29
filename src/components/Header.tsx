@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Home, Moon, Sun, PlusSquare, Search } from 'lucide-react';
 
-// FIX: Add searchQuery and onSearchChange to HeaderProps to enable search functionality.
+// FIX: Add searchQuery and onSearchChange to HeaderProps to enable search functionality and resolve prop type errors.
 interface HeaderProps {
     onNewDesign: () => void;
     searchQuery: string;

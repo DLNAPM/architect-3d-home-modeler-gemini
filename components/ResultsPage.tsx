@@ -28,6 +28,19 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, initia
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const { exteriorRooms, interiorRooms } = useMemo(() => {
+    const exteriors: Room[] = [];
+    const interiors: Room[] = [];
+    housePlan.rooms.forEach(room => {
+      if (room.name.toLowerCase().includes('exterior')) {
+        exteriors.push(room);
+      } else {
+        interiors.push(room);
+      }
+    });
+    return { exteriorRooms: exteriors, interiorRooms: interiors };
+  }, [housePlan.rooms]);
+
   const favoritedRenderings = useMemo(() => renderings.filter(r => r.favorited), [renderings]);
 
   const handleSelectToggle = (id: string) => {
@@ -92,9 +105,27 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, initia
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Column 1: Room List */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md h-fit sticky top-24">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-brand-500"/> Rooms</h3>
+          <h3 className="font-bold text-lg mb-2">Exterior</h3>
+          <ul className="mb-4">
+            {exteriorRooms.map(room => (
+              <li key={room.name}>
+                <button
+                  onClick={() => setSelectedRoom(room)}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedRoom.name === room.name
+                      ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {room.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+          
+          <h3 className="font-bold text-lg mb-2 flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-700"><LayoutGrid className="h-5 w-5 text-brand-500"/> Rooms</h3>
           <ul>
-            {housePlan.rooms.map(room => (
+            {interiorRooms.map(room => (
               <li key={room.name}>
                 <button
                   onClick={() => setSelectedRoom(room)}

@@ -153,7 +153,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
   - Adhere strictly to the provided JSON schema.
   - The 'style' should be a concise architectural term.
   - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user (e.g., 'Game Room', 'Wine Cellar', 'Home Gym').
-  - If the description is vague, make reasonable assumptions based on a typical home. For example, always include a Living Room, Kitchen, Primary Bedroom, and Primary Bathroom.`;
+  - If the description is vague, make reasonable assumptions for a typical home. Always include 'Front Exterior', 'Back Exterior', 'Living Room', 'Kitchen', 'Primary Bedroom', and 'Primary Bathroom' unless the user specifies otherwise.`;
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -185,6 +185,17 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
     });
 
     const fullRooms = await Promise.all(roomPromises);
+
+    // Sort to have 'Exterior' rooms first for a predictable UI layout
+    fullRooms.sort((a, b) => {
+        const aIsExterior = a.name.toLowerCase().includes('exterior');
+        const bIsExterior = b.name.toLowerCase().includes('exterior');
+        if (aIsExterior && !bIsExterior) return -1;
+        if (!aIsExterior && bIsExterior) return 1;
+        if (a.name === 'Front Exterior' && b.name === 'Back Exterior') return -1;
+        if (a.name === 'Back Exterior' && b.name === 'Front Exterior') return 1;
+        return a.name.localeCompare(b.name);
+    });
 
     const plan: HousePlan = {
       title: parsedJson.title,

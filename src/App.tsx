@@ -80,7 +80,6 @@ function App() {
 
     try {
       const planData = await generateHousePlanFromDescription(description, imageBase64);
-      // FIX: Add id and createdAt properties to the new HousePlan object.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
@@ -219,20 +218,17 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      {/* FIX: Pass searchQuery and onSearchChange props to Header. */}
       <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
         {view === AppView.Home && <HomePage 
             onGenerate={handleGenerationRequest} 
             error={error} 
-            // FIX: Pass designs, onSelectDesign, and onDeleteDesign props to HomePage.
             designs={filteredDesigns}
             onSelectDesign={handleSelectDesign}
             onDeleteDesign={handleDeleteDesign}
         />}
         {view === AppView.Results && currentDesign && (
-          // FIX: Pass a single `design` object to ResultsPage.
           <ResultsPage
             key={currentDesign.housePlan.id}
             design={currentDesign}

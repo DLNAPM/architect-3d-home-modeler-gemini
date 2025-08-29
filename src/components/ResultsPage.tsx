@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Import SavedDesign type to be used in component props.
+// FIX: Import SavedDesign type to be used in component props, resolving a module export error.
 import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle } from 'lucide-react';
 
-// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management.
+// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
@@ -25,6 +25,19 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  const { exteriorRooms, interiorRooms } = useMemo(() => {
+    const exteriors: Room[] = [];
+    const interiors: Room[] = [];
+    housePlan.rooms.forEach(room => {
+      if (room.name.toLowerCase().includes('exterior')) {
+        exteriors.push(room);
+      } else {
+        interiors.push(room);
+      }
+    });
+    return { exteriorRooms: exteriors, interiorRooms: interiors };
+  }, [housePlan.rooms]);
 
   const favoritedRenderings = useMemo(() => renderings.filter(r => r.favorited), [renderings]);
 
@@ -89,9 +102,27 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Column 1: Room List */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md h-fit sticky top-24">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-brand-500"/> Rooms</h3>
+          <h3 className="font-bold text-lg mb-2">Exterior</h3>
+          <ul className="mb-4">
+            {exteriorRooms.map(room => (
+              <li key={room.name}>
+                <button
+                  onClick={() => setSelectedRoom(room)}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedRoom.name === room.name
+                      ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {room.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+          
+          <h3 className="font-bold text-lg mb-2 flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-700"><LayoutGrid className="h-5 w-5 text-brand-500"/> Rooms</h3>
           <ul>
-            {housePlan.rooms.map(room => (
+            {interiorRooms.map(room => (
               <li key={room.name}>
                 <button
                   onClick={() => setSelectedRoom(room)}

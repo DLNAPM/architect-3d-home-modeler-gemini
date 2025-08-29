@@ -46,7 +46,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
   - Adhere strictly to the provided JSON schema.
   - The 'style' should be a concise architectural term.
   - The 'rooms' array must only contain valid room names from this list: ${ROOM_CATEGORIES.map(r => `"${r.name}"`).join(', ')}.
-  - If the description is vague, make reasonable assumptions based on a typical home. For example, always include a Living Room, Kitchen, Primary Bedroom, and Primary Bathroom.
+  - If the description is vague, make reasonable assumptions for a typical home. Always include 'Front Exterior', 'Back Exterior', 'Living Room', 'Kitchen', 'Primary Bedroom', and 'Primary Bathroom' unless the user specifies otherwise.
   - Do not add rooms not mentioned or implied. If a basement is mentioned, you can include relevant basement rooms.`;
 
   try {
@@ -66,6 +66,17 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
     const fullRooms: Room[] = parsedJson.rooms
       .map((roomName: string) => ROOM_CATEGORIES.find(r => r.name === roomName))
       .filter((room: Room | undefined): room is Room => room !== undefined);
+
+    // Sort to have 'Exterior' rooms first for a predictable UI layout
+    fullRooms.sort((a, b) => {
+        const aIsExterior = a.name.toLowerCase().includes('exterior');
+        const bIsExterior = b.name.toLowerCase().includes('exterior');
+        if (aIsExterior && !bIsExterior) return -1;
+        if (!aIsExterior && bIsExterior) return 1;
+        if (a.name === 'Front Exterior' && b.name === 'Back Exterior') return -1;
+        if (a.name === 'Back Exterior' && b.name === 'Front Exterior') return 1;
+        return a.name.localeCompare(b.name);
+    });
 
     const plan: HousePlan = {
       title: parsedJson.title,
