@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Import SavedDesign type to be used in component props, resolving a module export error.
+// Import SavedDesign type to be used in component props, resolving a module export error.
 import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle } from 'lucide-react';
 
-// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
+// Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;

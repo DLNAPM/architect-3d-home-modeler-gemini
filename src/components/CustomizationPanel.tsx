@@ -17,23 +17,70 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   useEffect(() => {
     const initialSelections: Record<string, string> = {};
     if (room && room.options) {
-        Object.entries(room.options).forEach(([key, value]) => {
-          initialSelections[key] = value.options[0];
-        });
+      // Always initialize the primary options (e.g., 'Primary Use')
+      Object.entries(room.options).forEach(([key, value]) => {
+        initialSelections[key] = value.options[0];
+      });
+
+      // If it's a room with sub-options, initialize the first set of sub-options
+      if (room.subOptionKey && room.subOptions) {
+        const defaultSubOptionKey = initialSelections[room.subOptionKey];
+        const subOptions = room.subOptions[defaultSubOptionKey];
+        if (subOptions) {
+          Object.entries(subOptions).forEach(([key, value]) => {
+            initialSelections[key] = value.options[0];
+          });
+        }
+      }
     }
     setSelections(initialSelections);
   }, [room]);
 
   const handleSelectionChange = (optionKey: string, value: string) => {
-    setSelections(prev => ({ ...prev, [optionKey]: value }));
+    setSelections(prevSelections => {
+        const newSelections = { ...prevSelections, [optionKey]: value };
+
+        if (room.subOptionKey && optionKey === room.subOptionKey && room.subOptions) {
+            // A new Primary Use was selected, so we need to reset the sub-options.
+            const subOptionsForNewValue = room.subOptions[value];
+            
+            // First, remove all keys that belong to any of the possible sub-option sets.
+            Object.values(room.subOptions).forEach(optionSet => {
+                Object.keys(optionSet).forEach(key => {
+                    delete newSelections[key];
+                });
+            });
+
+            // Then, add the new sub-options with their default values.
+            if (subOptionsForNewValue) {
+                Object.entries(subOptionsForNewValue).forEach(([subKey, subValue]) => {
+                    newSelections[subKey] = subValue.options[0];
+                });
+            }
+        }
+        return newSelections;
+    });
   };
 
   const handleGenerate = () => {
+    let allPossibleOptions = { ...room.options };
+    if (room.subOptionKey && room.subOptions && selections[room.subOptionKey]) {
+        const selectedSubOptions = room.subOptions[selections[room.subOptionKey]];
+        if (selectedSubOptions) {
+            allPossibleOptions = { ...allPossibleOptions, ...selectedSubOptions };
+        }
+    }
+
     const detailDescriptions = Object.entries(selections)
       .map(([key, value]) => {
-        if (!room.options[key]) return null;
-        const optionLabel = room.options[key].label.toLowerCase();
+        if (!allPossibleOptions[key]) return null;
+        
+        const optionLabel = allPossibleOptions[key].label.toLowerCase();
         if (value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no ')) return null;
+
+        if (room.subOptionKey && key === room.subOptionKey) {
+            return `designed as a ${value}`;
+        }
         return `with ${optionLabel} of ${value}`;
       })
       .filter(Boolean)
@@ -45,11 +92,18 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     if (isExterior) {
         prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} of a ${housePlan.style} house. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific exterior view, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures, realistic outdoor lighting, and appropriate landscaping.`;
     } else {
-        prompt = `Photorealistic 3D rendering of the INTERIOR of a ${room.name.toLowerCase()} inside a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}", but focus strictly on the room's interior. Create a self-contained image of the ${room.name.toLowerCase()}. Do NOT show exterior elements like driveways, cars, or full yards. Views to the outside should only be visible through windows or doors where appropriate. Incorporate the following specific details for this room: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and realistic interior lighting.`;
+        if (room.name.toLowerCase() === 'basement') {
+            prompt = `Photorealistic 3D rendering of the INTERIOR of a finished Basement in a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}". The basement is specifically ${detailDescriptions}. Create a self-contained image focusing on this concept. Do NOT show exterior elements. Views to the outside should only be through small basement windows (if any). Ensure high-end architectural visualization with detailed textures and realistic interior lighting appropriate for a basement setting.`;
+        } else {
+            prompt = `Photorealistic 3D rendering of the INTERIOR of a ${room.name.toLowerCase()} inside a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}", but focus strictly on the room's interior. Create a self-contained image of the ${room.name.toLowerCase()}. Do NOT show exterior elements like driveways, cars, or full yards. Views to the outside should only be visible through windows or doors where appropriate. Incorporate the following specific details for this room: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and realistic interior lighting.`;
+        }
     }
     
     onGenerate(prompt, room.name);
   };
+
+  const selectedSubOptionKey = (room.subOptionKey && selections[room.subOptionKey]) || null;
+  const subOptionsToRender = (selectedSubOptionKey && room.subOptions && room.subOptions[selectedSubOptionKey]) || null;
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -73,6 +127,30 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
             </select>
           </div>
         ))}
+        
+        {subOptionsToRender && (
+            <>
+                <hr className="border-gray-200 dark:border-gray-600 my-4" />
+                {Object.entries(subOptionsToRender).map(([key, option]) => (
+                <div key={key}>
+                    <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {option.label}
+                    </label>
+                    <select
+                    id={key}
+                    name={key}
+                    value={selections[key] || ''}
+                    onChange={(e) => handleSelectionChange(key, e.target.value)}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+                    >
+                    {option.options.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                    </select>
+                </div>
+                ))}
+            </>
+        )}
       </div>
       <button
         onClick={handleGenerate}

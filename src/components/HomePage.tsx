@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
-// FIX: Import SavedDesign type to be used in component props.
+// Import SavedDesign type to be used in component props.
 import { SavedDesign } from '@/types';
 
-// FIX: Update HomePageProps to accept saved designs for display and handling, resolving prop type errors.
+// Update HomePageProps to accept saved designs for display and handling, resolving prop type errors.
 interface HomePageProps {
   onGenerate: (description: string, imageFile: File | null) => void;
   error: string | null;

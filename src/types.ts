@@ -15,9 +15,12 @@ export interface CustomizationOption {
 export interface Room {
   name: string;
   options: Record<string, CustomizationOption>;
+  // Add subOptionKey and subOptions to support rooms with conditional customization, like the Basement.
+  subOptionKey?: string;
+  subOptions?: Record<string, Record<string, CustomizationOption>>;
 }
 
-// FIX: Add id and createdAt to HousePlan to uniquely identify and sort designs, resolving type errors.
+// Add id and createdAt to HousePlan to uniquely identify and sort designs, resolving type errors.
 export interface HousePlan {
   id: string;
   createdAt: number;
@@ -26,7 +29,7 @@ export interface HousePlan {
   rooms: Room[];
 }
 
-// FIX: Add SavedDesign interface to bundle all parts of a design together, resolving missing export errors.
+// Add SavedDesign interface to bundle all parts of a design together, resolving missing export errors.
 export interface SavedDesign {
   housePlan: HousePlan;
   renderings: Rendering[];

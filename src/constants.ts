@@ -71,4 +71,46 @@ export const ROOM_CATEGORIES: Room[] = [
       storage: { label: 'Storage', options: ['Built-in Bookshelves', 'Filing Cabinets', 'Floating Shelves', 'Credenza', 'Modular Storage Cubes'] },
     }
   },
+  {
+    name: 'Basement',
+    subOptionKey: 'primaryUse',
+    options: {
+      primaryUse: {
+        label: 'Primary Use',
+        options: ['Home Theater', 'Home Gym', 'Game Room', 'Guest Suite', 'Unfinished Storage'],
+      },
+    },
+    subOptions: {
+      'Home Theater': {
+        screenType: { label: 'Screen Type', options: ['120-inch Projector Screen', '85-inch OLED TV', 'Micro-LED Wall', 'Acoustically Transparent Screen', 'Retractable Screen'] },
+        seatingStyle: { label: 'Seating Style', options: ['Plush Leather Recliners', 'Comfortable Sectional Sofa', 'Stadium Seating Platforms', 'Themed Cinema Chairs', 'Casual Bean Bags'] },
+        soundSystem: { label: 'Sound System', options: ['Dolby Atmos Surround Sound', 'Hidden In-wall Speakers', 'High-end Tower Speakers', 'Soundbar with Subwoofer', 'Vintage Hi-Fi System'] },
+        lighting: { label: 'Lighting', options: ['Dimmable Sconces', 'Starlight Ceiling Effect', 'LED Strip Accent Lighting', 'Automated Lighting Scenes', 'Floor-level Pathway Lights'] },
+      },
+      'Home Gym': {
+        flooring: { label: 'Flooring', options: ['Rubber Gym Flooring', 'Interlocking Foam Tiles', 'Luxury Vinyl Plank', 'Artificial Turf Strip', 'Cork Flooring'] },
+        cardio: { label: 'Cardio Equipment', options: ['Treadmill', 'Peloton Bike', 'Rowing Machine', 'Elliptical Trainer', 'Stair Climber'] },
+        strength: { label: 'Strength Training', options: ['Free Weight Power Rack', 'Cable Crossover Machine', 'Dumbbell Set with Bench', 'Tonal Smart Gym', 'Kettlebell Collection'] },
+        featureWall: { label: 'Feature Wall', options: ['Floor-to-ceiling Mirrors', 'Exposed Brick', 'Pegboard for Accessories', 'Inspirational Mural', 'Slat Wall System'] },
+      },
+      'Game Room': {
+        mainAttraction: { label: 'Main Attraction', options: ['Pool Table', 'Vintage Arcade Machines', 'Skeeball Machine', 'Poker Table', 'VR Gaming Station'] },
+        flooring: { label: 'Flooring', options: ['Low-pile Patterned Carpet', 'Stained Concrete', 'Checkerboard Tile', 'Durable Laminate', 'Hardwood with Area Rugs'] },
+        seating: { label: 'Seating', options: ['Bar with Stools', 'Comfortable Couch', 'Gaming Chairs', 'Pub-style Booth', 'Modular Sectional'] },
+        lighting: { label: 'Lighting', options: ['Neon Signs', 'Pendant Lights over Table', 'Track Lighting', 'Dimmable Recessed Lights', 'Colorful LED Strips'] },
+      },
+      'Guest Suite': {
+        bedStyle: { label: 'Bed Style', options: ['Murphy Bed', 'Daybed with Trundle', 'Queen Size Platform Bed', 'Sleeper Sofa', 'Bunk Beds'] },
+        flooring: { label: 'Flooring', options: ['Plush Carpeting', 'Engineered Hardwood', 'Laminate Flooring', 'Area Rug over Tile', 'Cozy Wool Carpet'] },
+        bathroom: { label: 'Bathroom', options: ['No Bathroom', 'Full Ensuite with Shower', 'Half-bath (Powder Room)', 'Wet Bar with Sink', 'Small 3/4 Bath'] },
+        kitchenette: { label: 'Kitchenette', options: ['None', 'Wet Bar with Mini-fridge', 'Small Kitchenette with Microwave', 'Full Kitchenette with Cooktop', 'Coffee Bar Station'] },
+      },
+      'Unfinished Storage': {
+        shelving: { label: 'Shelving', options: ['Heavy-duty Metal Shelving', 'Built-in Wooden Shelves', 'Ceiling-mounted Racks', 'Modular Cube Storage', 'Industrial Pipe Shelving'] },
+        flooring: { label: 'Flooring', options: ['Sealed Concrete', 'Painted Concrete', 'Interlocking Rubber Mats', 'Raised Subfloor Panels', 'No special treatment'] },
+        lighting: { label: 'Lighting', options: ['Bare Bulb Fixtures', 'LED Shop Lights', 'Motion-activated Lights', 'Track Lighting', 'Natural Light from Window Wells'] },
+        wallFinish: { label: 'Wall Finish', options: ['Unfinished Concrete', 'Painted Concrete Blocks', 'Framed with Insulation Visible', 'Basic Drywall (Unpainted)', 'Pegboard Walls'] },
+      },
+    },
+  },
 ];
