@@ -23,6 +23,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       });
 
       // If it's a room with sub-options, initialize the first set of sub-options
+      // FIX: Check for room.subOptionKey and room.subOptions to handle conditional rendering.
       if (room.subOptionKey && room.subOptions) {
         const defaultSubOptionKey = initialSelections[room.subOptionKey];
         const subOptions = room.subOptions[defaultSubOptionKey];
@@ -40,6 +41,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     setSelections(prevSelections => {
         const newSelections = { ...prevSelections, [optionKey]: value };
 
+        // FIX: Add logic to reset sub-options when the primary controlling option changes.
         if (room.subOptionKey && optionKey === room.subOptionKey && room.subOptions) {
             // A new Primary Use was selected, so we need to reset the sub-options.
             const subOptionsForNewValue = room.subOptions[value];
@@ -73,6 +75,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
 
     const detailDescriptions = Object.entries(selections)
       .map(([key, value]) => {
+        // FIX: Safely access label from the combined options object.
         if (!allPossibleOptions[key]) return null;
         
         const optionLabel = allPossibleOptions[key].label.toLowerCase();

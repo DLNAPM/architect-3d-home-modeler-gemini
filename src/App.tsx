@@ -80,6 +80,7 @@ function App() {
 
     try {
       const planData = await generateHousePlanFromDescription(description, imageBase64);
+      // FIX: Add id and createdAt to the new HousePlan object to match the updated type definition.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
@@ -134,6 +135,7 @@ function App() {
       };
       
       const updatedDesigns = savedDesigns.map(design => 
+        // FIX: Check housePlan.id to correctly identify the current design.
         design.housePlan.id === currentDesignId
           ? { ...design, renderings: [...design.renderings, newRendering] }
           : design
@@ -218,17 +220,20 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+      {/* FIX: Pass required props searchQuery and onSearchChange to Header. */}
       <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
         {view === AppView.Home && <HomePage 
             onGenerate={handleGenerationRequest} 
             error={error} 
+            // FIX: Pass required props designs, onSelectDesign, and onDeleteDesign to HomePage.
             designs={filteredDesigns}
             onSelectDesign={handleSelectDesign}
             onDeleteDesign={handleDeleteDesign}
         />}
         {view === AppView.Results && currentDesign && (
+          // FIX: Pass the entire currentDesign object as the 'design' prop to ResultsPage.
           <ResultsPage
             key={currentDesign.housePlan.id}
             design={currentDesign}

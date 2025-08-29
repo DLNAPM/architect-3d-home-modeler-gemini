@@ -86,6 +86,7 @@ export const ROOM_CATEGORIES: Room[] = [
         seatingStyle: { label: 'Seating Style', options: ['Plush Leather Recliners', 'Comfortable Sectional Sofa', 'Stadium Seating Platforms', 'Themed Cinema Chairs', 'Casual Bean Bags'] },
         soundSystem: { label: 'Sound System', options: ['Dolby Atmos Surround Sound', 'Hidden In-wall Speakers', 'High-end Tower Speakers', 'Soundbar with Subwoofer', 'Vintage Hi-Fi System'] },
         lighting: { label: 'Lighting', options: ['Dimmable Sconces', 'Starlight Ceiling Effect', 'LED Strip Accent Lighting', 'Automated Lighting Scenes', 'Floor-level Pathway Lights'] },
+        wallScreenDisplay: { label: 'Wall & Screen Display', options: ['None', 'Horror Cinema Scenes', 'Cartoon Cinema Scenes', 'Superhero Cinema Scenes', 'Action Cinema Scenes', 'Comedy Cinema Scenes', 'Sports Cinema Scenes'] },
       },
       'Home Gym': {
         flooring: { label: 'Flooring', options: ['Rubber Gym Flooring', 'Interlocking Foam Tiles', 'Luxury Vinyl Plank', 'Artificial Turf Strip', 'Cork Flooring'] },
