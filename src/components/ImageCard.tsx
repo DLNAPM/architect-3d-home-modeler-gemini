@@ -1,15 +1,16 @@
 import React from 'react';
 import { Rendering } from '@/types';
-import { Heart, Star, Download, Send, CheckSquare, Square } from 'lucide-react';
+import { Heart, Star, Download, Send, CheckSquare, Square, ZoomIn } from 'lucide-react';
 
 interface ImageCardProps {
   rendering: Rendering;
   onUpdate: (id: string, updates: Partial<Rendering>) => void;
   isSelected: boolean;
   onSelectToggle: (id: string) => void;
+  onEnlarge: (imageUrl: string) => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ rendering, onUpdate, isSelected, onSelectToggle }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ rendering, onUpdate, isSelected, onSelectToggle, onEnlarge }) => {
   const { id, category, imageUrl, liked, favorited } = rendering;
 
   const handleLike = () => onUpdate(id, { liked: !liked });
@@ -42,7 +43,18 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onUpdate, isSelected, 
     <div className={`group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 ${isSelected ? 'border-brand-500' : 'border-transparent'}`}>
       <img src={imageUrl} alt={`Rendering of ${category}`} className="w-full h-64 object-cover" />
       
-      <div className="absolute top-2 right-2 flex flex-col gap-2">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onEnlarge(imageUrl)}
+        onKeyDown={(e) => e.key === 'Enter' && onEnlarge(imageUrl)}
+        className="absolute top-0 left-0 w-full h-64 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center cursor-pointer transition-all duration-300"
+        aria-label={`Enlarge rendering of ${category}`}
+      >
+        <ZoomIn className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </div>
+
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
          <button onClick={() => onSelectToggle(id)} className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-opacity">
             {isSelected ? <CheckSquare className="h-5 w-5 text-brand-400"/> : <Square className="h-5 w-5"/>}
         </button>

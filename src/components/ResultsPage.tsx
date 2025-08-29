@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-// Import SavedDesign type to be used in component props, resolving a module export error.
+// FIX: Import SavedDesign type to be used in component props, resolving a module export error.
 import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle } from 'lucide-react';
 
-// Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
+// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
@@ -25,6 +25,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
 
   const { exteriorRooms, interiorRooms } = useMemo(() => {
     const exteriors: Room[] = [];
@@ -76,6 +77,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const handleGenerateVideoClick = () => {
     const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
     onGenerateVideoTour(prompt);
+  };
+
+  const handleEnlarge = (imageUrl: string) => {
+    setEnlargedImageUrl(imageUrl);
+  };
+
+  const handleCloseEnlarged = () => {
+    setEnlargedImageUrl(null);
   };
 
   return (
@@ -179,6 +188,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
                 onUpdate={onUpdateRendering}
                 isSelected={selectedRenderings.includes(rendering.id)}
                 onSelectToggle={handleSelectToggle}
+                onEnlarge={handleEnlarge}
               />
             ))}
           </div>
@@ -200,7 +210,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       </div>
       
       {slideshowActive && (
-         <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center" onClick={closeSlideshow}>
+         <div className="fixed inset-0 bg-black bg-opacity-80 z-[60] flex items-center justify-center" onClick={closeSlideshow}>
             <div className="relative w-full h-full max-w-6xl max-h-5xl p-4" onClick={e => e.stopPropagation()}>
                 <img src={favoritedRenderings[currentSlide].imageUrl} alt="Slideshow image" className="object-contain w-full h-full"/>
                 <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/50 p-2 rounded-full hover:bg-black/80">‹</button>
@@ -211,13 +221,28 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       )}
 
       {videoUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-[60] flex items-center justify-center" onClick={onCloseVideo}>
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-[70] flex items-center justify-center" onClick={onCloseVideo}>
             <div className="relative w-full max-w-4xl bg-gray-900 rounded-lg shadow-2xl" onClick={e => e.stopPropagation()}>
                 <video src={videoUrl} controls autoPlay className="w-full rounded-lg aspect-video" />
                 <button onClick={onCloseVideo} className="absolute -top-3 -right-3 text-white bg-gray-700 p-2 rounded-full hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-white">
                     <X className="h-5 w-5"/>
                 </button>
             </div>
+        </div>
+      )}
+
+      {enlargedImageUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-[80] flex items-center justify-center" onClick={handleCloseEnlarged}>
+          <div className="relative w-full h-full max-w-7xl max-h-[90vh] p-4" onClick={e => e.stopPropagation()}>
+            <img src={enlargedImageUrl} alt="Enlarged rendering" className="object-contain w-full h-full"/>
+            <button 
+              onClick={handleCloseEnlarged} 
+              className="absolute top-4 right-4 text-white bg-black/50 p-2 rounded-full hover:bg-black/80"
+              aria-label="Close enlarged view"
+            >
+              <X className="h-6 w-6"/>
+            </button>
+          </div>
         </div>
       )}
     </div>

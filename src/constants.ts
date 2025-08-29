@@ -73,6 +73,7 @@ export const ROOM_CATEGORIES: Room[] = [
   },
   {
     name: 'Basement',
+    // FIX: Added 'subOptionKey' to link the primary dropdown to its conditional sub-options. This resolves a type error now that 'Room' supports this property.
     subOptionKey: 'primaryUse',
     options: {
       primaryUse: {
