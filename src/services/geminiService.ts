@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { HousePlan, Room, CustomizationOption } from "@/types";
 import { ROOM_CATEGORIES } from "@/constants";
@@ -61,35 +60,27 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video') => {
     console.error(`Error generating ${context}:`, error);
 
     let errorMessage = `An unexpected error occurred while generating the ${context}.`;
-    let errorToParse: string | undefined;
-
-    if (typeof error === 'string') {
-        errorToParse = error;
-    } else if (error instanceof Error) {
-        errorToParse = error.message;
-    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
-        errorToParse = error.message;
+    
+    // Extract message from various error formats
+    if (typeof error === 'object' && error !== null && error.message) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
     }
 
-    if (errorToParse) {
-        try {
-            const parsedError = JSON.parse(errorToParse);
-            if (parsedError?.error?.message) {
-                if (parsedError.error.status === "RESOURCE_EXHAUSTED") {
-                     errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
-                } else {
-                    errorMessage = `${context.charAt(0).toUpperCase() + context.slice(1)} generation failed: ${parsedError.error.message}`;
-                }
-            } else {
-                errorMessage = errorToParse;
-            }
-        } catch (parseError) {
-            if (errorToParse.includes("quota") || errorToParse.includes("RESOURCE_EXHAUSTED")) {
-                errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
-            } else {
-                errorMessage = errorToParse;
-            }
-        }
+    const contextTitle = context.charAt(0).toUpperCase() + context.slice(1);
+
+    // Improve messages for common, known issues
+    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
+        errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
+    } else if (errorMessage.includes('safety policies')) {
+        errorMessage = `The request was blocked due to safety policies. Please revise your prompt.`;
+    } else if (errorMessage.includes('Error translating server response to JSON')) {
+        // This is the specific error reported by the user.
+        errorMessage = `The AI service returned an unexpected response for your ${context} request. This may be a temporary issue. Please try again later.`;
+    } else {
+        // For other errors, just prepend the context for clarity.
+        errorMessage = `${contextTitle} generation failed: ${errorMessage}`;
     }
     
     throw new Error(errorMessage);
@@ -232,7 +223,7 @@ export async function generateImage(prompt: string): Promise<string> {
     }
   } catch(error) {
     parseAndThrowApiError(error, 'image');
-    throw new Error("Unreachable code");
+    throw new Error("Unreachable code"); // This line is for TypeScript's benefit, as parseAndThrowApiError always throws.
   }
 }
 
@@ -272,6 +263,6 @@ export async function generateVideo(prompt: string): Promise<string> {
     
   } catch (error) {
     parseAndThrowApiError(error, 'video');
-    throw new Error("Unreachable code");
+    throw new Error("Unreachable code"); // This line is for TypeScript's benefit, as parseAndThrowApiError always throws.
   }
 }

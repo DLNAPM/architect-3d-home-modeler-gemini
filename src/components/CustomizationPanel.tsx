@@ -65,7 +65,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   };
 
   const handleGenerate = () => {
-    let allPossibleOptions = { ...room.options };
+    let allPossibleOptions: Record<string, any> = { ...room.options };
     if (room.subOptionKey && room.subOptions && selections[room.subOptionKey]) {
         const selectedSubOptions = room.subOptions[selections[room.subOptionKey]];
         if (selectedSubOptions) {
