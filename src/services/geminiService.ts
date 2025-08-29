@@ -57,6 +57,45 @@ const roomOptionsSchema = {
     required: ["customizationCategories"]
 };
 
+const parseAndThrowApiError = (error: any, context: 'image' | 'video') => {
+    console.error(`Error generating ${context}:`, error);
+
+    let errorMessage = `An unexpected error occurred while generating the ${context}.`;
+    let errorToParse: string | undefined;
+
+    if (typeof error === 'string') {
+        errorToParse = error;
+    } else if (error instanceof Error) {
+        errorToParse = error.message;
+    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+        errorToParse = error.message;
+    }
+
+    if (errorToParse) {
+        try {
+            const parsedError = JSON.parse(errorToParse);
+            if (parsedError?.error?.message) {
+                if (parsedError.error.status === "RESOURCE_EXHAUSTED") {
+                     errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
+                } else {
+                    errorMessage = `${context.charAt(0).toUpperCase() + context.slice(1)} generation failed: ${parsedError.error.message}`;
+                }
+            } else {
+                errorMessage = errorToParse;
+            }
+        } catch (parseError) {
+            if (errorToParse.includes("quota") || errorToParse.includes("RESOURCE_EXHAUSTED")) {
+                errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
+            } else {
+                errorMessage = errorToParse;
+            }
+        }
+    }
+    
+    throw new Error(errorMessage);
+};
+
+
 export async function generateRoomOptions(roomName: string): Promise<Record<string, CustomizationOption>> {
   const prompt = `You are an interior designer. Generate 5 distinct and relevant customization categories for designing a "${roomName}". For each category, provide a camelCase key, a display label, and 5 creative options. The options should be specific and inspiring.`;
 
@@ -91,7 +130,6 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 
   } catch (error) {
     console.error(`Error generating options for ${roomName}:`, error);
-    // Return a default empty object on failure to not crash the app
     return {};
   }
 }
@@ -130,7 +168,6 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
 
     const parsedJson = JSON.parse(response.text);
     
-    // Deduplicate room names and then process them
     const roomNames: string[] = Array.from(new Set(parsedJson.rooms as string[]));
     
     const roomPromises = roomNames.map(async (roomName: string): Promise<Room> => {
@@ -152,7 +189,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
     const plan: HousePlan = {
       title: parsedJson.title,
       style: parsedJson.style,
-      rooms: fullRooms.filter(room => Object.keys(room.options).length > 0), // Filter out rooms that failed to get options
+      rooms: fullRooms.filter(room => Object.keys(room.options).length > 0), 
     };
     
     return plan;
@@ -183,26 +220,8 @@ export async function generateImage(prompt: string): Promise<string> {
       throw new Error("Image generation completed, but no image was returned. This may be due to safety filters.");
     }
   } catch(error) {
-    console.error("Error generating image:", error);
-    if (error instanceof Error) {
-        // Handle specific quota error with a friendly message
-        if (error.message.includes("quota") || error.message.includes("RESOURCE_EXHAUSTED")) {
-             throw new Error("You have exceeded your API quota for image generation. Please check your plan and billing details.");
-        }
-        
-        // Attempt to parse the error message for a cleaner message from the API
-        try {
-            const parsedError = JSON.parse(error.message);
-            if (parsedError?.error?.message) {
-                throw new Error(`Image generation failed: ${parsedError.error.message}`);
-            }
-        } catch (parseError) {
-            // It's not a JSON string, fall through and throw the original message
-        }
-
-        throw new Error(error.message);
-    }
-    throw new Error("An unexpected error occurred while generating the image.");
+    parseAndThrowApiError(error, 'image');
+    throw new Error("Unreachable code");
   }
 }
 
@@ -216,27 +235,21 @@ export async function generateVideo(prompt: string): Promise<string> {
       }
     });
 
-    // Poll for the result.
     while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 20000)); // Polling interval set to 20 seconds.
+      await new Promise(resolve => setTimeout(resolve, 20000));
       operation = await ai.operations.getVideosOperation({operation: operation});
     }
 
-    // Check for errors after the operation is done.
     if (operation.error) {
         const errorMessage = operation.error.message || "An unknown error occurred during video generation.";
         throw new Error(`Video generation failed: ${errorMessage}`);
     }
 
-    // Check for the response and download link.
     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
     if (!downloadLink) {
-      // This case handles when the operation is successful but provides no video URI,
-      // which could be due to safety filtering not reported as an error.
       throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
     }
     
-    // Download the video.
     const response = await fetch(`${downloadLink}&key=${API_KEY}`);
      if (!response.ok) {
         throw new Error(`Failed to download video file: ${response.statusText}`);
@@ -247,15 +260,7 @@ export async function generateVideo(prompt: string): Promise<string> {
     return videoUrl;
     
   } catch (error) {
-    console.error("Error in generateVideo function:", error);
-    // Re-throw a clean, user-facing error. If it's already a clear message, pass it on.
-    if (error instanceof Error) {
-        // The error from the API might be a JSON string, but we will pass the whole message for clarity.
-        if (error.message.includes("quota")) {
-             throw new Error("You have exceeded your API quota. Please check your plan and billing details.");
-        }
-        throw new Error(error.message);
-    }
-    throw new Error("An unexpected error occurred while generating the video tour.");
+    parseAndThrowApiError(error, 'video');
+    throw new Error("Unreachable code");
   }
 }

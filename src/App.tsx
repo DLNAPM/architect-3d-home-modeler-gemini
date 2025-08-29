@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign } from '@/types';
 import HomePage from '@/components/HomePage';
@@ -77,8 +78,6 @@ function App() {
         setLoadingMessage('Designing your dream home structure...');
     }
 
-    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
     try {
       const planData = await generateHousePlanFromDescription(description, imageBase64);
       const newHousePlan: HousePlan = {
@@ -99,23 +98,9 @@ function App() {
         favorited: false
       };
 
-      await wait(5000);
-
-      setLoadingMessage('Rendering back exterior...');
-      const backExteriorPrompt = `Photorealistic 3D rendering of the back exterior of a ${newHousePlan.style} house. This image should focus on the backyard, showcasing outdoor living areas and amenities. The overall architectural concept is: "${description}". Ensure any backyard features mentioned, such as swimming pools, decks, or gardens, are prominently featured. This view should complement the front design.`;
-      const backImageUrl = await generateImage(backExteriorPrompt);
-      const backRendering: Rendering = {
-        id: crypto.randomUUID(),
-        category: 'Back Exterior',
-        imageUrl: backImageUrl,
-        prompt: backExteriorPrompt,
-        liked: false,
-        favorited: false
-      };
-
       const newDesign: SavedDesign = {
         housePlan: newHousePlan,
-        renderings: [frontRendering, backRendering],
+        renderings: [frontRendering],
         initialPrompt: description
       };
       
