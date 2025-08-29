@@ -39,7 +39,15 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       .filter(Boolean)
       .join(', ');
 
-    const prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} for a ${housePlan.style} house. The overall design should be consistent with this main description: "${initialPrompt}". For this specific room, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and cinematic lighting.`;
+    const isExterior = room.name.toLowerCase().includes('exterior');
+    let prompt = '';
+
+    if (isExterior) {
+        prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} of a ${housePlan.style} house. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific exterior view, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures, realistic outdoor lighting, and appropriate landscaping.`;
+    } else {
+        prompt = `Photorealistic 3D rendering of the INTERIOR of a ${room.name.toLowerCase()} inside a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}", but focus strictly on the room's interior. Create a self-contained image of the ${room.name.toLowerCase()}. Do NOT show exterior elements like driveways, cars, or full yards. Views to the outside should only be visible through windows or doors where appropriate. Incorporate the following specific details for this room: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and realistic interior lighting.`;
+    }
+    
     onGenerate(prompt, room.name);
   };
 
