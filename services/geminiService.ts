@@ -85,7 +85,8 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
 export async function generateImage(prompt: string): Promise<string> {
   try {
     const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
+        // FIX: Updated deprecated model name per Gemini API guidelines.
+        model: 'imagen-4.0-generate-001',
         prompt: prompt,
         config: {
           numberOfImages: 1,
@@ -103,5 +104,41 @@ export async function generateImage(prompt: string): Promise<string> {
   } catch(error) {
     console.error("Error generating image:", error);
     throw new Error("Failed to generate image.");
+  }
+}
+
+// FIX: Added generateVideo function to resolve missing export error.
+export async function generateVideo(prompt: string): Promise<string> {
+  try {
+    let operation = await ai.models.generateVideos({
+      model: 'veo-2.0-generate-001',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1
+      }
+    });
+
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      operation = await ai.operations.getVideosOperation({operation: operation});
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!downloadLink) {
+      throw new Error("Video generation succeeded but no download link was found.");
+    }
+    
+    const response = await fetch(`${downloadLink}&key=${API_KEY}`);
+     if (!response.ok) {
+        throw new Error(`Failed to download video: ${response.statusText}`);
+    }
+
+    const videoBlob = await response.blob();
+    const videoUrl = URL.createObjectURL(videoBlob);
+    return videoUrl;
+    
+  } catch (error) {
+    console.error("Error generating video:", error);
+    throw new Error("Failed to generate video tour.");
   }
 }

@@ -1,12 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Upload, Sparkles, AlertTriangle } from 'lucide-react';
+import { Mic, Upload, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
+// FIX: Import SavedDesign type to be used in component props.
+import { SavedDesign } from '@/types';
 
+// FIX: Update HomePageProps to accept saved designs for display and handling.
 interface HomePageProps {
   onGenerate: (description: string, imageFile: File | null) => void;
   error: string | null;
+  designs: SavedDesign[];
+  onSelectDesign: (designId: string) => void;
+  onDeleteDesign: (designId: string) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign }) => {
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -121,6 +127,48 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error }) => {
           </button>
         </div>
       </div>
+      
+      <div className="mt-16 w-full max-w-5xl">
+        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Saved Designs</h3>
+        {designs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {designs.map(design => (
+              <div key={design.housePlan.id} className="group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transition-shadow hover:shadow-xl">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteDesign(design.housePlan.id);
+                  }}
+                  className="absolute top-2 right-2 z-10 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  aria-label="Delete design"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <div className="cursor-pointer" onClick={() => onSelectDesign(design.housePlan.id)}>
+                    <img 
+                        src={design.renderings[0]?.imageUrl || 'https://via.placeholder.com/400x225.png?text=No+Preview'} 
+                        alt={design.housePlan.title} 
+                        className="w-full h-40 object-cover bg-gray-200 dark:bg-gray-700"
+                    />
+                    <div className="p-4">
+                        <h4 className="font-bold text-lg truncate" title={design.housePlan.title}>{design.housePlan.title}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{design.housePlan.style}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                            {new Date(design.housePlan.createdAt).toLocaleDateString()}
+                        </p>
+                    </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <p className="text-gray-500 dark:text-gray-400">You haven't created any designs yet.</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">Use the form above to get started!</p>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };

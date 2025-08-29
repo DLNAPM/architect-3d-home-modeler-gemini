@@ -6,17 +6,22 @@ import { Wand2 } from 'lucide-react';
 interface CustomizationPanelProps {
   room: Room;
   housePlan: HousePlan;
+  // FIX: Add initialPrompt to props to generate more context-aware renderings.
+  initialPrompt: string;
   onGenerate: (prompt: string, category: string) => void;
 }
 
-const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, onGenerate }) => {
+const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const initialSelections: Record<string, string> = {};
-    Object.entries(room.options).forEach(([key, value]) => {
-      initialSelections[key] = value.options[0];
-    });
+    // FIX: Add safety check for room and room.options.
+    if (room && room.options) {
+        Object.entries(room.options).forEach(([key, value]) => {
+          initialSelections[key] = value.options[0];
+        });
+    }
     setSelections(initialSelections);
   }, [room]);
 
@@ -27,6 +32,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   const handleGenerate = () => {
     const detailDescriptions = Object.entries(selections)
       .map(([key, value]) => {
+        // FIX: Add safety check for room.options[key].
+        if (!room.options[key]) return null;
         const optionLabel = room.options[key].label.toLowerCase();
         if (value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no ')) return null;
         return `with ${optionLabel} of ${value}`;
@@ -34,7 +41,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       .filter(Boolean)
       .join(', ');
 
-    const prompt = `Photorealistic 3D rendering of a ${housePlan.style} ${room.name.toLowerCase()}, ${detailDescriptions}. High-end architectural visualization, detailed, cinematic lighting.`;
+    // FIX: Update prompt to be more descriptive and use the initial user prompt for context.
+    const prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} for a ${housePlan.style} house. The overall design should be consistent with this main description: "${initialPrompt}". For this specific room, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and cinematic lighting.`;
     onGenerate(prompt, room.name);
   };
 
@@ -42,7 +50,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
       <h3 className="font-bold text-xl mb-4">Customize {room.name}</h3>
       <div className="space-y-4">
-        {Object.entries(room.options).map(([key, option]) => (
+        {/* FIX: Add safety check for room and room.options before mapping. */}
+        {room && room.options && Object.entries(room.options).map(([key, option]) => (
           <div key={key}>
             <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {option.label}

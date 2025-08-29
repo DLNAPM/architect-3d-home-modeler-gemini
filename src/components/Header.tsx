@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search } from 'lucide-react';
 
+// FIX: Add searchQuery and onSearchChange to HeaderProps to enable search functionality.
 interface HeaderProps {
     onNewDesign: () => void;
+    searchQuery: string;
+    onSearchChange: (query: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewDesign }) => {
+const Header: React.FC<HeaderProps> = ({ onNewDesign, searchQuery, onSearchChange }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
@@ -32,6 +35,18 @@ const Header: React.FC<HeaderProps> = ({ onNewDesign }) => {
                     </h1>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4">
+                    <div className="relative hidden md:block">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Search className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search designs..."
+                            value={searchQuery}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            className="block w-full pl-9 p-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-brand-500 focus:border-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-brand-500 dark:focus:border-brand-500"
+                        />
+                    </div>
                     <button
                         onClick={onNewDesign}
                         className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-gray-700 rounded-md transition-colors"

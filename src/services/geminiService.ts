@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { HousePlan, Room, CustomizationOption } from "@/types";
 import { ROOM_CATEGORIES } from "@/constants";
@@ -166,7 +167,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
 export async function generateImage(prompt: string): Promise<string> {
   try {
     const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
+        model: 'imagen-4.0-generate-001',
         prompt: prompt,
         config: {
           numberOfImages: 1,
@@ -179,10 +180,82 @@ export async function generateImage(prompt: string): Promise<string> {
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/jpeg;base64,${base64ImageBytes}`;
     } else {
-      throw new Error("No image was generated.");
+      throw new Error("Image generation completed, but no image was returned. This may be due to safety filters.");
     }
   } catch(error) {
     console.error("Error generating image:", error);
-    throw new Error("Failed to generate image.");
+    if (error instanceof Error) {
+        // Handle specific quota error with a friendly message
+        if (error.message.includes("quota") || error.message.includes("RESOURCE_EXHAUSTED")) {
+             throw new Error("You have exceeded your API quota for image generation. Please check your plan and billing details.");
+        }
+        
+        // Attempt to parse the error message for a cleaner message from the API
+        try {
+            const parsedError = JSON.parse(error.message);
+            if (parsedError?.error?.message) {
+                throw new Error(`Image generation failed: ${parsedError.error.message}`);
+            }
+        } catch (parseError) {
+            // It's not a JSON string, fall through and throw the original message
+        }
+
+        throw new Error(error.message);
+    }
+    throw new Error("An unexpected error occurred while generating the image.");
+  }
+}
+
+export async function generateVideo(prompt: string): Promise<string> {
+  try {
+    let operation = await ai.models.generateVideos({
+      model: 'veo-2.0-generate-001',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1
+      }
+    });
+
+    // Poll for the result.
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 20000)); // Polling interval set to 20 seconds.
+      operation = await ai.operations.getVideosOperation({operation: operation});
+    }
+
+    // Check for errors after the operation is done.
+    if (operation.error) {
+        const errorMessage = operation.error.message || "An unknown error occurred during video generation.";
+        throw new Error(`Video generation failed: ${errorMessage}`);
+    }
+
+    // Check for the response and download link.
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!downloadLink) {
+      // This case handles when the operation is successful but provides no video URI,
+      // which could be due to safety filtering not reported as an error.
+      throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
+    }
+    
+    // Download the video.
+    const response = await fetch(`${downloadLink}&key=${API_KEY}`);
+     if (!response.ok) {
+        throw new Error(`Failed to download video file: ${response.statusText}`);
+    }
+
+    const videoBlob = await response.blob();
+    const videoUrl = URL.createObjectURL(videoBlob);
+    return videoUrl;
+    
+  } catch (error) {
+    console.error("Error in generateVideo function:", error);
+    // Re-throw a clean, user-facing error. If it's already a clear message, pass it on.
+    if (error instanceof Error) {
+        // The error from the API might be a JSON string, but we will pass the whole message for clarity.
+        if (error.message.includes("quota")) {
+             throw new Error("You have exceeded your API quota. Please check your plan and billing details.");
+        }
+        throw new Error(error.message);
+    }
+    throw new Error("An unexpected error occurred while generating the video tour.");
   }
 }

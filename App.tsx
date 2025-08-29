@@ -4,7 +4,8 @@ import { AppView, HousePlan, Rendering } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
-import { generateHousePlanFromDescription, generateImage } from './services/geminiService';
+// FIX: Import generateVideo to handle video tour generation.
+import { generateHousePlanFromDescription, generateImage, generateVideo } from './services/geminiService';
 import LoadingOverlay from './components/LoadingOverlay';
 
 function App() {
@@ -14,10 +15,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // FIX: Add state for initial prompt to pass to results page.
+  const [initialPrompt, setInitialPrompt] = useState('');
+  // FIX: Add state for video URL.
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const handleGenerationRequest = useCallback(async (description: string, imageFile: File | null) => {
     setIsLoading(true);
     setError(null);
+    // FIX: Store the initial prompt.
+    setInitialPrompt(description);
 
     let imageBase64: string | undefined = undefined;
     if (imageFile) {
@@ -94,6 +101,30 @@ function App() {
     }
   }, []);
 
+  // FIX: Added handler for generating video tour.
+  const handleGenerateVideoTour = useCallback(async (prompt: string) => {
+      setIsLoading(true);
+      setLoadingMessage('Creating your cinematic video tour... This may take a few minutes.');
+      setError(null);
+      try {
+          const url = await generateVideo(prompt);
+          setVideoUrl(url);
+      } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to generate video tour.');
+      } finally {
+          setIsLoading(false);
+          setLoadingMessage('');
+      }
+  }, []);
+
+  // FIX: Added handler for closing the video player.
+  const handleCloseVideo = () => {
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+    }
+    setVideoUrl(null);
+  };
+
   const updateRendering = (id: string, updates: Partial<Rendering>) => {
     setRenderings(renderings.map(r => r.id === id ? { ...r, ...updates } : r));
   };
@@ -109,6 +140,9 @@ function App() {
     setRenderings([]);
     setError(null);
     setIsLoading(false);
+    // FIX: Reset new state variables.
+    setInitialPrompt('');
+    handleCloseVideo();
   }
 
   return (
@@ -121,9 +155,16 @@ function App() {
           <ResultsPage
             housePlan={housePlan}
             renderings={renderings}
+            // FIX: Pass all required props to ResultsPage.
+            initialPrompt={initialPrompt}
             onNewRendering={handleNewRendering}
             onUpdateRendering={updateRendering}
             onDeleteRenderings={deleteRenderings}
+            onGenerateVideoTour={handleGenerateVideoTour}
+            videoUrl={videoUrl}
+            onCloseVideo={handleCloseVideo}
+            error={error}
+            onErrorClear={() => setError(null)}
           />
         )}
       </main>

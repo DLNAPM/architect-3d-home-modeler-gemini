@@ -1,19 +1,28 @@
 
 import React, { useState, useMemo } from 'react';
+// FIX: Adjusted import path to be relative.
 import { HousePlan, Rendering, Room } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
-import { LayoutGrid, Trash2, Heart, Star, Download, Send, Play, X } from 'lucide-react';
+// FIX: Add AlertTriangle for displaying errors.
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle } from 'lucide-react';
 
 interface ResultsPageProps {
   housePlan: HousePlan;
   renderings: Rendering[];
+  initialPrompt: string;
   onNewRendering: (prompt: string, category: string) => void;
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
+  onGenerateVideoTour: (prompt: string) => void;
+  videoUrl: string | null;
+  onCloseVideo: () => void;
+  // FIX: Add props for error handling.
+  error: string | null;
+  onErrorClear: () => void;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewRendering, onUpdateRendering, onDeleteRenderings }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, initialPrompt, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, videoUrl, onCloseVideo, error, onErrorClear }) => {
   const [selectedRoom, setSelectedRoom] = useState<Room>(housePlan.rooms[0]);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
@@ -53,12 +62,32 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
     }
   }
 
+  const handleGenerateVideoClick = () => {
+    const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
+    onGenerateVideoTour(prompt);
+  };
+
   return (
     <div>
       <div className="text-center mb-8">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">{housePlan.title}</h2>
         <p className="text-lg text-brand-600 dark:text-brand-400 font-medium mt-1">{housePlan.style}</p>
       </div>
+
+      {/* FIX: Add error display logic. */}
+      {error && (
+        <div className="mb-6 flex items-center justify-between p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+            <div className="flex items-center">
+                <AlertTriangle className="flex-shrink-0 inline w-5 h-5 mr-3" />
+                <div>
+                    <span className="font-medium">Error:</span> {error}
+                </div>
+            </div>
+            <button onClick={onErrorClear} className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-gray-700" aria-label="Dismiss error">
+                <X className="h-4 w-4"/>
+            </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Column 1: Room List */}
@@ -87,6 +116,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2">
+                <button onClick={handleGenerateVideoClick} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-purple-500 rounded-md hover:bg-purple-600 transition-colors">
+                    <Video className="h-4 w-4" /> Video Tour
+                </button>
                 {favoritedRenderings.length >= 2 && (
                     <button onClick={startSlideshow} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-green-500 rounded-md hover:bg-green-600 transition-colors">
                         <Play className="h-4 w-4" /> Slideshow
@@ -119,6 +151,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
                 key={selectedRoom.name}
                 room={selectedRoom}
                 housePlan={housePlan}
+                initialPrompt={initialPrompt}
                 onGenerate={onNewRendering}
               />
             </div>
@@ -132,6 +165,17 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ housePlan, renderings, onNewR
                 <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/50 p-2 rounded-full hover:bg-black/80">‹</button>
                 <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/50 p-2 rounded-full hover:bg-black/80">›</button>
                 <button onClick={closeSlideshow} className="absolute top-4 right-4 text-white bg-black/50 p-2 rounded-full hover:bg-black/80"><X/></button>
+            </div>
+        </div>
+      )}
+
+      {videoUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-[60] flex items-center justify-center" onClick={onCloseVideo}>
+            <div className="relative w-full max-w-4xl bg-gray-900 rounded-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+                <video src={videoUrl} controls autoPlay className="w-full rounded-lg aspect-video" />
+                <button onClick={onCloseVideo} className="absolute -top-3 -right-3 text-white bg-gray-700 p-2 rounded-full hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-white">
+                    <X className="h-5 w-5"/>
+                </button>
             </div>
         </div>
       )}
