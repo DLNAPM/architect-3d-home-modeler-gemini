@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw } from 'lucide-react';
 
 // FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
 interface ResultsPageProps {
@@ -12,6 +12,7 @@ interface ResultsPageProps {
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
   onGenerateVideoTour: (prompt: string) => void;
+  onRecreateInitialRendering: () => void;
   videoUrl: string | null;
   onCloseVideo: () => void;
   error: string | null;
@@ -19,7 +20,7 @@ interface ResultsPageProps {
   isLoading: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
   const { housePlan, renderings, initialPrompt } = design;
   const [selectedRoom, setSelectedRoom] = useState<Room>(housePlan.rooms[0]);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
@@ -41,6 +42,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   }, [housePlan.rooms]);
 
   const favoritedRenderings = useMemo(() => renderings.filter(r => r.favorited), [renderings]);
+  
+  const showRecreateButton = renderings.length === 1 && renderings[0].category === 'Front Exterior';
 
   const handleSelectToggle = (id: string) => {
     setSelectedRenderings(prev =>
@@ -153,6 +156,15 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2">
+                {showRecreateButton && (
+                  <button 
+                    onClick={onRecreateInitialRendering} 
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                      <RefreshCw className="h-4 w-4" /> Re-Create
+                  </button>
+                )}
                 <button 
                   onClick={handleGenerateVideoClick} 
                   disabled={isLoading}

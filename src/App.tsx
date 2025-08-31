@@ -151,6 +151,41 @@ function App() {
     }
   }, [currentDesignId, savedDesigns]);
 
+  const handleRecreateInitialRendering = useCallback(async () => {
+    if (!currentDesign || currentDesign.renderings.length !== 1 || currentDesign.renderings[0].category !== 'Front Exterior') {
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingMessage('Re-creating front exterior...');
+    setError(null);
+
+    const initialRendering = currentDesign.renderings[0];
+    const { prompt } = initialRendering;
+
+    try {
+      const imageUrl = await generateImage(prompt);
+      const newRendering: Rendering = {
+        ...initialRendering,
+        imageUrl,
+      };
+
+      const updatedDesigns = savedDesigns.map(design =>
+        design.housePlan.id === currentDesignId
+          ? { ...design, renderings: [newRendering] }
+          : design
+      );
+      updateAndSaveDesigns(updatedDesigns);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to re-create rendering.');
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [currentDesign, currentDesignId, savedDesigns]);
+
+
   const handleGenerateVideoTour = useCallback(async (prompt: string) => {
       setIsLoading(true);
       setLoadingMessage('Creating your cinematic video tour... This may take a few minutes.');
@@ -242,6 +277,7 @@ function App() {
             onUpdateRendering={updateRendering}
             onDeleteRenderings={deleteRenderings}
             onGenerateVideoTour={handleGenerateVideoTour}
+            onRecreateInitialRendering={handleRecreateInitialRendering}
             videoUrl={videoUrl}
             onCloseVideo={handleCloseVideo}
             error={error}
