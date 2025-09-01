@@ -89,7 +89,7 @@ function App() {
       };
 
       setLoadingMessage('Rendering front exterior...');
-      const frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, do not include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
+      const frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, DO NOT include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
       const frontImageUrl = await generateImage(frontExteriorPrompt);
       const frontRendering: Rendering = {
         id: crypto.randomUUID(),

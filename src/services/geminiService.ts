@@ -56,7 +56,7 @@ const roomOptionsSchema = {
     required: ["customizationCategories"]
 };
 
-const parseAndThrowApiError = (error: any, context: 'image' | 'video') => {
+const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') => {
     console.error(`Error generating ${context}:`, error);
 
     let errorMessage = `An unexpected error occurred while generating the ${context}.`;
@@ -126,7 +126,7 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 }
 
 
-export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string): Promise<HousePlan> {
+export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
   const contents: any = {
     parts: [{ text: prompt }]
   };
@@ -188,7 +188,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
         return a.name.localeCompare(b.name);
     });
 
-    const plan: HousePlan = {
+    const plan: Omit<HousePlan, 'id' | 'createdAt'> = {
       title: parsedJson.title,
       style: parsedJson.style,
       rooms: fullRooms.filter(room => Object.keys(room.options).length > 0), 
@@ -197,8 +197,8 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
     return plan;
 
   } catch (error) {
-    console.error("Error generating house plan:", error);
-    throw new Error("Failed to generate house plan from description.");
+    parseAndThrowApiError(error, 'plan');
+    throw new Error("Unreachable code");
   }
 }
 

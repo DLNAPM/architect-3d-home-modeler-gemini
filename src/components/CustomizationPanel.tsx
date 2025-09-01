@@ -93,7 +93,11 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     let prompt = '';
 
     if (isExterior) {
-        prompt = `Photorealistic 3D rendering of the ${room.name.toLowerCase()} of a ${housePlan.style} house. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific exterior view, incorporate the following details: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures, realistic outdoor lighting, and appropriate landscaping.`;
+        if (room.name.toLowerCase().includes('back')) {
+             prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house, focusing on the yard and rear of the building. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific BACKYARD view, incorporate the following details: ${detailDescriptions}. Crucially, DO NOT include front-of-house elements like driveways, garages, or the street view. The image must depict a private backyard scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
+        } else { // Assume front exterior if not back
+            prompt = `Photorealistic 3D rendering of the FRONT exterior of a ${housePlan.style} house, focusing on the street-facing view. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific FRONT YARD view, incorporate the following details: ${detailDescriptions}. Crucially, DO NOT include back-of-house elements like swimming pools, large patios, or outdoor kitchens. The image must depict a public-facing scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
+        }
     } else {
         if (room.name.toLowerCase() === 'basement') {
             prompt = `Photorealistic 3D rendering of the INTERIOR of a finished Basement in a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}". The basement is specifically ${detailDescriptions}. Create a self-contained image focusing on this concept. Do NOT show exterior elements. Views to the outside should only be through small basement windows (if any). Ensure high-end architectural visualization with detailed textures and realistic interior lighting appropriate for a basement setting.`;
