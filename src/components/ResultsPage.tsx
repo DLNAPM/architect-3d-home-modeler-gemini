@@ -86,45 +86,47 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   
   const handleGenerateMarketingVideo = () => {
       if (!canCreateMarketingVideo) return;
+      
+      // Calculate total duration: 4s per liked rendering, plus 4s for title and 4s for outro.
+      const totalDuration = (likedRenderings.length * 4) + 8;
 
-      const featureDescriptions = likedRenderings.map(r => {
-        const category = r.category;
-        const detailsPart = r.prompt.split('incorporate the following specific details for this room: ')[1]?.split('.')[0];
-
-        if (!detailsPart) {
-          return `- A beautifully designed ${category}.`;
-        }
-
-        const details = detailsPart
-          .replace(/with/g, '')
-          .replace(/, and/g, ',')
-          .replace(/  +/g, ' ')
-          .split(',')
-          .map(d => d.trim())
-          .filter(d => d && d !== 'designed as a') // filter out empty strings
-          .join(', ');
-
-        return `- A scene of the ${category} featuring: ${details}.`;
-      }).join('\n');
-
+      const shotList = likedRenderings.map((rendering, index) => {
+        const detailsPart = rendering.prompt.split('incorporate the following specific details for this room: ')[1]?.split('.')[0] || `a beautiful ${rendering.category}`;
+        
+        return `
+---
+**Shot ${index + 2}: Scene of the ${rendering.category}**
+- **Duration**: 4 seconds.
+- **Description**: A photorealistic view of the ${rendering.category}. It must include these specific features: ${detailsPart}. The scene should have warm, natural lighting and a luxurious feel.
+- **Camera Movement**: Use a slow, subtle camera movement (e.g., pan left, dolly in, gentle zoom).
+---
+`;
+      }).join('');
 
       const prompt = `
-        Create a high-end, cinematic real estate marketing video for "C&SH Group Properties, LLC".
-        The video should be approximately ${Math.max(60, likedRenderings.length * 4)} seconds long to ensure each scene gets enough time.
-        The property is a "${housePlan.style}" style home titled "${housePlan.title}".
+You are a professional video director creating a high-end, cinematic real estate marketing video for "C&SH Group Properties, LLC".
 
-        The video must begin with an elegant title card showing the property title: "${housePlan.title}".
-        It must end with an outro card showing the company name "C&SH Group Properties, LLC" and a fictional contact number like "(555) 123-4567".
+**CRITICAL INSTRUCTIONS:**
+1.  **Total Duration:** The final video MUST be exactly **${totalDuration} seconds** long. This is non-negotiable.
+2.  **Structure:** The video must follow the precise SHOT LIST provided below. Do not deviate.
+3.  **Pacing:** Each scene described in the shot list must be exactly 4 seconds long. Use smooth, slow dissolve transitions between each shot.
+4.  **Music:** The video must have an inspiring, sophisticated, and instrumental background music track appropriate for a luxury property tour. The music must gently start to fade out 8 seconds before the end of the video.
+5.  **Quality:** All scenes must be photorealistic, with high-end architectural visualization and cinematic lighting.
 
-        The video should feature an inspiring, sophisticated, and instrumental background music track appropriate for a luxury property tour. The music should gently fade out in the last 8 seconds of the video.
+**--- SHOT LIST ---**
 
-        The main content should be a smooth, flowing tour of the property, using slow pans, zooms, and dolly shots (Ken Burns style). Use elegant transitions like slow dissolves between scenes, with each scene lasting at least 4 seconds.
-
-        The tour must showcase scenes representing the following key features and rooms:
-        ${featureDescriptions}
-
-        The overall tone should be luxurious, inviting, and professional. The lighting should be warm and natural, simulating a 'golden hour' feel where appropriate.
-      `;
+---
+**Shot 1: Title Card**
+- **Duration**: 4 seconds.
+- **Content**: Display the text "${housePlan.title}" in an elegant, minimal font on a clean, professional background.
+---
+${shotList}
+---
+**Shot ${likedRenderings.length + 2}: Outro Card**
+- **Duration**: 4 seconds.
+- **Content**: Display the company name "C&SH Group Properties, LLC" and a contact number "(555) 123-4567". Match the style of the title card.
+---
+`;
       
       onGenerateVideoTour(prompt);
   };
