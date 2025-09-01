@@ -3,7 +3,7 @@ import { Mic, Upload, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
 // FIX: Import SavedDesign type to be used in component props, resolving a module export error.
 import { SavedDesign } from '@/types';
 
-// FIX: Update HomePageProps to accept saved designs for display and handling, resolving prop type errors.
+// FIX: Update HomePageProps to accept saved designs for display and handling, resolving prop type errors in App.tsx.
 interface HomePageProps {
   onGenerate: (description: string, imageFile: File | null) => void;
   error: string | null;

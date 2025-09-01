@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HousePlan, Room } from '@/types';
+import { HousePlan, Room, CustomizationOption } from '@/types';
 import { Wand2 } from 'lucide-react';
 
 interface CustomizationPanelProps {
@@ -65,7 +65,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   };
 
   const handleGenerate = () => {
-    let allPossibleOptions: Record<string, any> = { ...room.options };
+    // FIX: Changed type from Record<string, any> to Record<string, CustomizationOption> for type safety.
+    let allPossibleOptions: Record<string, CustomizationOption> = { ...room.options };
     if (room.subOptionKey && room.subOptions && selections[room.subOptionKey]) {
         const selectedSubOptions = room.subOptions[selections[room.subOptionKey]];
         if (selectedSubOptions) {

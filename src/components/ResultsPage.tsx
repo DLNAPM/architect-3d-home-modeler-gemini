@@ -3,9 +3,9 @@ import React, { useState, useMemo } from 'react';
 import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film } from 'lucide-react';
 
-// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors.
+// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors in App.tsx.
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
@@ -42,6 +42,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   }, [housePlan.rooms]);
 
   const favoritedRenderings = useMemo(() => renderings.filter(r => r.favorited), [renderings]);
+  const likedRenderings = useMemo(() => renderings.filter(r => r.liked), [renderings]);
+  const canCreateMarketingVideo = likedRenderings.length >= 10;
   
   const showRecreateButton = renderings.length === 1 && renderings[0].category === 'Front Exterior';
 
@@ -80,6 +82,51 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const handleGenerateVideoClick = () => {
     const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
     onGenerateVideoTour(prompt);
+  };
+  
+  const handleGenerateMarketingVideo = () => {
+      if (!canCreateMarketingVideo) return;
+
+      const featureDescriptions = likedRenderings.map(r => {
+        const category = r.category;
+        const detailsPart = r.prompt.split('incorporate the following specific details for this room: ')[1]?.split('.')[0];
+
+        if (!detailsPart) {
+          return `- A beautifully designed ${category}.`;
+        }
+
+        const details = detailsPart
+          .replace(/with/g, '')
+          .replace(/, and/g, ',')
+          .replace(/  +/g, ' ')
+          .split(',')
+          .map(d => d.trim())
+          .filter(d => d && d !== 'designed as a') // filter out empty strings
+          .join(', ');
+
+        return `- A scene of the ${category} featuring: ${details}.`;
+      }).join('\n');
+
+
+      const prompt = `
+        Create a high-end, cinematic real estate marketing video for "C&SH Group Properties, LLC".
+        The video should be approximately ${Math.max(60, likedRenderings.length * 4)} seconds long to ensure each scene gets enough time.
+        The property is a "${housePlan.style}" style home titled "${housePlan.title}".
+
+        The video must begin with an elegant title card showing the property title: "${housePlan.title}".
+        It must end with an outro card showing the company name "C&SH Group Properties, LLC" and a fictional contact number like "(555) 123-4567".
+
+        The video should feature an inspiring, sophisticated, and instrumental background music track appropriate for a luxury property tour. The music should gently fade out in the last 8 seconds of the video.
+
+        The main content should be a smooth, flowing tour of the property, using slow pans, zooms, and dolly shots (Ken Burns style). Use elegant transitions like slow dissolves between scenes, with each scene lasting at least 4 seconds.
+
+        The tour must showcase scenes representing the following key features and rooms:
+        ${featureDescriptions}
+
+        The overall tone should be luxurious, inviting, and professional. The lighting should be warm and natural, simulating a 'golden hour' feel where appropriate.
+      `;
+      
+      onGenerateVideoTour(prompt);
   };
 
   const handleEnlarge = (imageUrl: string) => {
@@ -155,7 +202,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
         <div className="lg:col-span-7">
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
                 {showRecreateButton && (
                   <button 
                     onClick={onRecreateInitialRendering} 
@@ -165,6 +212,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
                       <RefreshCw className="h-4 w-4" /> Re-Create
                   </button>
                 )}
+                 <button 
+                  onClick={handleGenerateMarketingVideo}
+                  disabled={!canCreateMarketingVideo || isLoading}
+                  title={!canCreateMarketingVideo ? "You need to 'like' at least 10 renderings to create a marketing video." : "Create a Marketing Video"}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    <Film className="h-4 w-4" /> Marketing Video
+                </button>
                 <button 
                   onClick={handleGenerateVideoClick} 
                   disabled={isLoading}
