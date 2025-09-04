@@ -22,7 +22,8 @@ interface ResultsPageProps {
 
 const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
   const { housePlan, renderings, initialPrompt } = design;
-  const [selectedRoom, setSelectedRoom] = useState<Room>(housePlan.rooms[0]);
+  // FIX: Safely initialize selectedRoom to null if rooms array is empty to prevent crash.
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -170,7 +171,8 @@ ${shotList}
                 <button
                   onClick={() => setSelectedRoom(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedRoom.name === room.name
+                    // FIX: Use optional chaining to prevent crash if selectedRoom is null.
+                    selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
@@ -188,7 +190,8 @@ ${shotList}
                 <button
                   onClick={() => setSelectedRoom(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedRoom.name === room.name
+                    // FIX: Use optional chaining to prevent crash if selectedRoom is null.
+                    selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
@@ -266,14 +269,21 @@ ${shotList}
         {/* Column 3: Customization Panel */}
         <div className="lg:col-span-3">
             <div className="sticky top-24">
-              <CustomizationPanel
-                key={selectedRoom.name}
-                room={selectedRoom}
-                housePlan={housePlan}
-                initialPrompt={initialPrompt}
-                onGenerate={onNewRendering}
-                isLoading={isLoading}
-              />
+              {/* FIX: Conditionally render CustomizationPanel only if a room is selected. */}
+              {selectedRoom ? (
+                <CustomizationPanel
+                  key={selectedRoom.name}
+                  room={selectedRoom}
+                  housePlan={housePlan}
+                  initialPrompt={initialPrompt}
+                  onGenerate={onNewRendering}
+                  isLoading={isLoading}
+                />
+              ) : (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md text-center">
+                    <p className="text-gray-500 dark:text-gray-400">This house plan has no rooms to customize.</p>
+                </div>
+              )}
             </div>
         </div>
       </div>

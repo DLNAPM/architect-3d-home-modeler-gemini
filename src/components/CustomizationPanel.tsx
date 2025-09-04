@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HousePlan, Room, CustomizationOption } from '@/types';
 import { Wand2 } from 'lucide-react';
@@ -13,6 +12,7 @@ interface CustomizationPanelProps {
 
 const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate, isLoading }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
+  const [customText, setCustomText] = useState('');
 
   useEffect(() => {
     const initialSelections: Record<string, string> = {};
@@ -35,6 +35,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       }
     }
     setSelections(initialSelections);
+    setCustomText('');
   }, [room]);
 
   const handleSelectionChange = (optionKey: string, value: string) => {
@@ -90,20 +91,21 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       .filter(Boolean)
       .join(', ');
 
+    const customDetailsAddition = customText.trim() ? ` Also incorporate these user-provided details: "${customText.trim()}".` : '';
     const isExterior = room.name.toLowerCase().includes('exterior');
     let prompt = '';
 
     if (isExterior) {
         if (room.name.toLowerCase().includes('back')) {
-             prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house, focusing on the yard and rear of the building. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific BACKYARD view, incorporate the following details: ${detailDescriptions}. Crucially, DO NOT include front-of-house elements like driveways, garages, or the street view. The image must depict a private backyard scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
+             prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house, focusing on the yard and rear of the building. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific BACKYARD view, incorporate the following details: ${detailDescriptions}.${customDetailsAddition} Crucially, DO NOT include front-of-house elements like driveways, garages, or the street view. The image must depict a private backyard scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
         } else { // Assume front exterior if not back
-            prompt = `Photorealistic 3D rendering of the FRONT exterior of a ${housePlan.style} house, focusing on the street-facing view. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific FRONT YARD view, incorporate the following details: ${detailDescriptions}. Crucially, DO NOT include back-of-house elements like swimming pools, large patios, or outdoor kitchens. The image must depict a public-facing scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
+            prompt = `Photorealistic 3D rendering of the FRONT exterior of a ${housePlan.style} house, focusing on the street-facing view. The overall architectural style should be consistent with this main description: "${initialPrompt}". For this specific FRONT YARD view, incorporate the following details: ${detailDescriptions}.${customDetailsAddition} Crucially, DO NOT include back-of-house elements like swimming pools, large patios, or outdoor kitchens. The image must depict a public-facing scene. Ensure high-end architectural visualization with detailed textures and realistic outdoor lighting.`;
         }
     } else {
         if (room.name.toLowerCase() === 'basement') {
-            prompt = `Photorealistic 3D rendering of the INTERIOR of a finished Basement in a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}". The basement is specifically ${detailDescriptions}. Create a self-contained image focusing on this concept. Do NOT show exterior elements. Views to the outside should only be through small basement windows (if any). Ensure high-end architectural visualization with detailed textures and realistic interior lighting appropriate for a basement setting.`;
+            prompt = `Photorealistic 3D rendering of the INTERIOR of a finished Basement in a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}". The basement is specifically ${detailDescriptions}.${customDetailsAddition} Create a self-contained image focusing on this concept. Do NOT show exterior elements. Views to the outside should only be through small basement windows (if any). Ensure high-end architectural visualization with detailed textures and realistic interior lighting appropriate for a basement setting.`;
         } else {
-            prompt = `Photorealistic 3D rendering of the INTERIOR of a ${room.name.toLowerCase()} inside a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}", but focus strictly on the room's interior. Create a self-contained image of the ${room.name.toLowerCase()}. Do NOT show exterior elements like driveways, cars, or full yards. Views to the outside should only be visible through windows or doors where appropriate. Incorporate the following specific details for this room: ${detailDescriptions}. Ensure high-end architectural visualization with detailed textures and realistic interior lighting.`;
+            prompt = `Photorealistic 3D rendering of the INTERIOR of a ${room.name.toLowerCase()} inside a ${housePlan.style} house. The overall interior design style should be consistent with the main house description: "${initialPrompt}", but focus strictly on the room's interior. Create a self-contained image of the ${room.name.toLowerCase()}. Do NOT show exterior elements like driveways, cars, or full yards. Views to the outside should only be visible through windows or doors where appropriate. Incorporate the following specific details for this room: ${detailDescriptions}.${customDetailsAddition} Ensure high-end architectural visualization with detailed textures and realistic interior lighting.`;
         }
     }
     
@@ -160,6 +162,22 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
             </>
         )}
       </div>
+
+      <div className="mt-4">
+        <label htmlFor="customText" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Additional Details (Optional)
+        </label>
+        <textarea
+          id="customText"
+          name="customText"
+          rows={4}
+          value={customText}
+          onChange={(e) => setCustomText(e.target.value)}
+          placeholder="e.g., add a large potted fiddle-leaf fig in the corner, and a gallery wall of black and white photos..."
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+        />
+      </div>
+
       <button
         onClick={handleGenerate}
         disabled={isLoading}
