@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Import SavedDesign type to be used in component props, resolving a module export error.
-import { HousePlan, Rendering, Room, SavedDesign } from '@/types';
+// FIX: Imported the 'Rendering' type because it is used in the onUpdateRendering prop.
+import { Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film } from 'lucide-react';
+import AddRoomModal from './AddRoomModal';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle } from 'lucide-react';
 
-// FIX: Updated component props to accept a single 'design' object of type SavedDesign for better data management and to resolve prop type errors in App.tsx.
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
@@ -13,6 +13,7 @@ interface ResultsPageProps {
   onDeleteRenderings: (ids: string[]) => void;
   onGenerateVideoTour: (prompt: string) => void;
   onRecreateInitialRendering: () => void;
+  onAddRoom: (room: Room) => void;
   videoUrl: string | null;
   onCloseVideo: () => void;
   error: string | null;
@@ -20,14 +21,14 @@ interface ResultsPageProps {
   isLoading: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
   const { housePlan, renderings, initialPrompt } = design;
-  // FIX: Safely initialize selectedRoom to null if rooms array is empty to prevent crash.
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
+  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
 
   const { exteriorRooms, interiorRooms } = useMemo(() => {
     const exteriors: Room[] = [];
@@ -88,7 +89,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const handleGenerateMarketingVideo = () => {
       if (!canCreateMarketingVideo) return;
       
-      // Calculate total duration: 4s per liked rendering, plus 4s for title and 4s for outro.
       const totalDuration = (likedRenderings.length * 4) + 8;
 
       const shotList = likedRenderings.map((rendering, index) => {
@@ -171,7 +171,6 @@ ${shotList}
                 <button
                   onClick={() => setSelectedRoom(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    // FIX: Use optional chaining to prevent crash if selectedRoom is null.
                     selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -190,7 +189,6 @@ ${shotList}
                 <button
                   onClick={() => setSelectedRoom(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    // FIX: Use optional chaining to prevent crash if selectedRoom is null.
                     selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -201,6 +199,15 @@ ${shotList}
               </li>
             ))}
           </ul>
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                  onClick={() => setIsAddRoomModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+              >
+                  <PlusCircle className="h-5 w-5" />
+                  Add Room
+              </button>
+          </div>
         </div>
 
         {/* Column 2: Renderings */}
@@ -269,7 +276,6 @@ ${shotList}
         {/* Column 3: Customization Panel */}
         <div className="lg:col-span-3">
             <div className="sticky top-24">
-              {/* FIX: Conditionally render CustomizationPanel only if a room is selected. */}
               {selectedRoom ? (
                 <CustomizationPanel
                   key={selectedRoom.name}
@@ -324,6 +330,16 @@ ${shotList}
           </div>
         </div>
       )}
+
+      <AddRoomModal
+        isOpen={isAddRoomModalOpen}
+        onClose={() => setIsAddRoomModalOpen(false)}
+        onAddRoom={(newRoom) => {
+            onAddRoom(newRoom);
+            setIsAddRoomModalOpen(false);
+        }}
+        existingRoomNames={housePlan.rooms.map(r => r.name)}
+      />
     </div>
   );
 };

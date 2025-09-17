@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-// FIX: Import 'SavedDesign' to use in state management, resolving module export error.
-import { AppView, HousePlan, Rendering, SavedDesign } from '@/types';
+import { AppView, HousePlan, Rendering, SavedDesign, Room } from '@/types';
 import HomePage from '@/components/HomePage';
 import ResultsPage from '@/components/ResultsPage';
 import Header from '@/components/Header';
@@ -32,7 +31,6 @@ function App() {
   }, []);
 
   const currentDesign = useMemo(() => {
-    // FIX: Access housePlan.id to find the current design, resolving property access error.
     return savedDesigns.find(d => d.housePlan.id === currentDesignId) || null;
   }, [currentDesignId, savedDesigns]);
 
@@ -81,7 +79,6 @@ function App() {
 
     try {
       const planData = await generateHousePlanFromDescription(description, imageBase64);
-      // FIX: Add id and createdAt to the new HousePlan object to match the updated type definition, resolving type error.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
@@ -136,7 +133,6 @@ function App() {
       };
       
       const updatedDesigns = savedDesigns.map(design => 
-        // FIX: Check housePlan.id to correctly identify the current design, resolving property access error.
         design.housePlan.id === currentDesignId
           ? { ...design, renderings: [...design.renderings, newRendering] }
           : design
@@ -243,6 +239,22 @@ function App() {
       updateAndSaveDesigns(updatedDesigns);
     }
   };
+  
+  const handleAddRoom = useCallback((newRoom: Room) => {
+    if (!currentDesignId) return;
+
+    const updatedDesigns = savedDesigns.map(design => {
+      if (design.housePlan.id === currentDesignId) {
+        const updatedHousePlan = {
+          ...design.housePlan,
+          rooms: [...design.housePlan.rooms, newRoom]
+        };
+        return { ...design, housePlan: updatedHousePlan };
+      }
+      return design;
+    });
+    updateAndSaveDesigns(updatedDesigns);
+  }, [currentDesignId, savedDesigns]);
 
 
   const resetApp = () => {
@@ -256,20 +268,17 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      {/* FIX: Pass required props searchQuery and onSearchChange to Header, resolving prop type error. */}
       <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
         {view === AppView.Home && <HomePage 
             onGenerate={handleGenerationRequest} 
             error={error} 
-            // FIX: Pass required props designs, onSelectDesign, and onDeleteDesign to HomePage, resolving prop type error.
             designs={filteredDesigns}
             onSelectDesign={handleSelectDesign}
             onDeleteDesign={handleDeleteDesign}
         />}
         {view === AppView.Results && currentDesign && (
-          // FIX: Pass the entire currentDesign object as the 'design' prop to ResultsPage, resolving prop type error.
           <ResultsPage
             key={currentDesign.housePlan.id}
             design={currentDesign}
@@ -278,6 +287,7 @@ function App() {
             onDeleteRenderings={deleteRenderings}
             onGenerateVideoTour={handleGenerateVideoTour}
             onRecreateInitialRendering={handleRecreateInitialRendering}
+            onAddRoom={handleAddRoom}
             videoUrl={videoUrl}
             onCloseVideo={handleCloseVideo}
             error={error}
