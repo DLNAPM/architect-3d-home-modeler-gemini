@@ -174,7 +174,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                     className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors"
                 >
                     <Upload className="h-5 w-5" />
-                    <span>{imageFile ? "Change Plan" : "Upload Plan"}</span>
+                    <span>{imageFile ? "Change Image" : "Upload Image / Plan"}</span>
                 </button>
                 <input
                     type="file"

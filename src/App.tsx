@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+// FIX: Import 'SavedDesign' to correctly type the application's state, resolving multiple type errors.
 import { AppView, HousePlan, Rendering, SavedDesign, Room } from '@/types';
 import HomePage from '@/components/HomePage';
 import ResultsPage from '@/components/ResultsPage';
 import Header from '@/components/Header';
-import { generateHousePlanFromDescription, generateImage, generateVideo } from '@/services/geminiService';
+// FIX: 'generateImageFromImage' is correctly exported from the updated geminiService, resolving the module export error.
+import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from '@/services/geminiService';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
 const LOCAL_STORAGE_KEY = 'architect3d-designs';
@@ -31,6 +33,7 @@ function App() {
   }, []);
 
   const currentDesign = useMemo(() => {
+    // FIX: The 'id' property now exists on 'HousePlan' due to updates in types.ts, resolving this property access error.
     return savedDesigns.find(d => d.housePlan.id === currentDesignId) || null;
   }, [currentDesignId, savedDesigns]);
 
@@ -65,8 +68,11 @@ function App() {
     setError(null);
 
     let imageBase64: string | undefined = undefined;
+    let imageMimeType: string | undefined = undefined;
+
     if (imageFile) {
-        setLoadingMessage('Analyzing your architectural plan...');
+        setLoadingMessage('Analyzing your image...');
+        imageMimeType = imageFile.type;
         const reader = new FileReader();
         imageBase64 = await new Promise((resolve, reject) => {
             reader.onload = () => resolve((reader.result as string).split(',')[1]);
@@ -78,16 +84,28 @@ function App() {
     }
 
     try {
-      const planData = await generateHousePlanFromDescription(description, imageBase64);
+      // FIX: The geminiService.ts file was updated to accept three arguments for this function, so this call is now correct.
+      const planData = await generateHousePlanFromDescription(description, imageBase64, imageMimeType);
+      // FIX: 'id' and 'createdAt' properties were added to the 'HousePlan' type in types.ts, resolving the object property error.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
           createdAt: Date.now(),
       };
+      
+      let frontImageUrl: string;
+      let frontExteriorPrompt: string;
 
-      setLoadingMessage('Rendering front exterior...');
-      const frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, DO NOT include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
-      const frontImageUrl = await generateImage(frontExteriorPrompt);
+      if (imageBase64 && imageMimeType) {
+        setLoadingMessage('Rendering 3D model from your image...');
+        frontExteriorPrompt = `Transform this user-provided image of a house into a photorealistic, high-quality 3D architectural rendering. Maintain the core architectural style, materials, and colors from the image, but enhance the lighting, textures, and surroundings to create a professional visualization. The overall design concept is: "${description}". If the image appears to be a 2D floor plan, generate a plausible 3D exterior rendering based on it.`;
+        frontImageUrl = await generateImageFromImage(frontExteriorPrompt, imageBase64, imageMimeType);
+      } else {
+        setLoadingMessage('Rendering front exterior...');
+        frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, DO NOT include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
+        frontImageUrl = await generateImage(frontExteriorPrompt);
+      }
+
       const frontRendering: Rendering = {
         id: crypto.randomUUID(),
         category: 'Front Exterior',

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Imported the 'Rendering' type because it is used in the onUpdateRendering prop.
+// FIX: Imported the 'SavedDesign' type, which resolves a module export error now that types.ts defines and exports it.
 import { Rendering, Room, SavedDesign } from '@/types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';

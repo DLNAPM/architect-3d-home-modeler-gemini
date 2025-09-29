@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 import { HousePlan, Room, CustomizationOption } from "@/types";
 import { ROOM_CATEGORIES } from "@/constants";
 
@@ -126,21 +126,21 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 }
 
 
-export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
+export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string, imageMimeType?: string): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
   const contents: any = {
     parts: [{ text: prompt }]
   };
 
-  if (imageBase64) {
+  if (imageBase64 && imageMimeType) {
     contents.parts.unshift({
       inlineData: {
-        mimeType: 'image/jpeg',
+        mimeType: imageMimeType,
         data: imageBase64,
       },
     });
   }
 
-  const systemInstruction = `You are an expert architect. Analyze the user's home description and/or floor plan. Your task is to extract key details and generate a structured house plan in JSON format.
+  const systemInstruction = `You are an expert architect. Analyze the user's home description and/or the provided image (which could be a floor plan OR a photograph of a house exterior). Your task is to extract key details and generate a structured house plan in JSON format.
   - Adhere strictly to the provided JSON schema.
   - The 'style' should be a concise architectural term.
   - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user (e.g., 'Game Room', 'Wine Cellar', 'Home Gym').
@@ -224,6 +224,43 @@ export async function generateImage(prompt: string): Promise<string> {
   } catch(error) {
     parseAndThrowApiError(error, 'image');
     throw new Error("Unreachable code"); // This line is for TypeScript's benefit, as parseAndThrowApiError always throws.
+  }
+}
+
+export async function generateImageFromImage(prompt: string, imageBase64: string, imageMimeType: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: imageBase64,
+              mimeType: imageMimeType,
+            },
+          },
+          {
+            text: prompt,
+          },
+        ],
+      },
+      config: {
+          responseModalities: [Modality.IMAGE, Modality.TEXT],
+      },
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        const base64ImageBytes: string = part.inlineData.data;
+        const mimeType = part.inlineData.mimeType;
+        return `data:${mimeType};base64,${base64ImageBytes}`;
+      }
+    }
+    throw new Error("Image generation from image succeeded, but no image was returned. This may be due to the content safety filter.");
+
+  } catch(error) {
+    parseAndThrowApiError(error, 'image');
+    throw new Error("Unreachable code");
   }
 }
 
