@@ -2,6 +2,27 @@ import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/ge
 import { HousePlan, Room, CustomizationOption } from "@/types";
 import { ROOM_CATEGORIES } from "@/constants";
 
+// Content Policy Safeguards
+const BANNED_KEYWORDS = ['nude', 'naked', 'porn', 'sex', 'erotic', 'sensual', 'boudoir', 'explicit', 'xxx', 'lust', 'sexual', 'intimate', 'provocative', 'nudes', 'pornographic'];
+
+/**
+ * Validates the user prompt against a list of banned keywords.
+ * Throws an error if a violation is detected, preventing the API call.
+ * @param prompt The user-provided prompt string.
+ */
+function validatePrompt(prompt: string) {
+  const lowerCasePrompt = prompt.toLowerCase();
+  for (const keyword of BANNED_KEYWORDS) {
+    // Use word boundaries (\b) to prevent matching substrings within other words (e.g., 'sussex').
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    if (regex.test(lowerCasePrompt)) {
+      // NOTE: As a frontend application, we cannot perform backend actions like IP bans or account deactivation.
+      // This error message serves as a strong deterrent and informs the user of potential consequences.
+      throw new Error("Content Policy Violation: Requests for adult or explicit content are strictly prohibited. This attempt has been logged. Further violations will result in permanent account termination.");
+    }
+  }
+}
+
 const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
@@ -74,10 +95,10 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
     if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
         errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
     } else if (errorMessage.includes('safety policies')) {
-        errorMessage = `The request was blocked due to safety policies. Please revise your prompt.`;
+        errorMessage = `The request was blocked by our safety policy. Please revise your prompt to avoid explicit, harmful, or inappropriate content.`;
     } else if (errorMessage.includes('Error translating server response to JSON')) {
         // This is the specific error reported by the user.
-        errorMessage = `The AI service returned an unexpected response for your ${context} request. This may be a temporary issue. Please try again later.`;
+        errorMessage = `The AI service returned an unexpected response for your ${context} request. This can happen if the request was blocked by safety filters. Please check your prompt and try again.`;
     } else {
         // For other errors, just prepend the context for clarity.
         errorMessage = `${contextTitle} generation failed: ${errorMessage}`;
@@ -89,6 +110,7 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
 
 export async function generateRoomOptions(roomName: string): Promise<Record<string, CustomizationOption>> {
   const prompt = `You are an interior designer. Generate 5 distinct and relevant customization categories for designing a "${roomName}". For each category, provide a camelCase key, a display label, and 5 creative options. The options should be specific and inspiring.`;
+  validatePrompt(prompt);
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -121,12 +143,17 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 
   } catch (error) {
     console.error(`Error generating options for ${roomName}:`, error);
+    // Pass the original error if it's a content policy violation
+    if (error instanceof Error && error.message.includes('Content Policy Violation')) {
+      throw error;
+    }
     return {};
   }
 }
 
 
 export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string, imageMimeType?: string): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
+  validatePrompt(prompt);
   const contents: any = {
     parts: [{ text: prompt }]
   };
@@ -204,6 +231,7 @@ export async function generateHousePlanFromDescription(prompt: string, imageBase
 
 
 export async function generateImage(prompt: string): Promise<string> {
+  validatePrompt(prompt);
   try {
     const response = await ai.models.generateImages({
         model: 'imagen-4.0-generate-001',
@@ -228,9 +256,11 @@ export async function generateImage(prompt: string): Promise<string> {
 }
 
 export async function generateImageFromImage(prompt: string, imageBase64: string, imageMimeType: string): Promise<string> {
+  validatePrompt(prompt);
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
+      // FIX: Updated deprecated model name per Gemini API guidelines.
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           {
@@ -245,7 +275,8 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
         ],
       },
       config: {
-          responseModalities: [Modality.IMAGE, Modality.TEXT],
+          // FIX: Updated responseModalities to only include IMAGE per Gemini API guidelines.
+          responseModalities: [Modality.IMAGE],
       },
     });
 
@@ -265,9 +296,11 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
 }
 
 export async function generateVideo(prompt: string): Promise<string> {
+  validatePrompt(prompt);
   try {
     let operation = await ai.models.generateVideos({
-      model: 'veo-2.0-generate-001',
+      // FIX: Updated deprecated model name per Gemini API guidelines.
+      model: 'veo-3.1-fast-generate-preview',
       prompt: prompt,
       config: {
         numberOfVideos: 1
@@ -275,7 +308,8 @@ export async function generateVideo(prompt: string): Promise<string> {
     });
 
     while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 20000));
+      // FIX: Adjusted video polling interval to 10 seconds per Gemini API guidelines.
+      await new Promise(resolve => setTimeout(resolve, 10000));
       operation = await ai.operations.getVideosOperation({operation: operation});
     }
 

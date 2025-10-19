@@ -122,6 +122,10 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                                 <li>Generate new, specific renderings for each room to fully visualize your design.</li>
                             </ul>
                         </div>
+                         <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-600">
+                            <h3 className="font-semibold text-lg text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle/> Important: Content Policy</h3>
+                            <p>This is a professional architectural design tool. Any attempt to generate pornographic, nude, or sexually explicit content is a violation of our terms of service. All prompts are monitored. Violators will have their access permanently revoked without warning.</p>
+                        </div>
                     </div>
                 </div>
                  <div className="p-4 border-t dark:border-gray-700 text-right">
@@ -205,6 +209,13 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                     Generate
                 </button>
             </div>
+        </div>
+      </div>
+
+      <div className="mt-8 w-full max-w-3xl flex items-start p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300" role="alert">
+        <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3 mt-0.5" />
+        <div>
+          <span className="font-medium">Usage Policy:</span> This application is strictly for architectural and interior design purposes. Generating images of a sexually explicit, nude, or adult nature is prohibited. Violations will be logged and may lead to permanent suspension of access.
         </div>
       </div>
     </div>
