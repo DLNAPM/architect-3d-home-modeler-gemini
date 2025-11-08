@@ -152,25 +152,37 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 }
 
 
-export async function generateHousePlanFromDescription(prompt: string, imageBase64?: string, imageMimeType?: string): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
+export async function generateHousePlanFromDescription(prompt: string, images: { base64: string; mimeType: string; description: string }[]): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
   validatePrompt(prompt);
-  const contents: any = {
-    parts: [{ text: prompt }]
-  };
-
-  if (imageBase64 && imageMimeType) {
-    contents.parts.unshift({
-      inlineData: {
-        mimeType: imageMimeType,
-        data: imageBase64,
-      },
+  
+  const parts: any[] = [];
+  
+  let contextualPrompt = prompt;
+  if (images.length > 0) {
+    contextualPrompt += "\n\nIn addition to the description, please analyze the following image(s) to inform the design:\n";
+    images.forEach((img, index) => {
+      contextualPrompt += `- Image ${index + 1}: This image shows the ${img.description}.\n`;
     });
   }
+  parts.push({ text: contextualPrompt });
 
-  const systemInstruction = `You are an expert architect. Analyze the user's home description and/or the provided image (which could be a floor plan OR a photograph of a house exterior). Your task is to extract key details and generate a structured house plan in JSON format.
+  images.forEach(img => {
+    parts.push({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.base64,
+      },
+    });
+  });
+
+  const contents = { parts };
+
+  const systemInstruction = `You are an expert architect. Analyze the user's home description and any provided images (which could be floor plans, photos of a house, or style examples). Your task is to extract key details and generate a structured house plan in JSON format.
+  - Interpret each image based on its description (e.g., "front plan", "facade example").
+  - Synthesize information from the text and all images to create a cohesive design.
   - Adhere strictly to the provided JSON schema.
   - The 'style' should be a concise architectural term.
-  - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user (e.g., 'Game Room', 'Wine Cellar', 'Home Gym').
+  - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user or visible in plans (e.g., 'Game Room', 'Wine Cellar', 'Home Gym').
   - If the description is vague, make reasonable assumptions for a typical home. Always include 'Front Exterior', 'Back Exterior', 'Living Room', 'Kitchen', 'Primary Bedroom', and 'Primary Bathroom' unless the user specifies otherwise.`;
 
   try {
@@ -323,6 +335,7 @@ export async function generateVideo(prompt: string): Promise<string> {
       throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
     }
     
+    // FIX: Add API_KEY to fetch request for video download link.
     const response = await fetch(`${downloadLink}&key=${API_KEY}`);
      if (!response.ok) {
         throw new Error(`Failed to download video file: ${response.statusText}`);

@@ -2,9 +2,15 @@ import React, { useState, useRef } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X } from 'lucide-react';
 import { SavedDesign } from '@/types';
 
+interface UploadedFiles {
+    frontPlan: File | null;
+    backPlan: File | null;
+    facadeImage: File | null;
+}
+
 // FIX: Add designs, onSelectDesign, and onDeleteDesign to props to handle display of saved designs, resolving prop type error in App.tsx.
 interface HomePageProps {
-  onGenerate: (description: string, imageFile: File | null) => void;
+  onGenerate: (description: string, files: UploadedFiles) => void;
   error: string | null;
   designs: SavedDesign[];
   onSelectDesign: (designId: string) => void;
@@ -13,20 +19,27 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign }) => {
   const [description, setDescription] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [frontPlan, setFrontPlan] = useState<File | null>(null);
+  const [backPlan, setBackPlan] = useState<File | null>(null);
+  const [facadeImage, setFacadeImage] = useState<File | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const frontPlanInputRef = useRef<HTMLInputElement>(null);
+  const backPlanInputRef = useRef<HTMLInputElement>(null);
+  const facadeImageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (setter: React.Dispatch<React.SetStateAction<File | null>>) => (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setImageFile(event.target.files[0]);
+      setter(event.target.files[0]);
+    } else {
+      setter(null);
     }
   };
 
   const handleGenerateClick = () => {
-    if (description.trim() || imageFile) {
-      onGenerate(description, imageFile);
+    if (description.trim() || frontPlan || backPlan || facadeImage) {
+      onGenerate(description, { frontPlan, backPlan, facadeImage });
     }
   };
   
@@ -110,8 +123,12 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                             </ul>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">2. Upload a Floor Plan (Optional)</h3>
-                            <p>You can supplement your description by uploading an image of a floor plan. The AI will analyze the layout to better understand the home's structure and flow. Clear, high-contrast images work best.</p>
+                            <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">2. Upload Plans & Images (Optional)</h3>
+                            <p>Supplement your description by uploading images. Clear, high-contrast images work best.</p>
+                             <ul className="list-disc list-inside space-y-1 pl-2">
+                                <li><strong>Architectural Plans:</strong> Upload front and back floor plans for the AI to understand the layout.</li>
+                                <li><strong>Example Facade:</strong> Upload a photo of a house you like. The AI will use it as a primary style reference for the initial 3D rendering.</li>
+                            </ul>
                         </div>
                          <div>
                             <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">3. Generate & Customize</h3>
@@ -171,44 +188,60 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 flex-wrap">
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors"
-                >
-                    <Upload className="h-5 w-5" />
-                    <span>{imageFile ? "Change Image" : "Upload Image / Plan"}</span>
-                </button>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*"
-                />
-                {imageFile && <span className="text-sm text-gray-500 truncate max-w-xs">{imageFile.name}</span>}
+        <div className="mt-6 w-full space-y-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Front Architectural Plan</span>
+                <div className="flex items-center gap-3">
+                    {frontPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{frontPlan.name}</span>}
+                    <button onClick={() => frontPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
+                        <Upload className="h-4 w-4" />
+                        <span>{frontPlan ? "Change" : "Upload"}</span>
+                    </button>
+                    <input type="file" ref={frontPlanInputRef} onChange={handleFileChange(setFrontPlan)} className="hidden" accept="image/*"/>
+                </div>
             </div>
-          
-            <div className="flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={() => setShowHowTo(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                    title="How to use the app"
-                >
-                    <HelpCircle className="h-4 w-4" />
-                    <span className="hidden sm:inline">How To Use</span>
-                </button>
-                <button
-                    onClick={handleGenerateClick}
-                    disabled={!description.trim() && !imageFile}
-                    className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-                >
-                    <Sparkles className="h-5 w-5" />
-                    Generate
-                </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Back Architectural Plan</span>
+                <div className="flex items-center gap-3">
+                    {backPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{backPlan.name}</span>}
+                    <button onClick={() => backPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
+                        <Upload className="h-4 w-4" />
+                        <span>{backPlan ? "Change" : "Upload"}</span>
+                    </button>
+                    <input type="file" ref={backPlanInputRef} onChange={handleFileChange(setBackPlan)} className="hidden" accept="image/*"/>
+                </div>
             </div>
+             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Example Facade of Property</span>
+                <div className="flex items-center gap-3">
+                    {facadeImage && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{facadeImage.name}</span>}
+                    <button onClick={() => facadeImageInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
+                        <Upload className="h-4 w-4" />
+                        <span>{facadeImage ? "Change" : "Upload"}</span>
+                    </button>
+                    <input type="file" ref={facadeImageInputRef} onChange={handleFileChange(setFacadeImage)} className="hidden" accept="image/*"/>
+                </div>
+            </div>
+        </div>
+
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <button
+                type="button"
+                onClick={() => setShowHowTo(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                title="How to use the app"
+            >
+                <HelpCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">How To Use</span>
+            </button>
+            <button
+                onClick={handleGenerateClick}
+                disabled={!description.trim() && !frontPlan && !backPlan && !facadeImage}
+                className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+            >
+                <Sparkles className="h-5 w-5" />
+                Generate
+            </button>
         </div>
       </div>
 

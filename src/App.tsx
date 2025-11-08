@@ -10,6 +10,12 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 
 const LOCAL_STORAGE_KEY = 'architect3d-designs';
 
+interface UploadedFiles {
+    frontPlan: File | null;
+    backPlan: File | null;
+    facadeImage: File | null;
+}
+
 function App() {
   const [view, setView] = useState<AppView>(AppView.Home);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,30 +69,32 @@ function App() {
     }
   };
 
-  const handleGenerationRequest = useCallback(async (description: string, imageFile: File | null) => {
+  const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
     setIsLoading(true);
     setError(null);
-
-    let imageBase64: string | undefined = undefined;
-    let imageMimeType: string | undefined = undefined;
-
-    if (imageFile) {
-        setLoadingMessage('Analyzing your image...');
-        imageMimeType = imageFile.type;
-        const reader = new FileReader();
-        imageBase64 = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve((reader.result as string).split(',')[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(imageFile);
-        });
-    } else {
-        setLoadingMessage('Designing your dream home structure...');
-    }
+    setLoadingMessage('Processing your design inputs...');
 
     try {
-      // FIX: The geminiService.ts file was updated to accept three arguments for this function, so this call is now correct.
-      const planData = await generateHousePlanFromDescription(description, imageBase64, imageMimeType);
-      // FIX: 'id' and 'createdAt' properties were added to the 'HousePlan' type in types.ts, resolving the object property error.
+      const imageInputs: { file: File, description: string }[] = [];
+      if (files.frontPlan) imageInputs.push({ file: files.frontPlan, description: "front architectural plan" });
+      if (files.backPlan) imageInputs.push({ file: files.backPlan, description: "back architectural plan" });
+      if (files.facadeImage) imageInputs.push({ file: files.facadeImage, description: "example facade for style reference" });
+
+      const processedImages = await Promise.all(imageInputs.map(async (input) => {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+              reader.onload = () => resolve((reader.result as string).split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(input.file);
+          });
+          return { base64, mimeType: input.file.type, description: input.description };
+      }));
+      
+      setLoadingMessage('Designing your dream home structure...');
+      // FIX: The second argument is now correctly an array of image objects, resolving the type error.
+      const planData = await generateHousePlanFromDescription(description, processedImages);
+      
+      // FIX: The HousePlan object now includes 'id' and 'createdAt', resolving the property error.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
@@ -95,11 +103,12 @@ function App() {
       
       let frontImageUrl: string;
       let frontExteriorPrompt: string;
+      const facadeForRendering = processedImages.find(p => p.description.includes('facade'));
 
-      if (imageBase64 && imageMimeType) {
+      if (facadeForRendering) {
         setLoadingMessage('Rendering 3D model from your image...');
-        frontExteriorPrompt = `Transform this user-provided image of a house into a photorealistic, high-quality 3D architectural rendering. Maintain the core architectural style, materials, and colors from the image, but enhance the lighting, textures, and surroundings to create a professional visualization. The overall design concept is: "${description}". If the image appears to be a 2D floor plan, generate a plausible 3D exterior rendering based on it.`;
-        frontImageUrl = await generateImageFromImage(frontExteriorPrompt, imageBase64, imageMimeType);
+        frontExteriorPrompt = `Using the provided example facade image as a strong style reference, create a photorealistic, high-quality 3D architectural rendering of a complete house exterior. The overall design concept is: "${description}". Enhance the lighting, textures, and surroundings to create a professional visualization.`;
+        frontImageUrl = await generateImageFromImage(frontExteriorPrompt, facadeForRendering.base64, facadeForRendering.mimeType);
       } else {
         setLoadingMessage('Rendering front exterior...');
         frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, DO NOT include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
