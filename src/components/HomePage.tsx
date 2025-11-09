@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X } from 'lucide-react';
+import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2 } from 'lucide-react';
 import { SavedDesign } from '@/types';
 
 interface UploadedFiles {
@@ -250,6 +250,53 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
         <div>
           <span className="font-medium">Usage Policy:</span> This application is strictly for architectural and interior design purposes. Generating images of a sexually explicit, nude, or adult nature is prohibited. Violations will be logged and may lead to permanent suspension of access.
         </div>
+      </div>
+
+      <div className="mt-12 w-full max-w-5xl">
+        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">Your Saved Designs</h3>
+        {designs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {designs.map(design => (
+              <div
+                key={design.housePlan.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectDesign(design.housePlan.id)}
+                onKeyDown={(e) => e.key === 'Enter' && onSelectDesign(design.housePlan.id)}
+                className="group bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border dark:border-gray-700 hover:border-brand-500 dark:hover:border-brand-400 flex flex-col justify-between"
+              >
+                <div className="p-4">
+                  <h4 className="font-bold text-lg text-gray-800 dark:text-white truncate group-hover:text-brand-700 dark:group-hover:text-brand-300">{design.housePlan.title}</h4>
+                  <p className="text-sm text-brand-600 dark:text-brand-400 font-medium">{design.housePlan.style}</p>
+                   <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">{design.initialPrompt}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-t dark:border-gray-700 mt-auto flex items-center justify-between">
+                   <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(design.housePlan.createdAt).toLocaleDateString()}
+                  </span>
+                   <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteDesign(design.housePlan.id);
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md transition-colors"
+                    aria-label={`Delete design: ${design.housePlan.title}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">No designs found.</h4>
+            <p className="mt-2 text-gray-500 dark:text-gray-400">
+              Create your first design using the form above to get started!
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
