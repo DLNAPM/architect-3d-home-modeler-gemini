@@ -1,12 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-// FIX: Import 'SavedDesign' to correctly type the application's state, resolving multiple type errors.
 import { AppView, HousePlan, Rendering, SavedDesign, Room } from '@/types';
 import HomePage from '@/components/HomePage';
 import ResultsPage from '@/components/ResultsPage';
 import Header from '@/components/Header';
-// FIX: 'generateImageFromImage' is correctly exported from the updated geminiService, resolving the module export error.
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from '@/services/geminiService';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import ApiKeyPrompt from '@/components/ApiKeyPrompt';
 
 const LOCAL_STORAGE_KEY = 'architect3d-designs';
 
@@ -26,6 +25,7 @@ function App() {
   const [savedDesigns, setSavedDesigns] = useState<SavedDesign[]>([]);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isKeyReady, setIsKeyReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -38,8 +38,24 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+            const checkKey = async () => {
+                const hasKey = await window.aistudio.hasSelectedApiKey();
+                setIsKeyReady(hasKey);
+            };
+            checkKey();
+        } else {
+            console.warn("aistudio.hasSelectedApiKey not found, proceeding without key check.");
+            setIsKeyReady(true);
+        }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const currentDesign = useMemo(() => {
-    // FIX: The 'id' property now exists on 'HousePlan' due to updates in types.ts, resolving this property access error.
     return savedDesigns.find(d => d.housePlan.id === currentDesignId) || null;
   }, [currentDesignId, savedDesigns]);
 
@@ -68,6 +84,18 @@ function App() {
       setError("Could not save your designs. Your browser's storage might be full.");
     }
   };
+  
+  const handleError = (err: unknown, defaultView: AppView = AppView.Home) => {
+    const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+    if (errorMessage.includes('billing-enabled API key') || errorMessage.includes('select a valid key')) {
+        setIsKeyReady(false);
+    }
+    setError(errorMessage);
+    if (defaultView === AppView.Home) {
+        setView(AppView.Home);
+    }
+  };
+
 
   const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
     setIsLoading(true);
@@ -91,10 +119,8 @@ function App() {
       }));
       
       setLoadingMessage('Designing your dream home structure...');
-      // FIX: The second argument is now correctly an array of image objects, resolving the type error.
       const planData = await generateHousePlanFromDescription(description, processedImages);
       
-      // FIX: The HousePlan object now includes 'id' and 'createdAt', resolving the property error.
       const newHousePlan: HousePlan = {
           ...planData,
           id: crypto.randomUUID(),
@@ -135,8 +161,7 @@ function App() {
       setView(AppView.Results);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-      setView(AppView.Home);
+      handleError(err, AppView.Home);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -167,7 +192,7 @@ function App() {
       updateAndSaveDesigns(updatedDesigns);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate new rendering.');
+      handleError(err);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -201,7 +226,7 @@ function App() {
       updateAndSaveDesigns(updatedDesigns);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to re-create rendering.');
+      handleError(err);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -217,7 +242,7 @@ function App() {
           const url = await generateVideo(prompt);
           setVideoUrl(url);
       } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to generate video tour.');
+        handleError(err);
       } finally {
           setIsLoading(false);
           setLoadingMessage('');
@@ -283,6 +308,14 @@ function App() {
     updateAndSaveDesigns(updatedDesigns);
   }, [currentDesignId, savedDesigns]);
 
+  const handleSelectKey = async () => {
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+          await window.aistudio.openSelectKey();
+          setIsKeyReady(true);
+      } else {
+          setError("API key selection is not available in this environment.");
+      }
+  };
 
   const resetApp = () => {
     setView(AppView.Home);
@@ -295,6 +328,7 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+      {!isKeyReady && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
       <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}

@@ -23,13 +23,14 @@ function validatePrompt(prompt: string) {
   }
 }
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getAiClient = () => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("API_KEY is not set. The user may need to select one.");
+    }
+    // The SDK will handle the empty string gracefully by throwing an error we can catch.
+    return new GoogleGenAI({ apiKey: apiKey || '' });
+};
 
 const housePlanSchema = {
   type: Type.OBJECT,
@@ -82,7 +83,6 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
 
     let errorMessage = `An unexpected error occurred while generating the ${context}.`;
     
-    // Extract message from various error formats
     if (typeof error === 'object' && error !== null && error.message) {
         errorMessage = error.message;
     } else if (typeof error === 'string') {
@@ -91,16 +91,19 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
 
     const contextTitle = context.charAt(0).toUpperCase() + context.slice(1);
 
-    // Improve messages for common, known issues
-    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
+    if (
+        errorMessage.includes('only accessible to billed users') || 
+        errorMessage.includes('Requested entity was not found') ||
+        errorMessage.includes('API key not valid')
+    ) {
+        errorMessage = `This feature requires a billing-enabled API key. Please select a valid key. If you already have, it may still be propagating.`;
+    } else if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota')) {
         errorMessage = `You have exceeded your API quota for ${context} generation. Please check your plan and billing details.`;
     } else if (errorMessage.includes('safety policies')) {
         errorMessage = `The request was blocked by our safety policy. Please revise your prompt to avoid explicit, harmful, or inappropriate content.`;
     } else if (errorMessage.includes('Error translating server response to JSON')) {
-        // This is the specific error reported by the user.
         errorMessage = `The AI service returned an unexpected response for your ${context} request. This can happen if the request was blocked by safety filters. Please check your prompt and try again.`;
     } else {
-        // For other errors, just prepend the context for clarity.
         errorMessage = `${contextTitle} generation failed: ${errorMessage}`;
     }
     
@@ -109,6 +112,7 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
 
 
 export async function generateRoomOptions(roomName: string): Promise<Record<string, CustomizationOption>> {
+  const ai = getAiClient();
   const prompt = `You are an interior designer. Generate 5 distinct and relevant customization categories for designing a "${roomName}". For each category, provide a camelCase key, a display label, and 5 creative options. The options should be specific and inspiring.`;
   validatePrompt(prompt);
 
@@ -143,7 +147,6 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 
   } catch (error) {
     console.error(`Error generating options for ${roomName}:`, error);
-    // Pass the original error if it's a content policy violation
     if (error instanceof Error && error.message.includes('Content Policy Violation')) {
       throw error;
     }
@@ -153,6 +156,7 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
 
 
 export async function generateHousePlanFromDescription(prompt: string, images: { base64: string; mimeType: string; description: string }[]): Promise<Omit<HousePlan, 'id' | 'createdAt'>> {
+  const ai = getAiClient();
   validatePrompt(prompt);
   
   const parts: any[] = [];
@@ -216,7 +220,6 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
 
     const fullRooms = await Promise.all(roomPromises);
 
-    // Sort to have 'Exterior' rooms first for a predictable UI layout
     fullRooms.sort((a, b) => {
         const aIsExterior = a.name.toLowerCase().includes('exterior');
         const bIsExterior = b.name.toLowerCase().includes('exterior');
@@ -243,6 +246,7 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
 
 
 export async function generateImage(prompt: string): Promise<string> {
+  const ai = getAiClient();
   validatePrompt(prompt);
   try {
     const response = await ai.models.generateImages({
@@ -263,15 +267,15 @@ export async function generateImage(prompt: string): Promise<string> {
     }
   } catch(error) {
     parseAndThrowApiError(error, 'image');
-    throw new Error("Unreachable code"); // This line is for TypeScript's benefit, as parseAndThrowApiError always throws.
+    throw new Error("Unreachable code");
   }
 }
 
 export async function generateImageFromImage(prompt: string, imageBase64: string, imageMimeType: string): Promise<string> {
+  const ai = getAiClient();
   validatePrompt(prompt);
   try {
     const response = await ai.models.generateContent({
-      // FIX: Updated deprecated model name per Gemini API guidelines.
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -287,7 +291,6 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
         ],
       },
       config: {
-          // FIX: Updated responseModalities to only include IMAGE per Gemini API guidelines.
           responseModalities: [Modality.IMAGE],
       },
     });
@@ -308,10 +311,10 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
 }
 
 export async function generateVideo(prompt: string): Promise<string> {
+  const ai = getAiClient();
   validatePrompt(prompt);
   try {
     let operation = await ai.models.generateVideos({
-      // FIX: Updated deprecated model name per Gemini API guidelines.
       model: 'veo-3.1-fast-generate-preview',
       prompt: prompt,
       config: {
@@ -320,7 +323,6 @@ export async function generateVideo(prompt: string): Promise<string> {
     });
 
     while (!operation.done) {
-      // FIX: Adjusted video polling interval to 10 seconds per Gemini API guidelines.
       await new Promise(resolve => setTimeout(resolve, 10000));
       operation = await ai.operations.getVideosOperation({operation: operation});
     }
@@ -335,8 +337,11 @@ export async function generateVideo(prompt: string): Promise<string> {
       throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
     }
     
-    // FIX: Add API_KEY to fetch request for video download link.
-    const response = await fetch(`${downloadLink}&key=${API_KEY}`);
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("API Key not found for downloading video.");
+    }
+    const response = await fetch(`${downloadLink}&key=${apiKey}`);
      if (!response.ok) {
         throw new Error(`Failed to download video file: ${response.statusText}`);
     }
@@ -347,6 +352,6 @@ export async function generateVideo(prompt: string): Promise<string> {
     
   } catch (error) {
     parseAndThrowApiError(error, 'video');
-    throw new Error("Unreachable code"); // This line is for TypeScript's benefit, as parseAndThrowApiError always throws.
+    throw new Error("Unreachable code");
   }
 }

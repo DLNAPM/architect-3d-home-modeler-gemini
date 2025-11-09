@@ -18,8 +18,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     const initialSelections: Record<string, string> = {};
     if (room && room.options) {
       // Always initialize the primary options (e.g., 'Primary Use')
-      Object.entries(room.options).forEach(([key, value]) => {
-        initialSelections[key] = value.options[0];
+      Object.keys(room.options).forEach((key) => {
+        initialSelections[key] = room.options[key].options[0];
       });
 
       // If it's a room with sub-options, initialize the first set of sub-options
@@ -28,8 +28,9 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
         const defaultSubOptionKey = initialSelections[room.subOptionKey];
         const subOptions = room.subOptions[defaultSubOptionKey];
         if (subOptions) {
-          Object.entries(subOptions).forEach(([key, value]) => {
-            initialSelections[key] = value.options[0];
+          // FIX: Use Object.keys for better type inference.
+          Object.keys(subOptions).forEach((key) => {
+            initialSelections[key] = subOptions[key].options[0];
           });
         }
       }
@@ -56,8 +57,9 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
 
             // Then, add the new sub-options with their default values.
             if (subOptionsForNewValue) {
-                Object.entries(subOptionsForNewValue).forEach(([subKey, subValue]) => {
-                    newSelections[subKey] = subValue.options[0];
+                // FIX: Use Object.keys for better type inference.
+                Object.keys(subOptionsForNewValue).forEach((subKey) => {
+                    newSelections[subKey] = subOptionsForNewValue[subKey].options[0];
                 });
             }
         }
@@ -119,46 +121,54 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
       <h3 className="font-bold text-xl mb-4">Customize {room.name}</h3>
       <div className="space-y-4">
-        {room && room.options && Object.entries(room.options).map(([key, option]) => (
-          <div key={key}>
-            <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {option.label}
-            </label>
-            <select
-              id={key}
-              name={key}
-              value={selections[key] || ''}
-              onChange={(e) => handleSelectionChange(key, e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-            >
-              {option.options.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-        ))}
+        {/* FIX: Use Object.keys for better type inference. */}
+        {room && room.options && Object.keys(room.options).map((key) => {
+          const option = room.options[key];
+          return (
+            <div key={key}>
+              <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {option.label}
+              </label>
+              <select
+                id={key}
+                name={key}
+                value={selections[key] || ''}
+                onChange={(e) => handleSelectionChange(key, e.target.value)}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+              >
+                {option.options.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
         
         {subOptionsToRender && (
             <>
                 <hr className="border-gray-200 dark:border-gray-600 my-4" />
-                {Object.entries(subOptionsToRender).map(([key, option]) => (
-                <div key={key}>
-                    <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {option.label}
-                    </label>
-                    <select
-                    id={key}
-                    name={key}
-                    value={selections[key] || ''}
-                    onChange={(e) => handleSelectionChange(key, e.target.value)}
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-                    >
-                    {option.options.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                    </select>
-                </div>
-                ))}
+                {/* FIX: Use Object.keys for better type inference. */}
+                {Object.keys(subOptionsToRender).map((key) => {
+                  const option = subOptionsToRender[key];
+                  return (
+                    <div key={key}>
+                        <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {option.label}
+                        </label>
+                        <select
+                        id={key}
+                        name={key}
+                        value={selections[key] || ''}
+                        onChange={(e) => handleSelectionChange(key, e.target.value)}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+                        >
+                        {option.options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                        </select>
+                    </div>
+                  );
+                })}
             </>
         )}
       </div>

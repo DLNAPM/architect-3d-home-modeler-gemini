@@ -16,11 +16,11 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
 
   useEffect(() => {
     const initialSelections: Record<string, string> = {};
-    // FIX: Add safety check for room and room.options.
+    // FIX: Use Object.keys for better type inference and add safety checks.
     if (room && room.options) {
-        Object.entries(room.options).forEach(([key, value]) => {
-          initialSelections[key] = value.options[0];
-        });
+      Object.keys(room.options).forEach(key => {
+        initialSelections[key] = room.options[key].options[0];
+      });
     }
     setSelections(initialSelections);
   }, [room]);
@@ -35,7 +35,8 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
         // FIX: Add safety check for room.options[key].
         if (!room.options[key]) return null;
         const optionLabel = room.options[key].label.toLowerCase();
-        if (value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no ')) return null;
+        // FIX: Add type check for value before calling string methods to resolve potential error.
+        if (typeof value === 'string' && (value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no '))) return null;
         return `with ${optionLabel} of ${value}`;
       })
       .filter(Boolean)
@@ -50,25 +51,28 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
       <h3 className="font-bold text-xl mb-4">Customize {room.name}</h3>
       <div className="space-y-4">
-        {/* FIX: Add safety check for room and room.options before mapping. */}
-        {room && room.options && Object.entries(room.options).map(([key, option]) => (
-          <div key={key}>
-            <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {option.label}
-            </label>
-            <select
-              id={key}
-              name={key}
-              value={selections[key] || ''}
-              onChange={(e) => handleSelectionChange(key, e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-            >
-              {option.options.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-        ))}
+        {/* FIX: Use Object.keys for better type inference to resolve errors. */}
+        {room && room.options && Object.keys(room.options).map((key) => {
+          const option = room.options[key];
+          return (
+            <div key={key}>
+              <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {option.label}
+              </label>
+              <select
+                id={key}
+                name={key}
+                value={selections[key] || ''}
+                onChange={(e) => handleSelectionChange(key, e.target.value)}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+              >
+                {option.options.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
       </div>
       <button
         onClick={handleGenerate}

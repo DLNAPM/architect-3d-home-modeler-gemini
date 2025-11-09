@@ -122,7 +122,8 @@ export async function generateImage(prompt: string): Promise<string> {
 export async function generateVideo(prompt: string): Promise<string> {
   try {
     let operation = await ai.models.generateVideos({
-      model: 'veo-2.0-generate-001',
+      // FIX: Updated deprecated model name per Gemini API guidelines.
+      model: 'veo-3.1-fast-generate-preview',
       prompt: prompt,
       config: {
         numberOfVideos: 1
