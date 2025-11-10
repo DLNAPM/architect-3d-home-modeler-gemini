@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Imported the 'SavedDesign' type, which resolves a module export error now that types.ts defines and exports it.
-import { Rendering, Room, SavedDesign } from '@/types';
+// Imported the 'SavedDesign' type, which resolves a module export error now that types.ts defines and exports it.
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
@@ -19,9 +20,11 @@ interface ResultsPageProps {
   error: string | null;
   onErrorClear: () => void;
   isLoading: boolean;
+  isKeyReady: boolean;
+  onSelectKey: () => void;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey }) => {
   const { housePlan, renderings, initialPrompt } = design;
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
@@ -48,6 +51,18 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const canCreateMarketingVideo = likedRenderings.length >= 10;
   
   const showRecreateButton = renderings.length === 1 && renderings[0].category === 'Front Exterior';
+
+  const handleRoomSelect = (room: Room) => {
+    // Check if the selected room is 'Back Exterior' and if no rendering for it exists yet.
+    const hasBackExteriorRendering = renderings.some(r => r.category === 'Back Exterior');
+    if (room.name === 'Back Exterior' && !hasBackExteriorRendering && !isLoading) {
+        // Construct a smart prompt for the initial back exterior generation
+        const prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house. The overall architectural style, materials, and aesthetic MUST be consistent with the front of the house based on this initial concept: "${initialPrompt}". This view should focus on the yard and the rear facade of the building. If a back architectural plan was provided, use it as the primary guide for the layout of doors, windows, decks, or patios. Create a cohesive and appealing backyard scene. DO NOT include front-of-house elements like driveways or the street.`;
+        onNewRendering(prompt, 'Back Exterior');
+    }
+    setSelectedRoom(room);
+  };
+
 
   const handleSelectToggle = (id: string) => {
     setSelectedRenderings(prev =>
@@ -169,7 +184,7 @@ ${shotList}
             {exteriorRooms.map(room => (
               <li key={room.name}>
                 <button
-                  onClick={() => setSelectedRoom(room)}
+                  onClick={() => handleRoomSelect(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
@@ -187,7 +202,7 @@ ${shotList}
             {interiorRooms.map(room => (
               <li key={room.name}>
                 <button
-                  onClick={() => setSelectedRoom(room)}
+                  onClick={() => handleRoomSelect(room)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     selectedRoom?.name === room.name
                       ? 'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
@@ -218,7 +233,7 @@ ${shotList}
                 {showRecreateButton && (
                   <button 
                     onClick={onRecreateInitialRendering} 
-                    disabled={isLoading}
+                    disabled={isLoading || !isKeyReady}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                       <RefreshCw className="h-4 w-4" /> Re-Create
@@ -226,7 +241,7 @@ ${shotList}
                 )}
                  <button 
                   onClick={handleGenerateMarketingVideo}
-                  disabled={!canCreateMarketingVideo || isLoading}
+                  disabled={!canCreateMarketingVideo || isLoading || !isKeyReady}
                   title={!canCreateMarketingVideo ? "You need to 'like' at least 10 renderings to create a marketing video." : "Create a Marketing Video"}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
@@ -234,7 +249,7 @@ ${shotList}
                 </button>
                 <button 
                   onClick={handleGenerateVideoClick} 
-                  disabled={isLoading}
+                  disabled={isLoading || !isKeyReady}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-purple-500 rounded-md hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                     <Video className="h-4 w-4" /> Video Tour
@@ -284,6 +299,8 @@ ${shotList}
                   initialPrompt={initialPrompt}
                   onGenerate={onNewRendering}
                   isLoading={isLoading}
+                  isKeyReady={isKeyReady}
+                  onSelectKey={onSelectKey}
                 />
               ) : (
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md text-center">

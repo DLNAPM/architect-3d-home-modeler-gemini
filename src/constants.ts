@@ -1,4 +1,5 @@
-import { Room } from '@/types';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { Room } from './types';
 
 export const ROOM_CATEGORIES: Room[] = [
   {
@@ -73,7 +74,7 @@ export const ROOM_CATEGORIES: Room[] = [
   },
   {
     name: 'Basement',
-    // FIX: Added 'subOptionKey' to link the primary dropdown to its conditional sub-options. This resolves a type error now that 'Room' supports this property.
+    // Added 'subOptionKey' to link the primary dropdown to its conditional sub-options. This resolves a type error now that 'Room' supports this property.
     subOptionKey: 'primaryUse',
     options: {
       primaryUse: {

@@ -1,11 +1,16 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { AppView, HousePlan, Rendering, SavedDesign, Room } from '@/types';
-import HomePage from '@/components/HomePage';
-import ResultsPage from '@/components/ResultsPage';
-import Header from '@/components/Header';
-import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from '@/services/geminiService';
-import LoadingOverlay from '@/components/LoadingOverlay';
-import ApiKeyPrompt from '@/components/ApiKeyPrompt';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { AppView, HousePlan, Rendering, SavedDesign, Room } from './types';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import HomePage from './components/HomePage';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import ResultsPage from './components/ResultsPage';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import Header from './components/Header';
+// FIX: Changed import to relative path to fix module resolution issues.
+import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import LoadingOverlay from './components/LoadingOverlay';
 
 const LOCAL_STORAGE_KEY = 'architect3d-designs';
 
@@ -81,7 +86,11 @@ function App() {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newDesigns));
     } catch (error) {
       console.error("Failed to save designs to localStorage", error);
-      setError("Could not save your designs. Your browser's storage might be full.");
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        setError("Could not save your changes because your browser's storage is full. Please delete some old designs to free up space.");
+      } else {
+        setError("Could not save your designs due to a storage error.");
+      }
     }
   };
   
@@ -153,7 +162,12 @@ function App() {
       const newDesign: SavedDesign = {
         housePlan: newHousePlan,
         renderings: [frontRendering],
-        initialPrompt: description
+        initialPrompt: description,
+        uploadedImages: {
+            frontPlan: processedImages.find(p => p.description.includes('front architectural plan')),
+            backPlan: processedImages.find(p => p.description.includes('back architectural plan')),
+            facadeImage: processedImages.find(p => p.description.includes('facade'))
+        }
       };
       
       updateAndSaveDesigns([...savedDesigns, newDesign]);
@@ -174,7 +188,16 @@ function App() {
     setLoadingMessage(`Rendering ${category}...`);
     setError(null);
     try {
-      const imageUrl = await generateImage(prompt);
+      const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+      let imageUrl: string;
+      const backPlanImage = design?.uploadedImages?.backPlan;
+
+      if (category === 'Back Exterior' && backPlanImage) {
+        imageUrl = await generateImageFromImage(prompt, backPlanImage.base64, backPlanImage.mimeType);
+      } else {
+        imageUrl = await generateImage(prompt);
+      }
+
       const newRendering: Rendering = {
         id: crypto.randomUUID(),
         category,
@@ -184,10 +207,10 @@ function App() {
         favorited: false
       };
       
-      const updatedDesigns = savedDesigns.map(design => 
-        design.housePlan.id === currentDesignId
-          ? { ...design, renderings: [...design.renderings, newRendering] }
-          : design
+      const updatedDesigns = savedDesigns.map(d => 
+        d.housePlan.id === currentDesignId
+          ? { ...d, renderings: [...d.renderings, newRendering] }
+          : d
       );
       updateAndSaveDesigns(updatedDesigns);
 
@@ -212,7 +235,16 @@ function App() {
     const { prompt } = initialRendering;
 
     try {
-      const imageUrl = await generateImage(prompt);
+      let imageUrl: string;
+      const facadeImage = currentDesign.uploadedImages?.facadeImage;
+      
+      // If a facade image was originally used, use image-to-image again
+      if (facadeImage && prompt.includes("Using the provided example facade image")) {
+        imageUrl = await generateImageFromImage(prompt, facadeImage.base64, facadeImage.mimeType);
+      } else {
+        imageUrl = await generateImage(prompt);
+      }
+
       const newRendering: Rendering = {
         ...initialRendering,
         imageUrl,
@@ -283,10 +315,11 @@ function App() {
   const handleSelectDesign = (designId: string) => {
     setCurrentDesignId(designId);
     setView(AppView.Results);
+    setError(null);
   };
 
   const handleDeleteDesign = (designId: string) => {
-    if (window.confirm("Are you sure you want to delete this design? This action cannot be undone.")) {
+    if (window.confirm("Are you sure you want to delete this design and all its renderings? This action cannot be undone.")) {
       const updatedDesigns = savedDesigns.filter(d => d.housePlan.id !== designId);
       updateAndSaveDesigns(updatedDesigns);
     }
@@ -328,7 +361,6 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      {!isKeyReady && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
       <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
@@ -338,6 +370,9 @@ function App() {
             designs={filteredDesigns}
             onSelectDesign={handleSelectDesign}
             onDeleteDesign={handleDeleteDesign}
+            onErrorClear={() => setError(null)}
+            isKeyReady={isKeyReady}
+            onSelectKey={handleSelectKey}
         />}
         {view === AppView.Results && currentDesign && (
           <ResultsPage
@@ -354,6 +389,8 @@ function App() {
             error={error}
             onErrorClear={() => setError(null)}
             isLoading={isLoading}
+            isKeyReady={isKeyReady}
+            onSelectKey={handleSelectKey}
           />
         )}
       </main>

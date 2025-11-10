@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Room, CustomizationOption } from '@/types';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { Room, CustomizationOption } from '../types';
 import { Plus, Trash2, X, AlertCircle } from 'lucide-react';
 
 interface AddRoomModalProps {

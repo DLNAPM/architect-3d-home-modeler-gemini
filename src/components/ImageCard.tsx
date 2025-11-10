@@ -1,5 +1,6 @@
 import React from 'react';
-import { Rendering } from '@/types';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { Rendering } from '../types';
 import { Heart, Star, Download, Send, CheckSquare, Square, ZoomIn } from 'lucide-react';
 
 interface ImageCardProps {

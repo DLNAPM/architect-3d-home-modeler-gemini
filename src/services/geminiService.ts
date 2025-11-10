@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { HousePlan, Room, CustomizationOption } from "@/types";
-import { ROOM_CATEGORIES } from "@/constants";
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { HousePlan, Room, CustomizationOption } from "../types";
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { ROOM_CATEGORIES } from "../constants";
 
 // Content Policy Safeguards
 const BANNED_KEYWORDS = ['nude', 'naked', 'porn', 'sex', 'erotic', 'sensual', 'boudoir', 'explicit', 'xxx', 'lust', 'sexual', 'intimate', 'provocative', 'nudes', 'pornographic'];

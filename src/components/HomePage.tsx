@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2 } from 'lucide-react';
-import { SavedDesign } from '@/types';
+import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { SavedDesign } from '../types';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -8,16 +9,19 @@ interface UploadedFiles {
     facadeImage: File | null;
 }
 
-// FIX: Add designs, onSelectDesign, and onDeleteDesign to props to handle display of saved designs, resolving prop type error in App.tsx.
+// Add designs, onSelectDesign, and onDeleteDesign to props to handle display of saved designs, resolving prop type error in App.tsx.
 interface HomePageProps {
   onGenerate: (description: string, files: UploadedFiles) => void;
   error: string | null;
   designs: SavedDesign[];
   onSelectDesign: (designId: string) => void;
   onDeleteDesign: (designId: string) => void;
+  onErrorClear: () => void;
+  isKeyReady: boolean;
+  onSelectKey: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -166,82 +170,114 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
       </div>
 
       <div className="mt-10 w-full max-w-3xl bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-lg">
-        {error && (
-            <div className="mb-4 flex items-center p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-700 dark:text-red-400" role="alert">
-                <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3" />
-                <span className="font-medium">Error:</span> {error}
-            </div>
-        )}
         <div className="relative">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g., A two-story modern farmhouse with a wrap-around porch, open-concept living area, and a large kitchen island..."
-            className="w-full h-40 p-4 pr-12 text-base text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
-          />
-          <button 
-            onClick={handleVoiceInput}
-            className={`absolute top-3 right-3 p-2 rounded-full transition-colors ${isListening ? 'bg-red-500 text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-            title="Use Voice Prompt"
-            >
-            <Mic className="h-5 w-5" />
-          </button>
-        </div>
+            {!isKeyReady && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 z-10 flex flex-col items-center justify-center p-4 rounded-2xl text-center">
+                    <KeyRound className="h-8 w-8 text-brand-600 dark:text-brand-400 mx-auto" />
+                    <h3 className="mt-2 text-lg font-bold text-gray-900 dark:text-white">API Key Required</h3>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                        Please select a billing-enabled API key to generate new designs.
+                    </p>
+                    <button
+                        onClick={onSelectKey}
+                        className="mt-4 inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-brand-600 text-base font-medium text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 sm:text-sm"
+                    >
+                        Select API Key
+                    </button>
+                    <a
+                      href="https://ai.google.dev/gemini-api/docs/billing"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block text-xs text-brand-600 dark:text-brand-400 hover:underline"
+                    >
+                      Learn more about billing
+                    </a>
+                </div>
+            )}
+            {error && (
+                <div className="mb-4 flex items-center justify-between p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-700 dark:text-red-400" role="alert">
+                    <div className='flex items-center'>
+                        <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3" />
+                        <span className="font-medium">Error:</span> {error}
+                    </div>
+                    <button onClick={onErrorClear} className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-gray-700" aria-label="Dismiss error">
+                        <X className="h-4 w-4"/>
+                    </button>
+                </div>
+            )}
+            <div className="relative">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g., A two-story modern farmhouse with a wrap-around porch, open-concept living area, and a large kitchen island..."
+                className="w-full h-40 p-4 pr-12 text-base text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
+                disabled={!isKeyReady}
+              />
+              <button 
+                onClick={handleVoiceInput}
+                className={`absolute top-3 right-3 p-2 rounded-full transition-colors ${isListening ? 'bg-red-500 text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                title="Use Voice Prompt"
+                disabled={!isKeyReady}
+                >
+                <Mic className="h-5 w-5" />
+              </button>
+            </div>
 
-        <div className="mt-6 w-full space-y-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
-                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Front Architectural Plan</span>
-                <div className="flex items-center gap-3">
-                    {frontPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{frontPlan.name}</span>}
-                    <button onClick={() => frontPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
-                        <Upload className="h-4 w-4" />
-                        <span>{frontPlan ? "Change" : "Upload"}</span>
-                    </button>
-                    <input type="file" ref={frontPlanInputRef} onChange={handleFileChange(setFrontPlan)} className="hidden" accept="image/*"/>
+            <div className="mt-6 w-full space-y-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Front Architectural Plan</span>
+                    <div className="flex items-center gap-3">
+                        {frontPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{frontPlan.name}</span>}
+                        <button onClick={() => frontPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors" disabled={!isKeyReady}>
+                            <Upload className="h-4 w-4" />
+                            <span>{frontPlan ? "Change" : "Upload"}</span>
+                        </button>
+                        <input type="file" ref={frontPlanInputRef} onChange={handleFileChange(setFrontPlan)} className="hidden" accept="image/*"/>
+                    </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Back Architectural Plan</span>
+                    <div className="flex items-center gap-3">
+                        {backPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{backPlan.name}</span>}
+                        <button onClick={() => backPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors" disabled={!isKeyReady}>
+                            <Upload className="h-4 w-4" />
+                            <span>{backPlan ? "Change" : "Upload"}</span>
+                        </button>
+                        <input type="file" ref={backPlanInputRef} onChange={handleFileChange(setBackPlan)} className="hidden" accept="image/*"/>
+                    </div>
+                </div>
+                 <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Example Facade of Property</span>
+                    <div className="flex items-center gap-3">
+                        {facadeImage && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{facadeImage.name}</span>}
+                        <button onClick={() => facadeImageInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors" disabled={!isKeyReady}>
+                            <Upload className="h-4 w-4" />
+                            <span>{facadeImage ? "Change" : "Upload"}</span>
+                        </button>
+                        <input type="file" ref={facadeImageInputRef} onChange={handleFileChange(setFacadeImage)} className="hidden" accept="image/*"/>
+                    </div>
                 </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
-                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Back Architectural Plan</span>
-                <div className="flex items-center gap-3">
-                    {backPlan && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{backPlan.name}</span>}
-                    <button onClick={() => backPlanInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
-                        <Upload className="h-4 w-4" />
-                        <span>{backPlan ? "Change" : "Upload"}</span>
-                    </button>
-                    <input type="file" ref={backPlanInputRef} onChange={handleFileChange(setBackPlan)} className="hidden" accept="image/*"/>
-                </div>
-            </div>
-             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
-                <span className="font-medium text-sm text-gray-700 dark:text-gray-300">Example Facade of Property</span>
-                <div className="flex items-center gap-3">
-                    {facadeImage && <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{facadeImage.name}</span>}
-                    <button onClick={() => facadeImageInputRef.current?.click()} className="flex-shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-100 dark:bg-brand-900 dark:text-brand-300 rounded-md hover:bg-brand-200 dark:hover:bg-brand-800 transition-colors">
-                        <Upload className="h-4 w-4" />
-                        <span>{facadeImage ? "Change" : "Upload"}</span>
-                    </button>
-                    <input type="file" ref={facadeImageInputRef} onChange={handleFileChange(setFacadeImage)} className="hidden" accept="image/*"/>
-                </div>
-            </div>
-        </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <button
-                type="button"
-                onClick={() => setShowHowTo(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                title="How to use the app"
-            >
-                <HelpCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">How To Use</span>
-            </button>
-            <button
-                onClick={handleGenerateClick}
-                disabled={!description.trim() && !frontPlan && !backPlan && !facadeImage}
-                className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-            >
-                <Sparkles className="h-5 w-5" />
-                Generate
-            </button>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <button
+                    type="button"
+                    onClick={() => setShowHowTo(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                    title="How to use the app"
+                >
+                    <HelpCircle className="h-4 w-4" />
+                    <span className="hidden sm:inline">How To Use</span>
+                </button>
+                <button
+                    onClick={handleGenerateClick}
+                    disabled={!isKeyReady || (!description.trim() && !frontPlan && !backPlan && !facadeImage)}
+                    className="flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                >
+                    <Sparkles className="h-5 w-5" />
+                    Generate
+                </button>
+            </div>
         </div>
       </div>
 

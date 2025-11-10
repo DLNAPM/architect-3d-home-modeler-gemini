@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { HousePlan, Room, CustomizationOption } from '@/types';
-import { Wand2 } from 'lucide-react';
+// FIX: Replaced path alias with relative path to fix module resolution error.
+import { HousePlan, Room, CustomizationOption } from '../types';
+import { Wand2, KeyRound } from 'lucide-react';
 
 interface CustomizationPanelProps {
   room: Room;
@@ -8,9 +9,11 @@ interface CustomizationPanelProps {
   initialPrompt: string;
   onGenerate: (prompt: string, category: string) => void;
   isLoading: boolean;
+  isKeyReady: boolean;
+  onSelectKey: () => void;
 }
 
-const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate, isLoading }) => {
+const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate, isLoading, isKeyReady, onSelectKey }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [customText, setCustomText] = useState('');
 
@@ -23,12 +26,12 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
       });
 
       // If it's a room with sub-options, initialize the first set of sub-options
-      // FIX: Check for room.subOptionKey and room.subOptions to handle conditional rendering, resolving property access errors.
+      // Check for room.subOptionKey and room.subOptions to handle conditional rendering, resolving property access errors.
       if (room.subOptionKey && room.subOptions) {
         const defaultSubOptionKey = initialSelections[room.subOptionKey];
         const subOptions = room.subOptions[defaultSubOptionKey];
         if (subOptions) {
-          // FIX: Use Object.keys for better type inference.
+          // Use Object.keys for better type inference.
           Object.keys(subOptions).forEach((key) => {
             initialSelections[key] = subOptions[key].options[0];
           });
@@ -43,7 +46,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     setSelections(prevSelections => {
         const newSelections = { ...prevSelections, [optionKey]: value };
 
-        // FIX: Add logic to reset sub-options when the primary controlling option changes, resolving property access errors.
+        // Add logic to reset sub-options when the primary controlling option changes, resolving property access errors.
         if (room.subOptionKey && optionKey === room.subOptionKey && room.subOptions) {
             // A new Primary Use was selected, so we need to reset the sub-options.
             const subOptionsForNewValue = room.subOptions[value];
@@ -57,7 +60,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
 
             // Then, add the new sub-options with their default values.
             if (subOptionsForNewValue) {
-                // FIX: Use Object.keys for better type inference.
+                // Use Object.keys for better type inference.
                 Object.keys(subOptionsForNewValue).forEach((subKey) => {
                     newSelections[subKey] = subOptionsForNewValue[subKey].options[0];
                 });
@@ -68,7 +71,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   };
 
   const handleGenerate = () => {
-    // FIX: Changed type from Record<string, any> to Record<string, CustomizationOption> for type safety.
+    // Changed type from Record<string, any> to Record<string, CustomizationOption> for type safety.
     let allPossibleOptions: Record<string, CustomizationOption> = { ...room.options };
     if (room.subOptionKey && room.subOptions && selections[room.subOptionKey]) {
         const selectedSubOptions = room.subOptions[selections[room.subOptionKey]];
@@ -79,11 +82,12 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
 
     const detailDescriptions = Object.entries(selections)
       .map(([key, value]) => {
-        // FIX: Safely access label from the combined options object, resolving potential type errors.
+        // Safely access label from the combined options object, resolving potential type errors.
         if (!allPossibleOptions[key]) return null;
         
         const optionLabel = allPossibleOptions[key].label.toLowerCase();
-        if (value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no ')) return null;
+        // Add type guard to prevent runtime error on toLowerCase.
+        if (typeof value !== 'string' || value.toLowerCase() === 'none' || value.toLowerCase().startsWith('no ')) return null;
 
         if (room.subOptionKey && key === room.subOptionKey) {
             return `designed as a ${value}`;
@@ -118,84 +122,101 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
   const subOptionsToRender = (selectedSubOptionKey && room.subOptions && room.subOptions[selectedSubOptionKey]) || null;
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-      <h3 className="font-bold text-xl mb-4">Customize {room.name}</h3>
-      <div className="space-y-4">
-        {/* FIX: Use Object.keys for better type inference. */}
-        {room && room.options && Object.keys(room.options).map((key) => {
-          const option = room.options[key];
-          return (
-            <div key={key}>
-              <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {option.label}
-              </label>
-              <select
-                id={key}
-                name={key}
-                value={selections[key] || ''}
-                onChange={(e) => handleSelectionChange(key, e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-              >
-                {option.options.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
-        
-        {subOptionsToRender && (
-            <>
-                <hr className="border-gray-200 dark:border-gray-600 my-4" />
-                {/* FIX: Use Object.keys for better type inference. */}
-                {Object.keys(subOptionsToRender).map((key) => {
-                  const option = subOptionsToRender[key];
-                  return (
-                    <div key={key}>
-                        <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {option.label}
-                        </label>
-                        <select
-                        id={key}
-                        name={key}
-                        value={selections[key] || ''}
-                        onChange={(e) => handleSelectionChange(key, e.target.value)}
-                        className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-                        >
-                        {option.options.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                        </select>
-                    </div>
-                  );
-                })}
-            </>
-        )}
-      </div>
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md relative">
+      {!isKeyReady && (
+        <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 z-10 flex flex-col items-center justify-center p-4 rounded-lg text-center">
+            <KeyRound className="h-8 w-8 text-brand-600 dark:text-brand-400 mx-auto" />
+            <h3 className="mt-2 text-lg font-bold">API Key Required</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                Select a key to generate new renderings.
+            </p>
+            <button
+                onClick={onSelectKey}
+                className="mt-4 inline-flex justify-center rounded-md shadow-sm px-4 py-2 bg-brand-600 text-base font-medium text-white hover:bg-brand-700"
+            >
+                Select API Key
+            </button>
+        </div>
+      )}
+      <fieldset disabled={!isKeyReady}>
+        <h3 className="font-bold text-xl mb-4">Customize {room.name}</h3>
+        <div className="space-y-4">
+          {/* Use Object.keys for better type inference. */}
+          {room && room.options && Object.keys(room.options).map((key) => {
+            const option = room.options[key];
+            return (
+              <div key={key}>
+                <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {option.label}
+                </label>
+                <select
+                  id={key}
+                  name={key}
+                  value={selections[key] || ''}
+                  onChange={(e) => handleSelectionChange(key, e.target.value)}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+                >
+                  {option.options.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+          
+          {subOptionsToRender && (
+              <>
+                  <hr className="border-gray-200 dark:border-gray-600 my-4" />
+                  {/* Use Object.keys for better type inference. */}
+                  {Object.keys(subOptionsToRender).map((key) => {
+                    const option = subOptionsToRender[key];
+                    return (
+                      <div key={key}>
+                          <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {option.label}
+                          </label>
+                          <select
+                          id={key}
+                          name={key}
+                          value={selections[key] || ''}
+                          onChange={(e) => handleSelectionChange(key, e.target.value)}
+                          className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+                          >
+                          {option.options.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                          </select>
+                      </div>
+                    );
+                  })}
+              </>
+          )}
+        </div>
 
-      <div className="mt-4">
-        <label htmlFor="customText" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Additional Details (Optional)
-        </label>
-        <textarea
-          id="customText"
-          name="customText"
-          rows={4}
-          value={customText}
-          onChange={(e) => setCustomText(e.target.value)}
-          placeholder="e.g., add a large potted fiddle-leaf fig in the corner, and a gallery wall of black and white photos..."
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
-        />
-      </div>
+        <div className="mt-4">
+          <label htmlFor="customText" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Additional Details (Optional)
+          </label>
+          <textarea
+            id="customText"
+            name="customText"
+            rows={4}
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder="e.g., add a large potted fiddle-leaf fig in the corner, and a gallery wall of black and white photos..."
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-500 focus:border-brand-500 text-sm"
+          />
+        </div>
 
-      <button
-        onClick={handleGenerate}
-        disabled={isLoading}
-        className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 transition-colors shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
-      >
-        <Wand2 className="h-5 w-5" />
-        Generate Rendering
-      </button>
+        <button
+          onClick={handleGenerate}
+          disabled={isLoading}
+          className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2 text-base font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 transition-colors shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          <Wand2 className="h-5 w-5" />
+          Generate Rendering
+        </button>
+      </fieldset>
     </div>
   );
 };

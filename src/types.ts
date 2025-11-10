@@ -15,12 +15,12 @@ export interface CustomizationOption {
 export interface Room {
   name: string;
   options: Record<string, CustomizationOption>;
-  // FIX: Add subOptionKey and subOptions to support rooms with conditional customization. This resolves type errors in src/constants.ts and src/components/CustomizationPanel.tsx.
+  // Add subOptionKey and subOptions to support rooms with conditional customization. This resolves type errors in src/constants.ts and src/components/CustomizationPanel.tsx.
   subOptionKey?: string;
   subOptions?: Record<string, Record<string, CustomizationOption>>;
 }
 
-// FIX: Add id and createdAt to HousePlan to uniquely identify and sort designs. This resolves type errors in src/App.tsx.
+// Add id and createdAt to HousePlan to uniquely identify and sort designs. This resolves type errors in src/App.tsx.
 export interface HousePlan {
   id: string;
   createdAt: number;
@@ -29,11 +29,16 @@ export interface HousePlan {
   rooms: Room[];
 }
 
-// FIX: Add and export SavedDesign interface to bundle all parts of a design together. This resolves missing export errors in src/App.tsx, src/components/ResultsPage.tsx, and src/components/HomePage.tsx.
+// Add and export SavedDesign interface to bundle all parts of a design together. This resolves missing export errors in src/App.tsx, src/components/ResultsPage.tsx, and src/components/HomePage.tsx.
 export interface SavedDesign {
   housePlan: HousePlan;
   renderings: Rendering[];
   initialPrompt: string;
+  uploadedImages?: {
+    frontPlan?: { base64: string; mimeType: string; };
+    backPlan?: { base64: string; mimeType: string; };
+    facadeImage?: { base64: string; mimeType: string; };
+  }
 }
 
 export enum AppView {
