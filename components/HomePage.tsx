@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
-import { SavedDesign } from '../types';
+import { SavedDesign, User } from '../types';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -17,9 +17,10 @@ interface HomePageProps {
   onErrorClear: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  user: User | null;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey, user }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -160,7 +161,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
       )}
       <div className="w-full max-w-3xl text-center">
         <h2 className="text-3xl md:text-5xl font-extrabold text-gray-800 dark:text-white">
-          Design Your Dream Home with AI
+          {user ? `Welcome back, ${user.name}!` : "Design Your Dream Home with AI"}
         </h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
           Describe your vision, upload a floor plan, or use your voice. Let our AI architect bring your ideas to life.
@@ -325,7 +326,9 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
           </div>
         ) : (
           <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">No designs found.</h4>
+            <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+              {user ? "You haven't created any designs yet." : "No guest designs found."}
+            </h4>
             <p className="mt-2 text-gray-500 dark:text-gray-400">
               Create your first design using the form above to get started!
             </p>

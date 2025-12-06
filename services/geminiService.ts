@@ -244,27 +244,36 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
   }
 }
 
-
+// FIX: Updated `generateImage` to use `gemini-2.5-flash-image` and `generateContent` as per guidelines for default image generation.
 export async function generateImage(prompt: string): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
   try {
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: '16:9',
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
         },
+      },
     });
-
-    if (response.generatedImages && response.generatedImages.length > 0) {
-      const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-      return `data:image/jpeg;base64,${base64ImageBytes}`;
-    } else {
-      throw new Error("Image generation completed, but no image was returned. This may be due to safety filters.");
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        const base64EncodeString: string = part.inlineData.data;
+        const imageUrl = `data:${part.inlineData.mimeType};base64,${base64EncodeString}`;
+        return imageUrl;
+      }
     }
+    
+    throw new Error("Image generation completed, but no image was returned. This may be due to safety filters.");
+
   } catch(error) {
     parseAndThrowApiError(error, 'image');
     throw new Error("Unreachable code");

@@ -13,7 +13,7 @@ export interface CustomizationOption {
 }
 
 export interface Room {
-  name: string;
+  name:string;
   options: Record<string, CustomizationOption>;
   subOptionKey?: string;
   subOptions?: Record<string, Record<string, CustomizationOption>>;
@@ -41,4 +41,10 @@ export interface SavedDesign {
 export enum AppView {
   Home,
   Results
+}
+
+export interface User {
+  name: string;
+  email: string;
+  picture: string;
 }

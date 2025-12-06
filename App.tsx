@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { AppView, HousePlan, Rendering, SavedDesign, Room } from './types';
+import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
+import { authService } from './services/authService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
 
-const LOCAL_STORAGE_KEY = 'architect3d-designs';
+const ANONYMOUS_STORAGE_KEY = 'architect3d-designs-anonymous';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -26,17 +27,54 @@ function App() {
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
+  const getStorageKey = useCallback(() => {
+    return user ? `architect3d-designs-${user.email}` : ANONYMOUS_STORAGE_KEY;
+  }, [user]);
+
+  // Subscribe to authentication state changes
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((newUser) => {
+      // Check if user is logging IN (previous user state was null)
+      if (newUser && !user) {
+        const anonymousDesignsRaw = localStorage.getItem(ANONYMOUS_STORAGE_KEY);
+        if (anonymousDesignsRaw) {
+          try {
+            const anonymousDesigns: SavedDesign[] = JSON.parse(anonymousDesignsRaw);
+            if (anonymousDesigns.length > 0) {
+              if (window.confirm("You have designs saved as a guest. Would you like to move them to your account?")) {
+                const userKey = `architect3d-designs-${newUser.email}`;
+                localStorage.setItem(userKey, anonymousDesignsRaw);
+                localStorage.removeItem(ANONYMOUS_STORAGE_KEY);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to migrate anonymous designs:", e);
+          }
+        }
+      }
+      setUser(newUser);
+    });
+    return () => unsubscribe();
+  }, [user]); // Depend on user to compare old vs new state
+
+  // Load designs from localStorage when the user state changes (login/logout)
   useEffect(() => {
     try {
-      const storedDesigns = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const key = getStorageKey();
+      const storedDesigns = localStorage.getItem(key);
       if (storedDesigns) {
         setSavedDesigns(JSON.parse(storedDesigns));
+      } else {
+        setSavedDesigns([]); // Clear designs if none are found for the new user/guest
       }
     } catch (error) {
       console.error("Failed to load designs from localStorage", error);
+      setSavedDesigns([]);
     }
-  }, []);
+  }, [getStorageKey]);
+
   
   const checkApiKey = useCallback(async () => {
     if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
@@ -80,7 +118,8 @@ function App() {
   const updateAndSaveDesigns = (newDesigns: SavedDesign[]) => {
     setSavedDesigns(newDesigns);
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newDesigns));
+      const key = getStorageKey();
+      localStorage.setItem(key, JSON.stringify(newDesigns));
     } catch (error) {
       console.error("Failed to save designs to localStorage", error);
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
@@ -177,7 +216,7 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [savedDesigns]);
+  }, [savedDesigns, getStorageKey]);
   
   const handleNewRendering = useCallback(async (prompt: string, category: string) => {
     if (!currentDesignId) return;
@@ -355,6 +394,13 @@ function App() {
           setError("API key selection is not available in this environment.");
       }
   };
+  
+  const handleSignIn = () => authService.signIn();
+  const handleSignOut = () => {
+    authService.signOut();
+    resetApp();
+  };
+
 
   const resetApp = () => {
     setView(AppView.Home);
@@ -377,7 +423,14 @@ function App() {
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
-      <Header onNewDesign={resetApp} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+      <Header 
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+        onNewDesign={resetApp} 
+        searchQuery={searchQuery} 
+        onSearchChange={setSearchQuery} 
+      />
       <main className="container mx-auto px-4 py-8">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
         {view === AppView.Home && <HomePage 
@@ -389,6 +442,7 @@ function App() {
             onErrorClear={() => setError(null)}
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
+            user={user}
         />}
         {view === AppView.Results && currentDesign && (
           <ResultsPage
