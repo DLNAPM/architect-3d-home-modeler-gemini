@@ -277,6 +277,7 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
   const ai = getAiClient();
   validatePrompt(prompt);
   try {
+    // FIX: Removed the 'config' object, as `responseModalities` is not a supported parameter for this image generation model.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -291,9 +292,6 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
             text: prompt,
           },
         ],
-      },
-      config: {
-          responseModalities: [Modality.IMAGE],
       },
     });
 

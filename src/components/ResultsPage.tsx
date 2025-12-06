@@ -53,13 +53,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const showRecreateButton = renderings.length === 1 && renderings[0].category === 'Front Exterior';
 
   const handleRoomSelect = (room: Room) => {
-    // Check if the selected room is 'Back Exterior' and if no rendering for it exists yet.
-    const hasBackExteriorRendering = renderings.some(r => r.category === 'Back Exterior');
-    if (room.name === 'Back Exterior' && !hasBackExteriorRendering && !isLoading) {
-        // Construct a smart prompt for the initial back exterior generation
-        const prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house. The overall architectural style, materials, and aesthetic MUST be consistent with the front of the house based on this initial concept: "${initialPrompt}". This view should focus on the yard and the rear facade of the building. If a back architectural plan was provided, use it as the primary guide for the layout of doors, windows, decks, or patios. Create a cohesive and appealing backyard scene. DO NOT include front-of-house elements like driveways or the street.`;
-        onNewRendering(prompt, 'Back Exterior');
-    }
     setSelectedRoom(room);
   };
 
