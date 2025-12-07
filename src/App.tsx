@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
+import { AppView, HousePlan, Rendering, SavedDesign, Room } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
-import { authService } from './services/authService';
 import { dbService } from './services/dbService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
@@ -26,87 +25,34 @@ function App() {
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
-  const [user, setUser] = useState<User | null>(null);
 
-  // 1. Authentication Subscription
-  // We use a deep comparison strategy here to prevent infinite render loops if the
-  // auth provider emits a new object reference with the same data.
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged((newUser) => {
-      setUser((prevUser) => {
-        // If both are null, no change
-        if (!prevUser && !newUser) return null;
-        // If one is null and other is not, change
-        if ((!prevUser && newUser) || (prevUser && !newUser)) return newUser;
-        // If data is different, change
-        if (prevUser && newUser && (prevUser.email !== newUser.email || prevUser.name !== newUser.name)) {
-          return newUser;
-        }
-        // Otherwise, keep the old reference to prevent re-renders
-        return prevUser;
-      });
-    });
-    return () => unsubscribe();
+  // Always anonymous
+  const getUserId = useCallback(() => {
+    return 'anonymous';
   }, []);
 
-  const getUserId = useCallback(() => {
-    return user ? user.email : 'anonymous';
-  }, [user]);
-
-  // 2. Data Migration Effect (Decoupled from Auth Callback)
-  // This runs only when a user logs in. It handles moving guest designs to the user account.
-  useEffect(() => {
-    const migrateGuestDesigns = async () => {
-      if (user) {
-        try {
-          // Check if there are any designs saved under 'anonymous'
-          const anonymousDesigns = await dbService.getUserDesigns('anonymous');
-          
-          if (anonymousDesigns.length > 0) {
-            // We use a small timeout to allow the UI to update to the "Logged In" state first
-            // so the app doesn't appear frozen while the confirm dialog is open.
-            setTimeout(async () => {
-              if (window.confirm("You have designs saved as a guest. Would you like to move them to your account?")) {
-                await dbService.reassignDesigns('anonymous', user.email);
-                // Force a reload of designs after migration
-                const updatedDesigns = await dbService.getUserDesigns(user.email);
-                setSavedDesigns(updatedDesigns);
-              }
-            }, 100);
-          }
-        } catch (e) {
-          console.error("Error checking/migrating anonymous designs:", e);
-        }
-      }
-    };
-
-    migrateGuestDesigns();
-  }, [user]);
-
-  // 3. Main Data Loading Effect
-  // Loads designs whenever the effective user ID changes (Guest or Logged In)
+  // Main Data Loading Effect
+  // Loads designs for the anonymous user
   useEffect(() => {
     const loadData = async () => {
         const userId = getUserId();
         
         // A. Legacy Migration (LocalStorage -> IndexedDB)
-        // This fixes the QuotaExceededError by moving data to IDB once.
         const legacyKeys = [
             'architect3d-designs', 
-            'architect3d-designs-anonymous', 
-            user ? `architect3d-designs-${user.email}` : ''
-        ].filter(Boolean);
+            'architect3d-designs-anonymous'
+        ];
 
         for (const key of legacyKeys) {
             try {
-                const lsData = localStorage.getItem(key!);
+                const lsData = localStorage.getItem(key);
                 if (lsData) {
                     const parsed = JSON.parse(lsData);
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         console.log(`Migrating ${parsed.length} designs from LocalStorage key: ${key}`);
                         await Promise.all(parsed.map(d => dbService.saveDesign(d, userId)));
                     }
-                    localStorage.removeItem(key!);
+                    localStorage.removeItem(key);
                 }
             } catch (e) {
                 console.error("Error migrating legacy LocalStorage data:", e);
@@ -124,7 +70,7 @@ function App() {
     };
     
     loadData();
-  }, [getUserId, user]);
+  }, [getUserId]);
 
   
   const checkApiKey = useCallback(async () => {
@@ -459,12 +405,6 @@ function App() {
       }
   }, [checkApiKey]);
   
-  const handleSignIn = useCallback(() => authService.signIn(), []);
-  const handleSignOut = useCallback(() => {
-    authService.signOut();
-    resetApp();
-  }, [resetApp]);
-  
   // Clear error callback
   const handleClearError = useCallback(() => setError(null), []);
 
@@ -476,9 +416,6 @@ function App() {
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
       <Header 
-        user={user}
-        onSignIn={handleSignIn}
-        onSignOut={handleSignOut}
         onNewDesign={resetApp} 
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
@@ -494,7 +431,6 @@ function App() {
             onErrorClear={handleClearError}
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
-            user={user}
         />}
         {view === AppView.Results && currentDesign && (
           <ResultsPage

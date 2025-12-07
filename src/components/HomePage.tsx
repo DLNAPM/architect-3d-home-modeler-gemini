@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
-import { SavedDesign, User } from '../types';
+import { SavedDesign } from '../types';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -17,7 +17,6 @@ interface HomePageProps {
   onErrorClear: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
-  user: User | null;
 }
 
 // Memoized component for displaying a single design card.
@@ -56,13 +55,12 @@ const DesignCard = React.memo(({ design, onSelect, onDelete }: { design: SavedDe
 });
 
 // Memoized list component.
-// This separates the heavy rendering of the list from the parent HomePage state (input text updates).
-const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign, user }: { designs: SavedDesign[], onSelectDesign: (id: string) => void, onDeleteDesign: (id: string) => void, user: User | null }) => {
+const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign }: { designs: SavedDesign[], onSelectDesign: (id: string) => void, onDeleteDesign: (id: string) => void }) => {
     if (designs.length === 0) {
         return (
             <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
                 <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
-                    {user ? "You haven't created any designs yet." : "No guest designs found."}
+                    No designs found.
                 </h4>
                 <p className="mt-2 text-gray-500 dark:text-gray-400">
                     Create your first design using the form above to get started!
@@ -85,7 +83,7 @@ const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign, user }
     );
 });
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey, user }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -246,7 +244,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
       )}
       <div className="w-full max-w-3xl text-center">
         <h2 className="text-3xl md:text-5xl font-extrabold text-gray-800 dark:text-white">
-          {user ? `Welcome back, ${user.name}!` : "Design Your Dream Home with AI"}
+          Design Your Dream Home with AI
         </h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
           Describe your vision, upload a floor plan, or use your voice. Let our AI architect bring your ideas to life.
@@ -378,7 +376,6 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
             designs={designs} 
             onSelectDesign={onSelectDesign} 
             onDeleteDesign={onDeleteDesign} 
-            user={user} 
         />
       </div>
     </div>
