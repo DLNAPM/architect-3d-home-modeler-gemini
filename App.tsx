@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
@@ -26,7 +26,9 @@ function App() {
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
+  
   const [user, setUser] = useState<User | null>(null);
+  const userRef = useRef<User | null>(null); // To track previous user for migration logic
 
   const getUserId = useCallback(() => {
     return user ? user.email : 'anonymous';
@@ -34,75 +36,77 @@ function App() {
 
   // Subscribe to authentication state changes
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged(async (newUser) => {
-      const oldUser = user;
-      setUser(newUser);
-      
-      // Handle data migration from Anonymous to User
-      if (newUser && !oldUser) {
-        try {
-            const anonymousDesigns = await dbService.getUserDesigns('anonymous');
-            if (anonymousDesigns.length > 0) {
-              if (window.confirm("You have designs saved as a guest. Would you like to move them to your account?")) {
-                  await dbService.reassignDesigns('anonymous', newUser.email);
-                  // Refresh designs after migration
-                  const updatedDesigns = await dbService.getUserDesigns(newUser.email);
-                  setSavedDesigns(updatedDesigns);
-              }
-            }
-        } catch (e) {
-            console.error("Error migrating anonymous designs:", e);
-        }
+    const unsubscribe = authService.onAuthStateChanged((newUser) => {
+      // Robust check to prevent infinite render loops.
+      // We check if the email has changed, or if we are transitioning between null and object.
+      const prevEmail = userRef.current?.email;
+      const newEmail = newUser?.email;
+
+      // Only update state if identity actually changed
+      if (prevEmail !== newEmail) {
+          setUser(newUser);
       }
     });
     return () => unsubscribe();
-  }, [user]);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Load designs from IndexedDB (and migrate legacy LocalStorage)
+  // Handle data migration and initial data load
   useEffect(() => {
-    const loadData = async () => {
-        const userId = getUserId();
-        
-        // 1. Legacy Migration: Check for data in LocalStorage (which caused the QuotaError)
-        // We check standard keys used in previous versions
-        const legacyKeys = [
-            'architect3d-designs', 
-            'architect3d-designs-anonymous', 
-            user ? `architect3d-designs-${user.email}` : ''
-        ].filter(Boolean);
+      const handleDataLoadAndMigration = async () => {
+        const currentUser = user;
+        const previousUser = userRef.current;
+        const currentUserId = currentUser ? currentUser.email : 'anonymous';
 
-        let migrated = false;
-        for (const key of legacyKeys) {
-            try {
-                const lsData = localStorage.getItem(key!);
+        // Migration Logic: If we just logged in (went from null to user)
+        if (currentUser && !previousUser) {
+             try {
+                const anonymousDesigns = await dbService.getUserDesigns('anonymous');
+                if (anonymousDesigns.length > 0) {
+                    // Use a slightly longer timeout to ensure the UI has fully painted after login
+                    // This prevents the synchronous window.confirm from blocking the main thread too early
+                    setTimeout(async () => {
+                         if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
+                            await dbService.reassignDesigns('anonymous', currentUser.email);
+                            // Reload to reflect changes
+                            const designs = await dbService.getUserDesigns(currentUser.email);
+                            setSavedDesigns(designs);
+                        }
+                    }, 500);
+                }
+             } catch (e) {
+                 console.error("Error checking for anonymous designs:", e);
+             }
+        }
+
+        // Standard Data Loading
+        try {
+            // 1. Legacy LocalStorage Migration (Safety check)
+            const legacyKeys = ['architect3d-designs', 'architect3d-designs-anonymous'];
+            for (const key of legacyKeys) {
+                const lsData = localStorage.getItem(key);
                 if (lsData) {
                     const parsed = JSON.parse(lsData);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        console.log(`Migrating ${parsed.length} designs from LocalStorage key: ${key}`);
-                        // Save to IndexedDB
-                        await Promise.all(parsed.map(d => dbService.saveDesign(d, userId)));
-                        migrated = true;
+                        await Promise.all(parsed.map(d => dbService.saveDesign(d, currentUserId)));
                     }
-                    // Clear LocalStorage to fix the QuotaExceededError
-                    localStorage.removeItem(key!);
+                    localStorage.removeItem(key);
                 }
-            } catch (e) {
-                console.error("Error migrating legacy LocalStorage data:", e);
             }
-        }
 
-        // 2. Load designs from IndexedDB
-        try {
-            const designs = await dbService.getUserDesigns(userId);
+            // 2. Load from DB
+            const designs = await dbService.getUserDesigns(currentUserId);
             setSavedDesigns(designs);
         } catch (e) {
-            console.error("Failed to load designs from DB:", e);
+            console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
         }
-    };
-    
-    loadData();
-  }, [getUserId, user]); // Reload when user changes
+        
+        // Update ref after processing
+        userRef.current = currentUser;
+      };
+
+      handleDataLoadAndMigration();
+  }, [user]); // Runs whenever user state changes
 
   
   const checkApiKey = useCallback(async () => {
@@ -145,7 +149,7 @@ function App() {
   }, [searchQuery, savedDesigns]);
 
   // Helper to update state locally AND persist to DB
-  const saveDesignChange = async (updatedDesign: SavedDesign) => {
+  const saveDesignChange = useCallback(async (updatedDesign: SavedDesign) => {
       const userId = getUserId();
       try {
           // Optimistic UI update
@@ -165,9 +169,9 @@ function App() {
           console.error("Failed to save design:", err);
           setError("Failed to save changes to storage.");
       }
-  };
+  }, [getUserId]);
   
-  const handleError = (err: unknown, defaultView: AppView = AppView.Home) => {
+  const handleError = useCallback((err: unknown, defaultView: AppView = AppView.Home) => {
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
     if (errorMessage.includes('billing-enabled API key') || errorMessage.includes('select a valid key') || errorMessage.includes('Requested entity was not found')) {
         setIsKeyReady(false);
@@ -176,7 +180,7 @@ function App() {
     if (defaultView === AppView.Home) {
         setView(AppView.Home);
     }
-  };
+  }, []);
 
 
   const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
@@ -253,7 +257,7 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [savedDesigns, getUserId]);
+  }, [saveDesignChange, handleError]);
   
   const handleNewRendering = useCallback(async (prompt: string, category: string) => {
     if (!currentDesignId) return;
@@ -291,7 +295,7 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [currentDesignId, savedDesigns]);
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
 
   const handleRecreateInitialRendering = useCallback(async () => {
     if (!currentDesign || currentDesign.renderings.length !== 1 || currentDesign.renderings[0].category !== 'Front Exterior') {
@@ -329,7 +333,7 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [currentDesign, currentDesignId]);
+  }, [currentDesign, saveDesignChange, handleError]);
 
 
   const handleGenerateVideoTour = useCallback(async (prompt: string) => {
@@ -345,16 +349,16 @@ function App() {
           setIsLoading(false);
           setLoadingMessage('');
       }
-  }, []);
+  }, [handleError]);
 
-  const handleCloseVideo = () => {
+  const handleCloseVideo = useCallback(() => {
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
     }
     setVideoUrl(null);
-  };
+  }, [videoUrl]);
 
-  const updateRendering = async (renderingId: string, updates: Partial<Rendering>) => {
+  const updateRendering = useCallback(async (renderingId: string, updates: Partial<Rendering>) => {
     if (!currentDesignId) return;
     const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
     if (!design) return;
@@ -362,9 +366,9 @@ function App() {
     const newRenderings = design.renderings.map(r => r.id === renderingId ? { ...r, ...updates } : r);
     const updatedDesign = { ...design, renderings: newRenderings };
     await saveDesignChange(updatedDesign);
-  };
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
 
-  const deleteRenderings = async (renderingIds: string[]) => {
+  const deleteRenderings = useCallback(async (renderingIds: string[]) => {
     if (!currentDesignId) return;
     const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
     if (!design) return;
@@ -372,15 +376,27 @@ function App() {
     const newRenderings = design.renderings.filter(r => !renderingIds.includes(r.id));
     const updatedDesign = { ...design, renderings: newRenderings };
     await saveDesignChange(updatedDesign);
-  };
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
 
-  const handleSelectDesign = (designId: string) => {
+  const handleSelectDesign = useCallback((designId: string) => {
     setCurrentDesignId(designId);
     setView(AppView.Results);
     setError(null);
-  };
+  }, []);
 
-  const handleDeleteDesign = async (designId: string) => {
+  const resetApp = useCallback(() => {
+    setView(AppView.Home);
+    setCurrentDesignId(null);
+    setError(null);
+    setIsLoading(false);
+    setSearchQuery('');
+    setVideoUrl(prev => {
+        if(prev) URL.revokeObjectURL(prev);
+        return null;
+    });
+  }, []);
+
+  const handleDeleteDesign = useCallback(async (designId: string) => {
     if (window.confirm("Are you sure you want to delete this design and all its renderings? This action cannot be undone.")) {
       try {
         await dbService.deleteDesign(designId);
@@ -393,7 +409,7 @@ function App() {
         setError("Failed to delete design.");
       }
     }
-  };
+  }, [currentDesignId, resetApp]);
   
   const handleAddRoom = useCallback(async (newRoom: Room) => {
     if (!currentDesignId) return;
@@ -406,9 +422,9 @@ function App() {
     };
     const updatedDesign = { ...design, housePlan: updatedHousePlan };
     await saveDesignChange(updatedDesign);
-  }, [currentDesignId, savedDesigns]);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
 
-  const handleSelectKey = async () => {
+  const handleSelectKey = useCallback(async () => {
       if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
         try {
           await window.aistudio.openSelectKey();
@@ -420,24 +436,16 @@ function App() {
       } else {
           setError("API key selection is not available in this environment.");
       }
-  };
+  }, [checkApiKey]);
   
+  const handleClearError = useCallback(() => setError(null), []);
+
   const handleSignIn = () => authService.signIn();
   const handleSignOut = () => {
     authService.signOut();
     resetApp();
   };
 
-
-  const resetApp = () => {
-    setView(AppView.Home);
-    setCurrentDesignId(null);
-    setError(null);
-    setIsLoading(false);
-    setSearchQuery('');
-    handleCloseVideo();
-  }
-  
   if (isKeyReady === null) {
       return <LoadingOverlay message="Initializing..." />;
   }
@@ -461,7 +469,7 @@ function App() {
             designs={filteredDesigns}
             onSelectDesign={handleSelectDesign}
             onDeleteDesign={handleDeleteDesign}
-            onErrorClear={() => setError(null)}
+            onErrorClear={handleClearError}
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
             user={user}
@@ -479,7 +487,7 @@ function App() {
             videoUrl={videoUrl}
             onCloseVideo={handleCloseVideo}
             error={error}
-            onErrorClear={() => setError(null)}
+            onErrorClear={handleClearError}
             isLoading={isLoading}
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
