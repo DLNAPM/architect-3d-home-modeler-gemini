@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
@@ -28,57 +27,70 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  
-  // Ref to track user state without triggering effects
-  const userRef = useRef<User | null>(null);
+
+  // 1. Authentication Subscription
+  // We use a deep comparison strategy here to prevent infinite render loops if the
+  // auth provider emits a new object reference with the same data.
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((newUser) => {
+      setUser((prevUser) => {
+        // If both are null, no change
+        if (!prevUser && !newUser) return null;
+        // If one is null and other is not, change
+        if ((!prevUser && newUser) || (prevUser && !newUser)) return newUser;
+        // If data is different, change
+        if (prevUser && newUser && (prevUser.email !== newUser.email || prevUser.name !== newUser.name)) {
+          return newUser;
+        }
+        // Otherwise, keep the old reference to prevent re-renders
+        return prevUser;
+      });
+    });
+    return () => unsubscribe();
+  }, []);
 
   const getUserId = useCallback(() => {
     return user ? user.email : 'anonymous';
   }, [user]);
 
-  // Subscribe to authentication state changes
+  // 2. Data Migration Effect (Decoupled from Auth Callback)
+  // This runs only when a user logs in. It handles moving guest designs to the user account.
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged(async (newUser) => {
-      const oldUser = userRef.current;
-      
-      // DEEP COMPARISON CHECK: Only update state if the user data actually changed.
-      // This prevents infinite render loops if the auth provider emits the same user object repeatedly.
-      const hasChanged = 
-        (!oldUser && newUser) ||
-        (oldUser && !newUser) ||
-        (oldUser && newUser && (oldUser.email !== newUser.email || oldUser.name !== newUser.name));
-
-      if (hasChanged) {
-        userRef.current = newUser;
-        setUser(newUser);
-
-        // Handle data migration from Anonymous to User
-        if (newUser && !oldUser) {
-          try {
-              const anonymousDesigns = await dbService.getUserDesigns('anonymous');
-              if (anonymousDesigns.length > 0) {
-                if (window.confirm("You have designs saved as a guest. Would you like to move them to your account?")) {
-                    await dbService.reassignDesigns('anonymous', newUser.email);
-                    // Force a reload of designs after migration
-                    const updatedDesigns = await dbService.getUserDesigns(newUser.email);
-                    setSavedDesigns(updatedDesigns);
-                }
+    const migrateGuestDesigns = async () => {
+      if (user) {
+        try {
+          // Check if there are any designs saved under 'anonymous'
+          const anonymousDesigns = await dbService.getUserDesigns('anonymous');
+          
+          if (anonymousDesigns.length > 0) {
+            // We use a small timeout to allow the UI to update to the "Logged In" state first
+            // so the app doesn't appear frozen while the confirm dialog is open.
+            setTimeout(async () => {
+              if (window.confirm("You have designs saved as a guest. Would you like to move them to your account?")) {
+                await dbService.reassignDesigns('anonymous', user.email);
+                // Force a reload of designs after migration
+                const updatedDesigns = await dbService.getUserDesigns(user.email);
+                setSavedDesigns(updatedDesigns);
               }
-          } catch (e) {
-              console.error("Error migrating anonymous designs:", e);
+            }, 100);
           }
+        } catch (e) {
+          console.error("Error checking/migrating anonymous designs:", e);
         }
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    };
 
-  // Load designs from IndexedDB (and migrate legacy LocalStorage)
+    migrateGuestDesigns();
+  }, [user]);
+
+  // 3. Main Data Loading Effect
+  // Loads designs whenever the effective user ID changes (Guest or Logged In)
   useEffect(() => {
     const loadData = async () => {
-        const userId = user ? user.email : 'anonymous';
+        const userId = getUserId();
         
-        // 1. Legacy Migration
+        // A. Legacy Migration (LocalStorage -> IndexedDB)
+        // This fixes the QuotaExceededError by moving data to IDB once.
         const legacyKeys = [
             'architect3d-designs', 
             'architect3d-designs-anonymous', 
@@ -101,7 +113,7 @@ function App() {
             }
         }
 
-        // 2. Load designs from IndexedDB
+        // B. Load designs from IndexedDB
         try {
             const designs = await dbService.getUserDesigns(userId);
             setSavedDesigns(designs);
@@ -112,7 +124,7 @@ function App() {
     };
     
     loadData();
-  }, [user]); // Only reload when 'user' object reference updates (which is now stable)
+  }, [getUserId, user]);
 
   
   const checkApiKey = useCallback(async () => {
@@ -156,7 +168,7 @@ function App() {
 
   // Helper to update state locally AND persist to DB
   const saveDesignChange = useCallback(async (updatedDesign: SavedDesign) => {
-      const userId = user ? user.email : 'anonymous';
+      const userId = getUserId();
       try {
           // Optimistic UI update
           setSavedDesigns(prev => {
@@ -175,7 +187,7 @@ function App() {
           console.error("Failed to save design:", err);
           setError("Failed to save changes to storage.");
       }
-  }, [user]);
+  }, [getUserId]);
   
   const handleError = useCallback((err: unknown, defaultView: AppView = AppView.Home) => {
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -397,7 +409,7 @@ function App() {
     setError(null);
     setIsLoading(false);
     setSearchQuery('');
-    // handleCloseVideo logic inline since we can't call hook from here easily if it depends on state
+    // Handle revoke inline since state updates are asynchronous
     setVideoUrl(prev => {
         if(prev) URL.revokeObjectURL(prev);
         return null;

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
 import { SavedDesign, User } from '../types';
@@ -22,7 +21,6 @@ interface HomePageProps {
 }
 
 // Memoized component for displaying a single design card.
-// This prevents re-rendering individual cards unless their specific data changes.
 const DesignCard = React.memo(({ design, onSelect, onDelete }: { design: SavedDesign, onSelect: (id: string) => void, onDelete: (id: string) => void }) => {
     return (
         <div
@@ -58,9 +56,7 @@ const DesignCard = React.memo(({ design, onSelect, onDelete }: { design: SavedDe
 });
 
 // Memoized list component.
-// Crucial Fix: This separates the heavy rendering of the list from the parent HomePage state.
-// When the user types in the description box (updating HomePage state), this component
-// will NOT re-render because 'designs', 'onSelectDesign', and 'onDeleteDesign' props from App.tsx remain stable.
+// This separates the heavy rendering of the list from the parent HomePage state (input text updates).
 const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign, user }: { designs: SavedDesign[], onSelectDesign: (id: string) => void, onDeleteDesign: (id: string) => void, user: User | null }) => {
     if (designs.length === 0) {
         return (
