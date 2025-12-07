@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Home, Moon, Sun, PlusSquare, Search } from 'lucide-react';
+import UserProfileMenu from './UserProfileMenu';
+import { User } from '../types';
 
-// Add searchQuery and onSearchChange to HeaderProps to enable search functionality and resolve prop type errors.
 interface HeaderProps {
+    user?: User | null;
+    onSignIn?: () => void;
+    onSignOut?: () => void;
     onNewDesign: () => void;
     searchQuery: string;
     onSearchChange: (query: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewDesign, searchQuery, onSearchChange }) => {
+const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onNewDesign, searchQuery, onSearchChange }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
@@ -61,9 +65,17 @@ const Header: React.FC<HeaderProps> = ({ onNewDesign, searchQuery, onSearchChang
                     >
                         {isDarkMode ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-gray-600" />}
                     </button>
-                    <button className="px-3 py-2 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors hidden md:block">
-                        Sign In
-                    </button>
+                    
+                    {user ? (
+                        <UserProfileMenu user={user} onSignOut={onSignOut || (() => {})} />
+                    ) : (
+                        <button 
+                            onClick={onSignIn}
+                            className="px-3 py-2 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors hidden md:block"
+                        >
+                            Sign In
+                        </button>
+                    )}
                 </div>
             </div>
         </header>

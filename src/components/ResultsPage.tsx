@@ -1,6 +1,4 @@
 import React, { useState, useMemo } from 'react';
-// Imported the 'SavedDesign' type, which resolves a module export error now that types.ts defines and exports it.
-// FIX: Replaced path alias with relative path to fix module resolution error.
 import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
@@ -90,14 +88,15 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   }
 
   const handleGenerateVideoClick = () => {
-    const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
+    const prompt = `Create a cinematic, slow-paced video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting (e.g., golden hour). The video MUST BE exactly 30 seconds long. Pan smoothly around the property.`;
     onGenerateVideoTour(prompt);
   };
   
   const handleGenerateMarketingVideo = () => {
       if (!canCreateMarketingVideo) return;
       
-      const totalDuration = (likedRenderings.length * 4) + 8;
+      // Increased duration per shot to aim for a longer total video
+      const totalDuration = (likedRenderings.length * 5) + 10; // 5s per shot + 10s for intro/outro
 
       const shotList = likedRenderings.map((rendering, index) => {
         const detailsPart = rendering.prompt.split('incorporate the following specific details for this room: ')[1]?.split('.')[0] || `a beautiful ${rendering.category}`;
@@ -105,7 +104,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
         return `
 ---
 **Shot ${index + 2}: Scene of the ${rendering.category}**
-- **Duration**: 4 seconds.
+- **Duration**: 5 seconds.
 - **Description**: A photorealistic view of the ${rendering.category}. It must include these specific features: ${detailsPart}. The scene should have warm, natural lighting and a luxurious feel.
 - **Camera Movement**: Use a slow, subtle camera movement (e.g., pan left, dolly in, gentle zoom).
 ---
@@ -118,7 +117,7 @@ You are a professional video director creating a high-end, cinematic real estate
 **CRITICAL INSTRUCTIONS:**
 1.  **Total Duration:** The final video MUST be exactly **${totalDuration} seconds** long. This is non-negotiable.
 2.  **Structure:** The video must follow the precise SHOT LIST provided below. Do not deviate.
-3.  **Pacing:** Each scene described in the shot list must be exactly 4 seconds long. Use smooth, slow dissolve transitions between each shot.
+3.  **Pacing:** Each scene described in the shot list must be exactly 5 seconds long. Use smooth, slow dissolve transitions between each shot.
 4.  **Music:** The video must have an inspiring, sophisticated, and instrumental background music track appropriate for a luxury property tour. The music must gently start to fade out 8 seconds before the end of the video.
 5.  **Quality:** All scenes must be photorealistic, with high-end architectural visualization and cinematic lighting.
 
@@ -126,13 +125,13 @@ You are a professional video director creating a high-end, cinematic real estate
 
 ---
 **Shot 1: Title Card**
-- **Duration**: 4 seconds.
+- **Duration**: 5 seconds.
 - **Content**: Display the text "${housePlan.title}" in an elegant, minimal font on a clean, professional background.
 ---
 ${shotList}
 ---
 **Shot ${likedRenderings.length + 2}: Outro Card**
-- **Duration**: 4 seconds.
+- **Duration**: 5 seconds.
 - **Content**: Display the company name "C&SH Group Properties, LLC" and a contact number "(555) 123-4567". Match the style of the title card.
 ---
 `;
