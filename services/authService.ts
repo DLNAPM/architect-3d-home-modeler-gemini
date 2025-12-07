@@ -4,12 +4,22 @@ import {
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  Auth
 } from "firebase/auth";
 import { app } from './firebase';
 import { User } from '../types';
 
-const auth = getAuth(app);
+// Safely get auth instance only if app is initialized
+let auth: Auth | undefined;
+if (app) {
+    try {
+        auth = getAuth(app);
+    } catch (e) {
+        console.error("Error initializing auth:", e);
+    }
+}
+
 const provider = new GoogleAuthProvider();
 
 export const authService = {
@@ -17,6 +27,10 @@ export const authService = {
      * Initiates Google Sign-In flow using Firebase.
      */
     signIn: async (): Promise<User | null> => {
+        if (!auth) {
+            alert("Authentication is not configured. Please add your Firebase API keys to .env.local.");
+            return null;
+        }
         try {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
@@ -30,7 +44,6 @@ export const authService = {
             return null;
         } catch (error) {
             console.error("Error during sign-in:", error);
-            // Handle specific errors like popup closed by user if needed
             return null;
         }
     },
@@ -39,6 +52,7 @@ export const authService = {
      * Signs the current user out using Firebase.
      */
     signOut: async (): Promise<void> => {
+        if (!auth) return;
         try {
             await signOut(auth);
         } catch (error) {
@@ -52,6 +66,11 @@ export const authService = {
      * @returns An unsubscribe function from Firebase.
      */
     onAuthStateChanged: (callback: (user: User | null) => void): (() => void) => {
+        if (!auth) {
+            // If auth is not available, immediately callback with null and return a no-op unsubscribe
+            callback(null);
+            return () => {};
+        }
         return onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
             if (firebaseUser) {
                 const appUser: User = {

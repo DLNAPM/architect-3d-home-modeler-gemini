@@ -1,22 +1,34 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, FirebaseApp } from "firebase/app";
 
-// Your web app's Firebase configuration using environment variables
-// injected by Vite. Ensure you have a .env.local file in your project root.
+// FIX: Use process.env instead of import.meta.env to fix ImportMeta errors.
+const apiKey = process.env.VITE_FIREBASE_API_KEY;
+const authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN;
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET;
+const messagingSenderId = process.env.VITE_FIREBASE_MESSAGING_SENDER_ID;
+const appId = process.env.VITE_FIREBASE_APP_ID;
+
 const firebaseConfig = {
-  apiKey: "AIzaSyD9wVfpTCCLojE-yRIFzNoJOID1jp9IwzY",
-  authDomain: "architect-3d-home-modeler.firebaseapp.com",
-  projectId: "architect-3d-home-modeler",
-  storageBucket: "architect-3d-home-modeler.firebasestorage.app",
-  messagingSenderId: "762702816387",
-  appId: "1:762702816387:web:a25dc9f358b8bf45ce67b6"
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId
 };
 
-// Validate that the essential Firebase config is present.
-// This helps the user debug if they haven't set up their .env.local file.
-if (!firebaseConfig.apiKey) {
-    throw new Error("Firebase API Key is missing. Please create a .env.local file in the project root and add your VITE_FIREBASE_API_KEY.");
+let app: FirebaseApp | undefined;
+
+// Only initialize Firebase if the API key is present.
+// This prevents the "Uncaught FirebaseError: (auth/invalid-api-key)" crash.
+if (apiKey) {
+  try {
+    app = initializeApp(firebaseConfig);
+  } catch (error) {
+    console.error("Failed to initialize Firebase:", error);
+  }
+} else {
+  console.warn("Firebase API Key is missing. Authentication features will be disabled. Please check your .env.local file.");
 }
 
-
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
+export { app };
