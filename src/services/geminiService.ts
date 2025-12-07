@@ -1,7 +1,5 @@
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-// FIX: Replaced path alias with relative path to fix module resolution error.
 import { HousePlan, Room, CustomizationOption } from "../types";
-// FIX: Replaced path alias with relative path to fix module resolution error.
 import { ROOM_CATEGORIES } from "../constants";
 
 // Content Policy Safeguards
@@ -26,12 +24,9 @@ function validatePrompt(prompt: string) {
 }
 
 const getAiClient = () => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.warn("API_KEY is not set. The user may need to select one.");
-    }
-    // The SDK will handle the empty string gracefully by throwing an error we can catch.
-    return new GoogleGenAI({ apiKey: apiKey || '' });
+    // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+    // Assume this variable is pre-configured, valid, and accessible.
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 const housePlanSchema = {
@@ -188,7 +183,7 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
   - Synthesize information from the text and all images to create a cohesive design.
   - Adhere strictly to the provided JSON schema.
   - The 'style' should be a concise architectural term.
-  - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user or visible in plans (e.g., 'Game Room', 'Wine Cellar', 'Home Gym').
+  - The 'rooms' array should include standard rooms and any specific, unique rooms mentioned by the user or visible in plans (e.g., 'Game Room', 'Home Gym', or 'Wine Cellar'.
   - If the description is vague, make reasonable assumptions for a typical home. Always include 'Front Exterior', 'Back Exterior', 'Living Room', 'Kitchen', 'Primary Bedroom', and 'Primary Bathroom' unless the user specifies otherwise.`;
 
   try {
@@ -277,7 +272,6 @@ export async function generateImageFromImage(prompt: string, imageBase64: string
   const ai = getAiClient();
   validatePrompt(prompt);
   try {
-    // FIX: Removed the 'config' object, as `responseModalities` is not a supported parameter for this image generation model.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -337,11 +331,8 @@ export async function generateVideo(prompt: string): Promise<string> {
       throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
     }
     
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("API Key not found for downloading video.");
-    }
-    const response = await fetch(`${downloadLink}&key=${apiKey}`);
+    // Use process.env.API_KEY directly for downloading the video
+    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
      if (!response.ok) {
         throw new Error(`Failed to download video file: ${response.statusText}`);
     }

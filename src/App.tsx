@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
@@ -38,11 +37,14 @@ function App() {
   // Subscribe to authentication state changes
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
-      // Use JSON stringify for deep comparison to avoid infinite render loops if object ref changes but data is same
-      if (JSON.stringify(userRef.current) !== JSON.stringify(newUser)) {
+      // Robust check to prevent infinite render loops.
+      // We check if the email has changed, or if we are transitioning between null and object.
+      const prevEmail = userRef.current?.email;
+      const newEmail = newUser?.email;
+
+      // Only update state if identity actually changed
+      if (prevEmail !== newEmail) {
           setUser(newUser);
-          // We don't update userRef here immediately; we let the migration effect handle the logic 
-          // based on the state transition from 'null' to 'newUser'.
       }
     });
     return () => unsubscribe();
@@ -60,7 +62,8 @@ function App() {
              try {
                 const anonymousDesigns = await dbService.getUserDesigns('anonymous');
                 if (anonymousDesigns.length > 0) {
-                    // Use a small timeout to allow UI to settle before alert
+                    // Use a slightly longer timeout to ensure the UI has fully painted after login
+                    // This prevents the synchronous window.confirm from blocking the main thread too early
                     setTimeout(async () => {
                          if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
                             await dbService.reassignDesigns('anonymous', currentUser.email);
@@ -68,7 +71,7 @@ function App() {
                             const designs = await dbService.getUserDesigns(currentUser.email);
                             setSavedDesigns(designs);
                         }
-                    }, 100);
+                    }, 500);
                 }
              } catch (e) {
                  console.error("Error checking for anonymous designs:", e);
