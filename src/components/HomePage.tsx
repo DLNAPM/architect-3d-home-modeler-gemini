@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useCallback } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
-import { SavedDesign } from '../types';
+import { SavedDesign, User } from '../types';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -17,6 +18,7 @@ interface HomePageProps {
   onErrorClear: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  user: User | null;
 }
 
 // Memoized component for displaying a single design card.
@@ -83,7 +85,7 @@ const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign }: { de
     );
 });
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey, user }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -244,7 +246,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
       )}
       <div className="w-full max-w-3xl text-center">
         <h2 className="text-3xl md:text-5xl font-extrabold text-gray-800 dark:text-white">
-          Design Your Dream Home with AI
+          {user ? `Welcome back, ${user.name}!` : "Design Your Dream Home with AI"}
         </h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
           Describe your vision, upload a floor plan, or use your voice. Let our AI architect bring your ideas to life.

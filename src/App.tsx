@@ -1,9 +1,11 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { AppView, HousePlan, Rendering, SavedDesign, Room } from './types';
+
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
+import { authService } from './services/authService';
 import { dbService } from './services/dbService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
@@ -25,52 +27,83 @@ function App() {
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
+  
+  const [user, setUser] = useState<User | null>(null);
+  const userRef = useRef<User | null>(null); // To track previous user for migration logic
 
-  // Always anonymous
   const getUserId = useCallback(() => {
-    return 'anonymous';
-  }, []);
+    return user ? user.email : 'anonymous';
+  }, [user]);
 
-  // Main Data Loading Effect
-  // Loads designs for the anonymous user
+  // Subscribe to authentication state changes
   useEffect(() => {
-    const loadData = async () => {
-        const userId = getUserId();
-        
-        // A. Legacy Migration (LocalStorage -> IndexedDB)
-        const legacyKeys = [
-            'architect3d-designs', 
-            'architect3d-designs-anonymous'
-        ];
+    const unsubscribe = authService.onAuthStateChanged((newUser) => {
+      // Use JSON stringify for deep comparison to avoid infinite render loops if object ref changes but data is same
+      if (JSON.stringify(userRef.current) !== JSON.stringify(newUser)) {
+          setUser(newUser);
+          // We don't update userRef here immediately; we let the migration effect handle the logic 
+          // based on the state transition from 'null' to 'newUser'.
+      }
+    });
+    return () => unsubscribe();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-        for (const key of legacyKeys) {
-            try {
+  // Handle data migration and initial data load
+  useEffect(() => {
+      const handleDataLoadAndMigration = async () => {
+        const currentUser = user;
+        const previousUser = userRef.current;
+        const currentUserId = currentUser ? currentUser.email : 'anonymous';
+
+        // Migration Logic: If we just logged in (went from null to user)
+        if (currentUser && !previousUser) {
+             try {
+                const anonymousDesigns = await dbService.getUserDesigns('anonymous');
+                if (anonymousDesigns.length > 0) {
+                    // Use a small timeout to allow UI to settle before alert
+                    setTimeout(async () => {
+                         if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
+                            await dbService.reassignDesigns('anonymous', currentUser.email);
+                            // Reload to reflect changes
+                            const designs = await dbService.getUserDesigns(currentUser.email);
+                            setSavedDesigns(designs);
+                        }
+                    }, 100);
+                }
+             } catch (e) {
+                 console.error("Error checking for anonymous designs:", e);
+             }
+        }
+
+        // Standard Data Loading
+        try {
+            // 1. Legacy LocalStorage Migration (Safety check)
+            const legacyKeys = ['architect3d-designs', 'architect3d-designs-anonymous'];
+            for (const key of legacyKeys) {
                 const lsData = localStorage.getItem(key);
                 if (lsData) {
                     const parsed = JSON.parse(lsData);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        console.log(`Migrating ${parsed.length} designs from LocalStorage key: ${key}`);
-                        await Promise.all(parsed.map(d => dbService.saveDesign(d, userId)));
+                        await Promise.all(parsed.map(d => dbService.saveDesign(d, currentUserId)));
                     }
                     localStorage.removeItem(key);
                 }
-            } catch (e) {
-                console.error("Error migrating legacy LocalStorage data:", e);
             }
-        }
 
-        // B. Load designs from IndexedDB
-        try {
-            const designs = await dbService.getUserDesigns(userId);
+            // 2. Load from DB
+            const designs = await dbService.getUserDesigns(currentUserId);
             setSavedDesigns(designs);
         } catch (e) {
-            console.error("Failed to load designs from DB:", e);
+            console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
         }
-    };
-    
-    loadData();
-  }, [getUserId]);
+        
+        // Update ref after processing
+        userRef.current = currentUser;
+      };
+
+      handleDataLoadAndMigration();
+  }, [user]); // Runs whenever user state changes
 
   
   const checkApiKey = useCallback(async () => {
@@ -342,7 +375,6 @@ function App() {
     await saveDesignChange(updatedDesign);
   }, [currentDesignId, savedDesigns, saveDesignChange]);
 
-  // Wrapped in useCallback to ensure stable reference for HomePage props
   const handleSelectDesign = useCallback((designId: string) => {
     setCurrentDesignId(designId);
     setView(AppView.Results);
@@ -355,14 +387,12 @@ function App() {
     setError(null);
     setIsLoading(false);
     setSearchQuery('');
-    // Handle revoke inline since state updates are asynchronous
     setVideoUrl(prev => {
         if(prev) URL.revokeObjectURL(prev);
         return null;
     });
   }, []);
 
-  // Wrapped in useCallback to ensure stable reference for HomePage props
   const handleDeleteDesign = useCallback(async (designId: string) => {
     if (window.confirm("Are you sure you want to delete this design and all its renderings? This action cannot be undone.")) {
       try {
@@ -405,8 +435,13 @@ function App() {
       }
   }, [checkApiKey]);
   
-  // Clear error callback
   const handleClearError = useCallback(() => setError(null), []);
+
+  const handleSignIn = () => authService.signIn();
+  const handleSignOut = () => {
+    authService.signOut();
+    resetApp();
+  };
 
   if (isKeyReady === null) {
       return <LoadingOverlay message="Initializing..." />;
@@ -416,6 +451,9 @@ function App() {
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
       <Header 
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
         onNewDesign={resetApp} 
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
@@ -431,6 +469,7 @@ function App() {
             onErrorClear={handleClearError}
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
+            user={user}
         />}
         {view === AppView.Results && currentDesign && (
           <ResultsPage
