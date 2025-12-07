@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useCallback } from 'react';
 import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
-// FIX: Replaced path alias with relative path to fix module resolution error.
-import { SavedDesign } from '../types';
+import { SavedDesign, User } from '../types';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -9,7 +9,6 @@ interface UploadedFiles {
     facadeImage: File | null;
 }
 
-// Add designs, onSelectDesign, and onDeleteDesign to props to handle display of saved designs, resolving prop type error in App.tsx.
 interface HomePageProps {
   onGenerate: (description: string, files: UploadedFiles) => void;
   error: string | null;
@@ -19,9 +18,10 @@ interface HomePageProps {
   onErrorClear: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  user: User | null;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey, user }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -33,21 +33,41 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
   const backPlanInputRef = useRef<HTMLInputElement>(null);
   const facadeImageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (setter: React.Dispatch<React.SetStateAction<File | null>>) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFrontPlanChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setter(event.target.files[0]);
+      setFrontPlan(event.target.files[0]);
     } else {
-      setter(null);
+      setFrontPlan(null);
     }
-  };
+  }, []);
 
-  const handleGenerateClick = () => {
+  const handleBackPlanChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setBackPlan(event.target.files[0]);
+    } else {
+      setBackPlan(null);
+    }
+  }, []);
+
+  const handleFacadeImageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setFacadeImage(event.target.files[0]);
+    } else {
+      setFacadeImage(null);
+    }
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setDescription(e.target.value);
+  }, []);
+
+  const handleGenerateClick = useCallback(() => {
     if (description.trim() || frontPlan || backPlan || facadeImage) {
       onGenerate(description, { frontPlan, backPlan, facadeImage });
     }
-  };
+  }, [description, frontPlan, backPlan, facadeImage, onGenerate]);
   
-  const handleVoiceInput = () => {
+  const handleVoiceInput = useCallback(() => {
     const recognition = new ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)();
     if (!recognition) {
         alert("Speech recognition not supported in this browser.");
@@ -81,7 +101,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
         console.error('Speech recognition error', event.error);
         setIsListening(false);
     };
-  };
+  }, [isListening]);
 
   return (
     <div className="flex flex-col items-center justify-center py-12">
@@ -162,7 +182,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
       )}
       <div className="w-full max-w-3xl text-center">
         <h2 className="text-3xl md:text-5xl font-extrabold text-gray-800 dark:text-white">
-          Design Your Dream Home with AI
+          {user ? `Welcome back, ${user.name}!` : "Design Your Dream Home with AI"}
         </h2>
         <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
           Describe your vision, upload a floor plan, or use your voice. Let our AI architect bring your ideas to life.
@@ -171,7 +191,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
 
       <div className="mt-10 w-full max-w-3xl bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-lg">
         <div className="relative">
-            {!isKeyReady && (
+            {isKeyReady === false && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 z-10 flex flex-col items-center justify-center p-4 rounded-2xl text-center">
                     <KeyRound className="h-8 w-8 text-brand-600 dark:text-brand-400 mx-auto" />
                     <h3 className="mt-2 text-lg font-bold text-gray-900 dark:text-white">API Key Required</h3>
@@ -208,7 +228,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
             <div className="relative">
               <textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={handleDescriptionChange}
                 placeholder="e.g., A two-story modern farmhouse with a wrap-around porch, open-concept living area, and a large kitchen island..."
                 className="w-full h-40 p-4 pr-12 text-base text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
                 disabled={!isKeyReady}
@@ -232,7 +252,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                             <Upload className="h-4 w-4" />
                             <span>{frontPlan ? "Change" : "Upload"}</span>
                         </button>
-                        <input type="file" ref={frontPlanInputRef} onChange={handleFileChange(setFrontPlan)} className="hidden" accept="image/*"/>
+                        <input type="file" ref={frontPlanInputRef} onChange={handleFrontPlanChange} className="hidden" accept="image/*"/>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
@@ -243,7 +263,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                             <Upload className="h-4 w-4" />
                             <span>{backPlan ? "Change" : "Upload"}</span>
                         </button>
-                        <input type="file" ref={backPlanInputRef} onChange={handleFileChange(setBackPlan)} className="hidden" accept="image/*"/>
+                        <input type="file" ref={backPlanInputRef} onChange={handleBackPlanChange} className="hidden" accept="image/*"/>
                     </div>
                 </div>
                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md border border-gray-200 dark:border-gray-700">
@@ -254,7 +274,7 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                             <Upload className="h-4 w-4" />
                             <span>{facadeImage ? "Change" : "Upload"}</span>
                         </button>
-                        <input type="file" ref={facadeImageInputRef} onChange={handleFileChange(setFacadeImage)} className="hidden" accept="image/*"/>
+                        <input type="file" ref={facadeImageInputRef} onChange={handleFacadeImageChange} className="hidden" accept="image/*"/>
                     </div>
                 </div>
             </div>
@@ -327,7 +347,9 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
           </div>
         ) : (
           <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">No designs found.</h4>
+            <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+              {user ? "You haven't created any designs yet." : "No guest designs found."}
+            </h4>
             <p className="mt-2 text-gray-500 dark:text-gray-400">
               Create your first design using the form above to get started!
             </p>
