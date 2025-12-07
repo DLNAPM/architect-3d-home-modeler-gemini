@@ -1,4 +1,5 @@
-import { initializeApp } from "firebase/app";
+import firebase from 'firebase/app';
+import 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD9wVfpTCCLojE-yRIFzNoJOID1jp9IwzY",
@@ -10,6 +11,7 @@ const firebaseConfig = {
   measurementId: "G-ZMZ7K9SQ72"
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase (check if already initialized for hot-reloading support)
+const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
 
 export { app };
