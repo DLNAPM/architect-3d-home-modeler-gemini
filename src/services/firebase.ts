@@ -1,24 +1,50 @@
+import * as firebaseAppModule from 'firebase/app';
 
-import { initializeApp } from 'firebase/app';
+// Workaround for potential type definition mismatch where initializeApp/FirebaseApp are not found by TS.
+const firebaseApp = firebaseAppModule as any;
+const initializeApp = firebaseApp.initializeApp;
 
-// Explicit configuration to ensure connection works immediately
-const firebaseConfig = {
-  apiKey: "AIzaSyD9wVfpTCCLojE-yRIFzNoJOID1jp9IwzY",
-  authDomain: "architect-3d-home-modeler.firebaseapp.com",
-  projectId: "architect-3d-home-modeler",
-  storageBucket: "architect-3d-home-modeler.firebasestorage.app",
-  messagingSenderId: "762702816387",
-  appId: "1:762702816387:web:a25dc9f358b8bf45ce67b6",
-  measurementId: "G-ZMZ7K9SQ72"
+// Define the config interface
+interface FirebaseConfig {
+  apiKey: string | undefined;
+  authDomain: string | undefined;
+  projectId: string | undefined;
+  storageBucket: string | undefined;
+  messagingSenderId: string | undefined;
+  appId: string | undefined;
+  measurementId: string | undefined;
+}
+
+const firebaseConfig: FirebaseConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-let app: any;
+let app: any | undefined;
 
-try {
-  app = initializeApp(firebaseConfig);
-  console.log("Firebase initialized successfully");
-} catch (error) {
-  console.error("Firebase initialization error:", error);
+// Check if critical config is present
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.authDomain;
+
+if (isConfigValid) {
+    try {
+        if (initializeApp) {
+            app = initializeApp(firebaseConfig);
+            console.log("Firebase initialized successfully");
+        } else {
+             console.error("Firebase initializeApp is not available via import");
+        }
+    } catch (error) {
+        console.error("Firebase initialization failed:", error);
+    }
+} else {
+    console.warn("Firebase configuration is missing or incomplete. Please check your environment variables in Render.com.");
+    // In dev, you might want to log which keys are missing
+    if (!firebaseConfig.apiKey) console.warn("Missing VITE_FIREBASE_API_KEY");
 }
 
 export { app };
