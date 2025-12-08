@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 
 // Using the configuration provided by the user to ensure connectivity

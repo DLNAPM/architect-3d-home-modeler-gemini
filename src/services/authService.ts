@@ -1,4 +1,3 @@
-
 import { getAuth, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { app } from "./firebase";
 import { User } from '../types';
