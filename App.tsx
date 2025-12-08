@@ -3,6 +3,7 @@ import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types'
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
+import LandingPage from './components/LandingPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
@@ -18,6 +19,7 @@ interface UploadedFiles {
 function App() {
   const [view, setView] = useState<AppView>(AppView.Home);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -38,7 +40,6 @@ function App() {
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
       // Robust check to prevent infinite render loops.
-      // We check if the email has changed, or if we are transitioning between null and object.
       const prevEmail = userRef.current?.email;
       const newEmail = newUser?.email;
 
@@ -46,6 +47,7 @@ function App() {
       if (prevEmail !== newEmail) {
           setUser(newUser);
       }
+      setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []); // Empty dependency array ensures this runs only once on mount
@@ -56,6 +58,15 @@ function App() {
         const currentUser = user;
         const previousUser = userRef.current;
         const currentUserId = currentUser ? currentUser.email : 'anonymous';
+
+        // Update ref immediately to prevent loops
+        userRef.current = currentUser;
+
+        // Skip loading if we don't have a user (Landing Page handles this)
+        if (!currentUser) {
+            setSavedDesigns([]);
+            return;
+        }
 
         // Migration Logic: If we just logged in (went from null to user)
         if (currentUser && !previousUser) {
@@ -80,19 +91,6 @@ function App() {
 
         // Standard Data Loading
         try {
-            // 1. Legacy LocalStorage Migration (Safety check)
-            const legacyKeys = ['architect3d-designs', 'architect3d-designs-anonymous'];
-            for (const key of legacyKeys) {
-                const lsData = localStorage.getItem(key);
-                if (lsData) {
-                    const parsed = JSON.parse(lsData);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await Promise.all(parsed.map(d => dbService.saveDesign(d, currentUserId)));
-                    }
-                    localStorage.removeItem(key);
-                }
-            }
-
             // 2. Load from DB
             const designs = await dbService.getUserDesigns(currentUserId);
             setSavedDesigns(designs);
@@ -100,16 +98,16 @@ function App() {
             console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
         }
-        
-        // Update ref after processing
-        userRef.current = currentUser;
       };
 
-      handleDataLoadAndMigration();
-  }, [user]); // Runs whenever user state changes
+      if (!isAuthLoading) {
+          handleDataLoadAndMigration();
+      }
+  }, [user, isAuthLoading]);
 
   
   const checkApiKey = useCallback(async () => {
+    // Only attempt to check API key selection if the environment supports it
     if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
       try {
         const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -119,7 +117,9 @@ function App() {
         setIsKeyReady(false);
       }
     } else {
-      console.warn("aistudio.hasSelectedApiKey not found, proceeding without key check.");
+      // If the API key selector isn't present, assume we are in a standard environment
+      // where the key is handled differently or manually provided.
+      // We set this to true to unblock the UI.
       setIsKeyReady(true);
     }
   }, []);
@@ -434,22 +434,44 @@ function App() {
           setError("Could not open API key selection. Please try again.");
         }
       } else {
-          setError("API key selection is not available in this environment.");
+          // Silent fallback if API key tool is not available, avoiding scary console logs
+          setIsKeyReady(true);
       }
   }, [checkApiKey]);
   
   const handleClearError = useCallback(() => setError(null), []);
 
-  const handleSignIn = () => authService.signIn();
-  const handleSignOut = () => {
-    authService.signOut();
-    resetApp();
-  };
+  const handleSignIn = useCallback(async () => {
+      try {
+        await authService.signIn();
+      } catch (e) {
+        setError("Sign in failed. Please try again.");
+      }
+  }, []);
 
-  if (isKeyReady === null) {
+  const handleSignOut = useCallback(async () => {
+    await authService.signOut();
+    resetApp();
+  }, [resetApp]);
+
+  // --- RENDERING LOGIC ---
+
+  if (isKeyReady === null || isAuthLoading) {
       return <LoadingOverlay message="Initializing..." />;
   }
 
+  // GATEKEEPER: If no user, show Landing Page
+  if (!user) {
+      return (
+        <LandingPage 
+            onSignIn={handleSignIn} 
+            isKeyReady={isKeyReady !== false} // If null or true, don't show prompt yet
+            onSelectKey={handleSelectKey}
+        />
+      );
+  }
+
+  // MAIN APP
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
