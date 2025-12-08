@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
@@ -7,6 +8,7 @@ import LandingPage from './components/LandingPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
+import { cloudService } from './services/cloudService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
 
@@ -20,6 +22,7 @@ function App() {
   const [view, setView] = useState<AppView>(AppView.Home);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -71,16 +74,21 @@ function App() {
         // Migration Logic: If we just logged in (went from null to user)
         if (currentUser && !previousUser) {
              try {
-                // Check if we have any 'truly' anonymous designs (from old local storage logic or guest usage)
-                // Note: If signing in as a guest via Firebase, the 'anonymous' bucket might be separate.
-                // This logic primarily handles converting from 'anonymous' (pre-auth) to 'user'.
-                // If the user was previously a guest and now signs in to Google, we might want to migrate.
+                // Check if we have any 'truly' anonymous designs 
                 const anonymousDesigns = await dbService.getUserDesigns('anonymous');
                 if (anonymousDesigns.length > 0) {
-                    // Use a slightly longer timeout to ensure the UI has fully painted after login
                     setTimeout(async () => {
                          if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
                             await dbService.reassignDesigns('anonymous', currentUser.email);
+                            // Also try to sync these migrated designs to cloud
+                            try {
+                                const designs = await dbService.getUserDesigns(currentUser.email);
+                                for (const design of designs) {
+                                    await cloudService.saveDesign(currentUser.email, design);
+                                }
+                            } catch (err) {
+                                console.warn("Background cloud sync failed during migration", err);
+                            }
                             // Reload to reflect changes
                             const designs = await dbService.getUserDesigns(currentUser.email);
                             setSavedDesigns(designs);
@@ -94,9 +102,31 @@ function App() {
 
         // Standard Data Loading
         try {
-            // 2. Load from DB
-            const designs = await dbService.getUserDesigns(currentUserId);
-            setSavedDesigns(designs);
+            // Priority: Cloud -> Local DB
+            // First load local for speed
+            const localDesigns = await dbService.getUserDesigns(currentUserId);
+            setSavedDesigns(localDesigns);
+
+            // Then try to fetch from cloud if logged in
+            if (currentUser && currentUser.email !== 'anonymous') {
+                try {
+                    const cloudDesigns = await cloudService.getUserDesigns(currentUserId);
+                    if (cloudDesigns.length > 0) {
+                        // Merge strategies can be complex, for now we assume cloud is source of truth or simply append if IDs don't match
+                        // A simple strategy: Use cloud list, but if local has something cloud doesn't (unsynced), keep it? 
+                        // For simplicity in this demo: Cloud overwrites local view if successful.
+                        setSavedDesigns(cloudDesigns);
+                        
+                        // Sync cloud designs down to local DB for offline access
+                        for (const d of cloudDesigns) {
+                            await dbService.saveDesign(d, currentUserId);
+                        }
+                    }
+                } catch (cloudErr) {
+                    console.error("Cloud fetch failed, using local", cloudErr);
+                }
+            }
+
         } catch (e) {
             console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
@@ -148,7 +178,7 @@ function App() {
     });
   }, [searchQuery, savedDesigns]);
 
-  // Helper to update state locally AND persist to DB
+  // Helper to update state locally AND persist to DB/Cloud
   const saveDesignChange = useCallback(async (updatedDesign: SavedDesign) => {
       const userId = getUserId();
       try {
@@ -163,14 +193,43 @@ function App() {
                   return [...prev, updatedDesign];
               }
           });
-          // Persist to DB
+          
+          // Persist to Local DB
           await dbService.saveDesign(updatedDesign, userId);
+          
+          // Autosave to Cloud if user is logged in
+          if (user && user.email !== 'anonymous') {
+             // We don't await this to keep UI snappy, unless explicitly saving
+             cloudService.saveDesign(userId, updatedDesign).catch(e => console.error("Autosave failed", e));
+          }
+
       } catch (err) {
           console.error("Failed to save design:", err);
           setError("Failed to save changes to storage.");
       }
-  }, [getUserId]);
+  }, [getUserId, user]);
   
+  const handleManualSaveToCloud = useCallback(async () => {
+      if (!currentDesign) return;
+      if (!user) {
+          alert("You must be logged in to save to the cloud.");
+          return;
+      }
+      
+      setIsSavingCloud(true);
+      try {
+          await cloudService.saveDesign(user.email, currentDesign);
+          // Also verify local DB is in sync
+          await dbService.saveDesign(currentDesign, user.email);
+          alert("Design successfully saved to Cloud Storage!");
+      } catch (err) {
+          console.error(err);
+          setError("Failed to save to cloud. Please try again.");
+      } finally {
+          setIsSavingCloud(false);
+      }
+  }, [currentDesign, user]);
+
   const handleError = useCallback((err: unknown, defaultView: AppView = AppView.Home) => {
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
     if (errorMessage.includes('billing-enabled API key') || errorMessage.includes('select a valid key') || errorMessage.includes('Requested entity was not found')) {
@@ -399,7 +458,14 @@ function App() {
   const handleDeleteDesign = useCallback(async (designId: string) => {
     if (window.confirm("Are you sure you want to delete this design and all its renderings? This action cannot be undone.")) {
       try {
+        const userId = getUserId();
+        // Delete from local DB
         await dbService.deleteDesign(designId);
+        // Delete from Cloud
+        if (user && user.email !== 'anonymous') {
+            await cloudService.deleteDesign(userId, designId);
+        }
+        
         setSavedDesigns(prev => prev.filter(d => d.housePlan.id !== designId));
         if (currentDesignId === designId) {
             resetApp();
@@ -409,7 +475,7 @@ function App() {
         setError("Failed to delete design.");
       }
     }
-  }, [currentDesignId, resetApp]);
+  }, [currentDesignId, resetApp, getUserId, user]);
   
   const handleAddRoom = useCallback(async (newRoom: Room) => {
     if (!currentDesignId) return;
@@ -488,7 +554,10 @@ function App() {
         user={user}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
-        onNewDesign={resetApp} 
+        onNewDesign={resetApp}
+        onSaveDesign={handleManualSaveToCloud}
+        isSaving={isSavingCloud}
+        hasActiveDesign={!!currentDesign}
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
       />

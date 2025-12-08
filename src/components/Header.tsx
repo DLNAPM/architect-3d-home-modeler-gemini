@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
 
@@ -9,11 +9,24 @@ interface HeaderProps {
     onSignIn: () => void;
     onSignOut: () => void;
     onNewDesign: () => void;
+    onSaveDesign: () => void;
     searchQuery: string;
     onSearchChange: (query: string) => void;
+    isSaving?: boolean;
+    hasActiveDesign: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onNewDesign, searchQuery, onSearchChange }) => {
+const Header: React.FC<HeaderProps> = ({ 
+    user, 
+    onSignIn, 
+    onSignOut, 
+    onNewDesign, 
+    onSaveDesign, 
+    searchQuery, 
+    onSearchChange,
+    isSaving = false,
+    hasActiveDesign
+}) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
@@ -36,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onNewDesign,
                 <div className="flex items-center space-x-3">
                     <Home className="text-brand-600 dark:text-brand-400 h-8 w-8" />
                     <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">
-                        Architect 3D Home Modeler
+                        Architect 3D
                     </h1>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4">
@@ -52,6 +65,19 @@ const Header: React.FC<HeaderProps> = ({ user, onSignIn, onSignOut, onNewDesign,
                             className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
                         />
                     </div>
+                    
+                    {hasActiveDesign && (
+                        <button
+                            onClick={onSaveDesign}
+                            disabled={isSaving}
+                            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Save current session to Cloud"
+                        >
+                            <Save className={`h-5 w-5 ${isSaving ? 'animate-pulse' : ''}`} />
+                            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Design'}</span>
+                        </button>
+                    )}
+
                     <button
                         onClick={onNewDesign}
                         className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-gray-700 rounded-md transition-colors"
