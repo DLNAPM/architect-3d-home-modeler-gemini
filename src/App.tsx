@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
