@@ -242,15 +242,32 @@ function App() {
     }
   }, []);
 
+  const resetApp = useCallback(() => {
+    setView(AppView.Home);
+    setCurrentDesignId(null);
+    setError(null);
+    setIsLoading(false);
+    setSearchQuery('');
+    setVideoUrl(prev => {
+        if(prev) URL.revokeObjectURL(prev);
+        return null;
+    });
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await authService.signOut();
+    resetApp();
+  }, [resetApp]);
+
   const checkGuestLimit = useCallback(() => {
      if (user?.name === 'Guest Architect' && totalRenderingsCount >= 2) {
-         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.\n\nWould you like to Sign In now?")) {
-             authService.signIn().catch(e => setError("Sign in failed."));
+         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.\n\nClick OK to return to the login screen.")) {
+             handleSignOut();
          }
          return false;
      }
      return true;
-  }, [user, totalRenderingsCount]);
+  }, [user, totalRenderingsCount, handleSignOut]);
 
   const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
     if (!checkGuestLimit()) return;
@@ -457,18 +474,6 @@ function App() {
     setError(null);
   }, []);
 
-  const resetApp = useCallback(() => {
-    setView(AppView.Home);
-    setCurrentDesignId(null);
-    setError(null);
-    setIsLoading(false);
-    setSearchQuery('');
-    setVideoUrl(prev => {
-        if(prev) URL.revokeObjectURL(prev);
-        return null;
-    });
-  }, []);
-
   const handleDeleteDesign = useCallback(async (designId: string) => {
     if (window.confirm("Are you sure you want to delete this design and all its renderings? This action cannot be undone.")) {
       try {
@@ -547,11 +552,6 @@ function App() {
         setLoadingMessage('');
       }
   }, []);
-
-  const handleSignOut = useCallback(async () => {
-    await authService.signOut();
-    resetApp();
-  }, [resetApp]);
 
   // --- RENDERING LOGIC ---
 
