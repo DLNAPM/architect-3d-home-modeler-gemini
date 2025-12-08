@@ -1,8 +1,10 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
+import LandingPage from './components/LandingPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
@@ -18,6 +20,7 @@ interface UploadedFiles {
 function App() {
   const [view, setView] = useState<AppView>(AppView.Home);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -38,7 +41,6 @@ function App() {
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
       // Robust check to prevent infinite render loops.
-      // We check if the email has changed, or if we are transitioning between null and object.
       const prevEmail = userRef.current?.email;
       const newEmail = newUser?.email;
 
@@ -46,6 +48,7 @@ function App() {
       if (prevEmail !== newEmail) {
           setUser(newUser);
       }
+      setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []); // Empty dependency array ensures this runs only once on mount
@@ -57,13 +60,21 @@ function App() {
         const previousUser = userRef.current;
         const currentUserId = currentUser ? currentUser.email : 'anonymous';
 
+        // Update ref immediately to prevent loops
+        userRef.current = currentUser;
+
+        // Skip loading if we don't have a user (Landing Page handles this)
+        if (!currentUser) {
+            setSavedDesigns([]);
+            return;
+        }
+
         // Migration Logic: If we just logged in (went from null to user)
         if (currentUser && !previousUser) {
              try {
                 const anonymousDesigns = await dbService.getUserDesigns('anonymous');
                 if (anonymousDesigns.length > 0) {
                     // Use a slightly longer timeout to ensure the UI has fully painted after login
-                    // This prevents the synchronous window.confirm from blocking the main thread too early
                     setTimeout(async () => {
                          if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
                             await dbService.reassignDesigns('anonymous', currentUser.email);
@@ -80,19 +91,6 @@ function App() {
 
         // Standard Data Loading
         try {
-            // 1. Legacy LocalStorage Migration (Safety check)
-            const legacyKeys = ['architect3d-designs', 'architect3d-designs-anonymous'];
-            for (const key of legacyKeys) {
-                const lsData = localStorage.getItem(key);
-                if (lsData) {
-                    const parsed = JSON.parse(lsData);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        await Promise.all(parsed.map(d => dbService.saveDesign(d, currentUserId)));
-                    }
-                    localStorage.removeItem(key);
-                }
-            }
-
             // 2. Load from DB
             const designs = await dbService.getUserDesigns(currentUserId);
             setSavedDesigns(designs);
@@ -100,13 +98,12 @@ function App() {
             console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
         }
-        
-        // Update ref after processing
-        userRef.current = currentUser;
       };
 
-      handleDataLoadAndMigration();
-  }, [user]); // Runs whenever user state changes
+      if (!isAuthLoading) {
+          handleDataLoadAndMigration();
+      }
+  }, [user, isAuthLoading]);
 
   
   const checkApiKey = useCallback(async () => {
@@ -440,16 +437,37 @@ function App() {
   
   const handleClearError = useCallback(() => setError(null), []);
 
-  const handleSignIn = () => authService.signIn();
-  const handleSignOut = () => {
+  const handleSignIn = useCallback(async () => {
+      try {
+        await authService.signIn();
+      } catch (e) {
+        setError("Sign in failed. Please try again.");
+      }
+  }, []);
+
+  const handleSignOut = useCallback(() => {
     authService.signOut();
     resetApp();
-  };
+  }, [resetApp]);
 
-  if (isKeyReady === null) {
+  // --- RENDERING LOGIC ---
+
+  if (isKeyReady === null || isAuthLoading) {
       return <LoadingOverlay message="Initializing..." />;
   }
 
+  // GATEKEEPER: If no user, show Landing Page
+  if (!user) {
+      return (
+        <LandingPage 
+            onSignIn={handleSignIn} 
+            isKeyReady={isKeyReady !== false} // If null or true, don't show prompt yet
+            onSelectKey={handleSelectKey}
+        />
+      );
+  }
+
+  // MAIN APP
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
