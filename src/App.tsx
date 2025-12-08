@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
@@ -434,7 +435,8 @@ function App() {
           setError("Could not open API key selection. Please try again.");
         }
       } else {
-          setError("API key selection is not available in this environment.");
+          // Silent fallback if API key tool is not available, avoiding scary console logs
+          setIsKeyReady(true);
       }
   }, [checkApiKey]);
   
@@ -448,8 +450,8 @@ function App() {
       }
   }, []);
 
-  const handleSignOut = useCallback(() => {
-    authService.signOut();
+  const handleSignOut = useCallback(async () => {
+    await authService.signOut();
     resetApp();
   }, [resetApp]);
 

@@ -1,38 +1,53 @@
+
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, onAuthStateChanged as firebaseOnAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { app } from './firebase';
 import { User } from '../types';
 
-let currentUser: User | null = null;
-const listeners: ((user: User | null) => void)[] = [];
+let auth: any;
+let googleProvider: any;
+
+try {
+    auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+} catch (error) {
+    console.error("Auth initialization error", error);
+}
+
+// Transform Firebase User to App User
+const mapUser = (firebaseUser: FirebaseUser | null): User | null => {
+    if (!firebaseUser) return null;
+    return {
+        name: firebaseUser.displayName || 'User',
+        email: firebaseUser.email || '',
+        picture: firebaseUser.photoURL || '',
+    };
+};
 
 export const authService = {
     signIn: async (): Promise<User | null> => {
-        // Simulate network delay for realism
-        await new Promise(resolve => setTimeout(resolve, 600));
-        
-        currentUser = {
-            name: "Guest Architect",
-            email: "guest@architect3d.com",
-            picture: "https://ui-avatars.com/api/?name=Guest+Architect&background=0D8ABC&color=fff"
-        };
-        
-        listeners.forEach(listener => listener(currentUser));
-        return currentUser;
+        if (!auth) throw new Error("Auth not initialized");
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            return mapUser(result.user);
+        } catch (error) {
+            console.error("Sign in error", error);
+            throw error;
+        }
     },
 
     signOut: async (): Promise<void> => {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        currentUser = null;
-        listeners.forEach(listener => listener(null));
+        if (!auth) return;
+        try {
+            await firebaseSignOut(auth);
+        } catch (error) {
+            console.error("Sign out error", error);
+        }
     },
 
     onAuthStateChanged: (callback: (user: User | null) => void): (() => void) => {
-        listeners.push(callback);
-        // Immediately trigger with current state
-        callback(currentUser);
-        return () => {
-            const index = listeners.indexOf(callback);
-            if (index > -1) {
-                listeners.splice(index, 1);
-            }
-        };
+        if (!auth) return () => {};
+        return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
+            callback(mapUser(firebaseUser));
+        });
     },
 };
