@@ -17,15 +17,16 @@ if (app) {
     try {
         auth = getAuth(app);
     } catch (e) {
-        console.error("Failed to initialize Firebase Auth:", e);
+        console.error("Failed to initialize Firebase Auth instance:", e);
     }
 }
 
 export const authService = {
     signIn: async (): Promise<User | null> => {
         if (!auth) {
-            console.error("Authentication is disabled: Firebase not initialized.");
-            throw new Error("Authentication service is unavailable.");
+            console.error("Authentication is disabled: Firebase Auth not initialized.");
+            // Fallback for debugging or if initialization failed
+            throw new Error("Authentication service is unavailable. Check Firebase configuration.");
         }
 
         try {
@@ -55,7 +56,7 @@ export const authService = {
 
     onAuthStateChanged: (callback: (user: User | null) => void): (() => void) => {
         if (!auth) {
-            // If auth is not active, immediately return null and a no-op unsubscribe
+            // If auth is not active, immediately return null
             callback(null);
             return () => {};
         }

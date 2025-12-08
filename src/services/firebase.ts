@@ -1,6 +1,6 @@
 import * as firebaseAppModule from 'firebase/app';
 
-// Workaround for potential type definition mismatch where initializeApp/FirebaseApp are not found by TS.
+// Workaround for potential type definition mismatch where initializeApp is not found by TS in some environments.
 const firebaseApp = firebaseAppModule as any;
 const initializeApp = firebaseApp.initializeApp;
 
@@ -42,9 +42,7 @@ if (isConfigValid) {
         console.error("Firebase initialization failed:", error);
     }
 } else {
-    console.warn("Firebase configuration is missing or incomplete. Please check your environment variables in Render.com.");
-    // In dev, you might want to log which keys are missing
-    if (!firebaseConfig.apiKey) console.warn("Missing VITE_FIREBASE_API_KEY");
+    console.warn("Firebase configuration is missing or incomplete. Please check your environment variables.");
 }
 
 export { app };
