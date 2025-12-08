@@ -1,14 +1,14 @@
-
 import React from 'react';
-import { Sparkles, LayoutTemplate, Home, ArrowRight } from 'lucide-react';
+import { Sparkles, LayoutTemplate, Home, ArrowRight, User } from 'lucide-react';
 
 interface LandingPageProps {
   onSignIn: () => void;
+  onSignInGuest: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isKeyReady, onSelectKey }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKeyReady, onSelectKey }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col">
       {/* Hero Section */}
@@ -46,6 +46,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isKeyReady, onSelec
                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
                <span>Continue with Google</span>
                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            
+            <button
+              onClick={onSignInGuest}
+              className="group relative flex items-center justify-center gap-3 px-8 py-4 text-lg font-bold text-gray-700 bg-white border border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-md"
+            >
+               <User className="w-5 h-5" />
+               <span>Continue as Guest</span>
             </button>
           </div>
           

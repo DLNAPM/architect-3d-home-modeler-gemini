@@ -71,10 +71,13 @@ function App() {
         // Migration Logic: If we just logged in (went from null to user)
         if (currentUser && !previousUser) {
              try {
+                // Check if we have any 'truly' anonymous designs (from old local storage logic or guest usage)
+                // Note: If signing in as a guest via Firebase, the 'anonymous' bucket might be separate.
+                // This logic primarily handles converting from 'anonymous' (pre-auth) to 'user'.
+                // If the user was previously a guest and now signs in to Google, we might want to migrate.
                 const anonymousDesigns = await dbService.getUserDesigns('anonymous');
                 if (anonymousDesigns.length > 0) {
                     // Use a slightly longer timeout to ensure the UI has fully painted after login
-                    // This prevents the synchronous window.confirm from blocking the main thread too early
                     setTimeout(async () => {
                          if (window.confirm(`Welcome ${currentUser.name}! You have designs saved as a guest. Would you like to move them to your account?`)) {
                             await dbService.reassignDesigns('anonymous', currentUser.email);
@@ -117,9 +120,6 @@ function App() {
         setIsKeyReady(false);
       }
     } else {
-      // If the API key selector isn't present, assume we are in a standard environment
-      // where the key is handled differently or manually provided.
-      // We set this to true to unblock the UI.
       setIsKeyReady(true);
     }
   }, []);
@@ -449,6 +449,14 @@ function App() {
       }
   }, []);
 
+  const handleSignInGuest = useCallback(async () => {
+      try {
+        await authService.signInGuest();
+      } catch (e) {
+        setError("Guest sign in failed.");
+      }
+  }, []);
+
   const handleSignOut = useCallback(async () => {
     await authService.signOut();
     resetApp();
@@ -465,7 +473,8 @@ function App() {
       return (
         <LandingPage 
             onSignIn={handleSignIn} 
-            isKeyReady={isKeyReady !== false} // If null or true, don't show prompt yet
+            onSignInGuest={handleSignInGuest}
+            isKeyReady={isKeyReady !== false} 
             onSelectKey={handleSelectKey}
         />
       );
