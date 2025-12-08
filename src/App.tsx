@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User } from './types';
 import HomePage from './components/HomePage';
@@ -523,18 +522,29 @@ function App() {
   const handleClearError = useCallback(() => setError(null), []);
 
   const handleSignIn = useCallback(async () => {
+      setIsLoading(true);
+      setLoadingMessage("Signing in with Google...");
       try {
         await authService.signIn();
       } catch (e) {
         setError("Sign in failed. Please try again.");
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
       }
   }, []);
 
   const handleSignInGuest = useCallback(async () => {
+      setIsLoading(true);
+      setLoadingMessage("Setting up Guest Account...");
       try {
         await authService.signInGuest();
       } catch (e) {
-        setError("Guest sign in failed.");
+        console.error("Guest Sign In Error:", e);
+        setError("Guest sign in failed. Please try again.");
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
       }
   }, []);
 
@@ -552,12 +562,16 @@ function App() {
   // GATEKEEPER: If no user, show Landing Page
   if (!user) {
       return (
-        <LandingPage 
-            onSignIn={handleSignIn} 
-            onSignInGuest={handleSignInGuest}
-            isKeyReady={isKeyReady !== false} 
-            onSelectKey={handleSelectKey}
-        />
+        <>
+            {isLoading && <LoadingOverlay message={loadingMessage} />}
+            <LandingPage 
+                onSignIn={handleSignIn} 
+                onSignInGuest={handleSignInGuest}
+                isKeyReady={isKeyReady !== false} 
+                onSelectKey={handleSelectKey}
+                error={error}
+            />
+        </>
       );
   }
 

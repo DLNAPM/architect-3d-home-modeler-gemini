@@ -1,14 +1,15 @@
 import React from 'react';
-import { Sparkles, LayoutTemplate, Home, ArrowRight, User } from 'lucide-react';
+import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle } from 'lucide-react';
 
 interface LandingPageProps {
   onSignIn: () => void;
   onSignInGuest: () => void;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  error?: string | null;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKeyReady, onSelectKey }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKeyReady, onSelectKey, error }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col">
       {/* Hero Section */}
@@ -37,6 +38,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKe
             Transform ideas into photorealistic 3D renderings instantly. 
             Describe your vision, upload floor plans, and let our advanced AI architect bring your concepts to life.
           </p>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg flex items-center justify-center gap-2 max-w-md mx-auto">
+                <AlertCircle className="h-5 w-5" />
+                <span>{error}</span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button

@@ -50,7 +50,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   
   // Audio Ref for slideshow music
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const slideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
 
@@ -125,7 +125,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
   // Audio Logic: Fading In/Out and Looping
   useEffect(() => {
-      let fadeOutTimeout: NodeJS.Timeout;
+      let fadeOutTimeout: ReturnType<typeof setTimeout>;
 
       if (slideshowActive && slideshowConfig.audioFile) {
           const audioUrl = URL.createObjectURL(slideshowConfig.audioFile);
