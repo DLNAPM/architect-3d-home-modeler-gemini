@@ -36,24 +36,6 @@ function App() {
     return user ? user.email : 'anonymous';
   }, [user]);
 
-  // --- FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-  apiKey: "AIzaSyD9wVfpTCCLojE-yRIFzNoJOID1jp9IwzY",
-  authDomain: "architect-3d-home-modeler.firebaseapp.com",
-  projectId: "architect-3d-home-modeler",
-  storageBucket: "architect-3d-home-modeler.firebasestorage.app",
-  messagingSenderId: "762702816387",
-  appId: "1:762702816387:web:a25dc9f358b8bf45ce67b6",
-  measurementId: "G-ZMZ7K9SQ72"
-};
-
-// --- FIREBASE INITIALIZATION (v9+ Syntax) ---
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-
   // Subscribe to authentication state changes
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
