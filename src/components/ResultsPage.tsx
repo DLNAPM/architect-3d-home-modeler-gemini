@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat } from 'lucide-react';
 
 interface ResultsPageProps {
   design: SavedDesign;
@@ -28,6 +27,7 @@ interface SlideshowConfig {
   transition: 'fade' | 'slide' | 'zoom';
   showCaptions: boolean;
   audioFile: File | null;
+  repeat: boolean;
 }
 
 const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey }) => {
@@ -44,7 +44,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     duration: 5,
     transition: 'fade',
     showCaptions: true,
-    audioFile: null
+    audioFile: null,
+    repeat: true
   });
   
   // Audio Ref for slideshow music
@@ -95,7 +96,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
               duration: 3,
               transition: 'fade',
               showCaptions: false,
-              audioFile: null
+              audioFile: null,
+              repeat: true
           });
           setCurrentSlide(0);
           setSlideshowActive(true);
@@ -108,18 +110,36 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       setSlideshowActive(true);
   };
 
-  // Audio Fading Logic
+  // Helper function to gently fade out audio
+  const fadeOutAudio = (audio: HTMLAudioElement, callback?: () => void) => {
+    const fadeOutInterval = setInterval(() => {
+        if (audio.volume > 0.1) {
+            audio.volume -= 0.1;
+        } else {
+            audio.pause();
+            clearInterval(fadeOutInterval);
+            if (callback) callback();
+        }
+    }, 200); // Step down volume every 200ms
+  };
+
+  // Audio Logic: Fading In/Out and Looping
   useEffect(() => {
+      let fadeOutTimeout: NodeJS.Timeout;
+
       if (slideshowActive && slideshowConfig.audioFile) {
           const audioUrl = URL.createObjectURL(slideshowConfig.audioFile);
           const audio = new Audio(audioUrl);
-          audio.loop = true;
+          
+          // 1. Handle Looping based on config
+          audio.loop = slideshowConfig.repeat;
+          
           audio.volume = 0; // Start at 0 for fade in
           audioRef.current = audio;
           
           audio.play().catch(e => console.error("Audio playback failed", e));
 
-          // Fade In
+          // 2. Fade In
           const fadeInterval = setInterval(() => {
               if (audio.volume < 0.9) {
                   audio.volume += 0.1;
@@ -129,13 +149,29 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
               }
           }, 200);
 
+          // 3. Handle Auto Fade Out if Repeat is OFF
+          // We calculate the total duration of the slideshow in milliseconds
+          if (!slideshowConfig.repeat) {
+              const totalSlideshowDurationMs = likedRenderings.length * slideshowConfig.duration * 1000;
+              // Start fading 5 seconds before the end, or halfway if short
+              const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - 5000); 
+
+              fadeOutTimeout = setTimeout(() => {
+                  if (audioRef.current && !audioRef.current.paused) {
+                      console.log("Auto-fading music 5s before end...");
+                      fadeOutAudio(audioRef.current);
+                  }
+              }, fadeOutStartTime);
+          }
+
           return () => {
               clearInterval(fadeInterval);
+              clearTimeout(fadeOutTimeout);
               // Cleanup URL when component unmounts or slideshow stops
               URL.revokeObjectURL(audioUrl);
           };
       }
-  }, [slideshowActive, slideshowConfig.audioFile]);
+  }, [slideshowActive, slideshowConfig.audioFile, slideshowConfig.repeat, slideshowConfig.duration, likedRenderings.length]);
 
   // Slide Timer Logic
   useEffect(() => {
@@ -147,28 +183,35 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       return () => {
           if (slideTimerRef.current) clearInterval(slideTimerRef.current);
       };
-  }, [slideshowActive, slideshowConfig.duration, likedRenderings.length]);
+  }, [slideshowActive, slideshowConfig.duration, likedRenderings.length, slideshowConfig.repeat]);
 
 
   const closeSlideshow = () => {
-    // Fade Out Audio
-    if (audioRef.current) {
-        const audio = audioRef.current;
-        const fadeOutInterval = setInterval(() => {
-            if (audio.volume > 0.1) {
-                audio.volume -= 0.1;
-            } else {
-                audio.pause();
-                audioRef.current = null;
-                clearInterval(fadeOutInterval);
-            }
-        }, 100);
+    // Fade Out Audio if it's still playing
+    if (audioRef.current && !audioRef.current.paused) {
+        fadeOutAudio(audioRef.current, () => {
+             audioRef.current = null;
+        });
+    } else {
+        audioRef.current = null;
     }
     setSlideshowActive(false);
   };
   
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % likedRenderings.length);
+    setCurrentSlide((prev) => {
+        const next = prev + 1;
+        if (next >= likedRenderings.length) {
+            // End of slideshow
+            if (slideshowConfig.repeat) {
+                return 0; // Loop back to start
+            } else {
+                closeSlideshow(); // Stop slideshow
+                return prev;
+            }
+        }
+        return next;
+    });
   }
 
   const prevSlide = () => {
@@ -463,6 +506,19 @@ ${shotList}
                          </select>
                      </div>
 
+                     {/* Repeat Option */}
+                     <div className="flex items-center justify-between">
+                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                             <Repeat className="h-4 w-4" /> Loop Slideshow
+                         </label>
+                         <input 
+                            type="checkbox" 
+                            checked={slideshowConfig.repeat}
+                            onChange={(e) => setSlideshowConfig({...slideshowConfig, repeat: e.target.checked})}
+                            className="h-5 w-5 text-brand-600 rounded focus:ring-brand-500"
+                         />
+                     </div>
+
                      {/* Smart Captions */}
                      <div className="flex items-center justify-between">
                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -487,7 +543,11 @@ ${shotList}
                             onChange={(e) => setSlideshowConfig({...slideshowConfig, audioFile: e.target.files ? e.target.files[0] : null})}
                             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
                          />
-                         <p className="text-xs text-gray-500 mt-1">Music will automatically fade in/out.</p>
+                         <p className="text-xs text-gray-500 mt-1">
+                             {slideshowConfig.repeat 
+                                ? "Music loops with slideshow." 
+                                : "Music fades out 5s before end."}
+                         </p>
                      </div>
                  </div>
 

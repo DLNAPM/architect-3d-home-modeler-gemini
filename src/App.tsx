@@ -117,9 +117,6 @@ function App() {
                 try {
                     const cloudDesigns = await cloudService.getUserDesigns(currentUserId);
                     if (cloudDesigns.length > 0) {
-                        // Merge strategies can be complex, for now we assume cloud is source of truth or simply append if IDs don't match
-                        // A simple strategy: Use cloud list, but if local has something cloud doesn't (unsynced), keep it? 
-                        // For simplicity in this demo: Cloud overwrites local view if successful.
                         setSavedDesigns(cloudDesigns);
                         
                         // Sync cloud designs down to local DB for offline access
@@ -378,12 +375,7 @@ function App() {
     if (!currentDesign || currentDesign.renderings.length !== 1 || currentDesign.renderings[0].category !== 'Front Exterior') {
       return;
     }
-
-    // Recreating doesn't necessarily add a new rendering (it replaces), but using AI resources. 
-    // However, since we strictly check total rendering count as "created", we can arguably allow this 
-    // or block it. Usually "limit 2" means "you can only HAVE 2". If replacing, you still have 2. 
-    // We will allow recreate for now as it doesn't increase the total count of saved items.
-
+    
     setIsLoading(true);
     setLoadingMessage('Re-creating front exterior...');
     setError(null);
