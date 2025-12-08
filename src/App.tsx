@@ -39,6 +39,11 @@ function App() {
     return user ? user.email : 'anonymous';
   }, [user]);
 
+  // Calculate total renderings to enforce guest limits
+  const totalRenderingsCount = useMemo(() => {
+    return savedDesigns.reduce((acc, design) => acc + design.renderings.length, 0);
+  }, [savedDesigns]);
+
   // Subscribe to authentication state changes
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
@@ -241,8 +246,19 @@ function App() {
     }
   }, []);
 
+  const checkGuestLimit = useCallback(() => {
+     if (user?.name === 'Guest Architect' && totalRenderingsCount >= 2) {
+         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.\n\nWould you like to Sign In now?")) {
+             authService.signIn().catch(e => setError("Sign in failed."));
+         }
+         return false;
+     }
+     return true;
+  }, [user, totalRenderingsCount]);
 
   const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
+    if (!checkGuestLimit()) return;
+
     setIsLoading(true);
     setError(null);
     setLoadingMessage('Processing your design inputs...');
@@ -316,10 +332,12 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [saveDesignChange, handleError]);
+  }, [saveDesignChange, handleError, checkGuestLimit]);
   
   const handleNewRendering = useCallback(async (prompt: string, category: string) => {
     if (!currentDesignId) return;
+    if (!checkGuestLimit()) return;
+
     setIsLoading(true);
     setLoadingMessage(`Rendering ${category}...`);
     setError(null);
@@ -354,12 +372,17 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError, checkGuestLimit]);
 
   const handleRecreateInitialRendering = useCallback(async () => {
     if (!currentDesign || currentDesign.renderings.length !== 1 || currentDesign.renderings[0].category !== 'Front Exterior') {
       return;
     }
+
+    // Recreating doesn't necessarily add a new rendering (it replaces), but using AI resources. 
+    // However, since we strictly check total rendering count as "created", we can arguably allow this 
+    // or block it. Usually "limit 2" means "you can only HAVE 2". If replacing, you still have 2. 
+    // We will allow recreate for now as it doesn't increase the total count of saved items.
 
     setIsLoading(true);
     setLoadingMessage('Re-creating front exterior...');
