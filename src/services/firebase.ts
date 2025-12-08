@@ -1,20 +1,35 @@
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// Use process.env as defined in vite.config.ts for environment variable injection
 const firebaseConfig = {
-  apiKey: "AIzaSyD9wVfpTCCLojE-yRIFzNoJOID1jp9IwzY",
-  authDomain: "architect-3d-home-modeler.firebaseapp.com",
-  projectId: "architect-3d-home-modeler",
-  storageBucket: "architect-3d-home-modeler.firebasestorage.app",
-  messagingSenderId: "762702816387",
-  appId: "1:762702816387:web:a25dc9f358b8bf45ce67b6",
-  measurementId: "G-ZMZ7K9SQ72"
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app: any;
+let auth: any;
+let db: any;
+
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  console.log("Firebase initialized successfully");
+} catch (error) {
+  console.error("Firebase initialization failed:", error);
+  // Fallback to prevent crash if config is missing in dev
+  app = {};
+  auth = {};
+  db = {};
+}
 
 export { app, auth, db };
