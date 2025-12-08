@@ -1,43 +1,38 @@
-import { getAuth, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { app } from "./firebase";
 import { User } from '../types';
 
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-// Map Firebase user to our App's User type
-const mapUser = (firebaseUser: FirebaseUser | null): User | null => {
-  if (!firebaseUser) return null;
-  return {
-    name: firebaseUser.displayName || "Architect",
-    email: firebaseUser.email || "",
-    picture: firebaseUser.photoURL || "",
-  };
-};
+let currentUser: User | null = null;
+const listeners: ((user: User | null) => void)[] = [];
 
 export const authService = {
-  signIn: async (): Promise<User | null> => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      return mapUser(result.user);
-    } catch (error) {
-      console.error("Sign-in error:", error);
-      throw error;
-    }
-  },
+    signIn: async (): Promise<User | null> => {
+        // Simulate network delay for realism
+        await new Promise(resolve => setTimeout(resolve, 600));
+        
+        currentUser = {
+            name: "Guest Architect",
+            email: "guest@architect3d.com",
+            picture: "https://ui-avatars.com/api/?name=Guest+Architect&background=0D8ABC&color=fff"
+        };
+        
+        listeners.forEach(listener => listener(currentUser));
+        return currentUser;
+    },
 
-  signOut: async (): Promise<void> => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Sign-out error:", error);
-      throw error;
-    }
-  },
+    signOut: async (): Promise<void> => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        currentUser = null;
+        listeners.forEach(listener => listener(null));
+    },
 
-  onAuthStateChanged: (callback: (user: User | null) => void) => {
-    return onAuthStateChanged(auth, (firebaseUser) => {
-      callback(mapUser(firebaseUser));
-    });
-  },
+    onAuthStateChanged: (callback: (user: User | null) => void): (() => void) => {
+        listeners.push(callback);
+        // Immediately trigger with current state
+        callback(currentUser);
+        return () => {
+            const index = listeners.indexOf(callback);
+            if (index > -1) {
+                listeners.splice(index, 1);
+            }
+        };
+    },
 };

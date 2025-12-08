@@ -107,6 +107,7 @@ function App() {
 
   
   const checkApiKey = useCallback(async () => {
+    // Only attempt to check API key selection if the environment supports it
     if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
       try {
         const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -116,7 +117,9 @@ function App() {
         setIsKeyReady(false);
       }
     } else {
-      console.warn("aistudio.hasSelectedApiKey not found, proceeding without key check.");
+      // If the API key selector isn't present, assume we are in a standard environment
+      // where the key is handled differently or manually provided.
+      // We set this to true to unblock the UI.
       setIsKeyReady(true);
     }
   }, []);
