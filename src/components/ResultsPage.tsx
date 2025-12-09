@@ -119,16 +119,24 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   };
 
   // Helper function to gently fade out audio
-  const fadeOutAudio = (audio: HTMLAudioElement, callback?: () => void) => {
+  // duration: Total time in ms to fade from current volume to 0
+  const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 2000, callback?: () => void) => {
+    const steps = 10; // Number of volume steps to take (decreasing by ~0.1 or proportional each time)
+    const intervalTime = duration / steps;
+    
+    const startVolume = audio.volume;
+    const volStep = startVolume / steps;
+
     const fadeOutInterval = setInterval(() => {
-        if (audio.volume > 0.1) {
-            audio.volume -= 0.1;
+        if (audio.volume > volStep) {
+            audio.volume = Math.max(0, audio.volume - volStep);
         } else {
+            audio.volume = 0;
             audio.pause();
             clearInterval(fadeOutInterval);
             if (callback) callback();
         }
-    }, 200); // Step down volume every 200ms
+    }, intervalTime);
   };
 
   // Sync Audio Play/Pause with visual state
@@ -158,7 +166,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
           
           audio.play().catch(e => console.error("Audio playback failed", e));
 
-          // 2. Fade In
+          // 2. Fade In (Quick fade in over 2 seconds)
           const fadeInterval = setInterval(() => {
               if (audio.volume < 0.9) {
                   audio.volume += 0.1;
@@ -171,15 +179,19 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
           // 3. Handle Auto Fade Out if Repeat is OFF
           // We calculate the total duration of the slideshow in milliseconds
           if (!slideshowConfig.repeat) {
-              const totalSlideshowDurationMs = likedRenderings.length * slideshowConfig.duration * 1000;
-              // Start fading 8 seconds before the end
-              const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - 8000); 
+              const slideDurationMs = slideshowConfig.duration * 1000;
+              const totalSlideshowDurationMs = likedRenderings.length * slideDurationMs;
+              
+              // Start fading exactly when the LAST slide begins.
+              // The last slide is displayed for 'slideDurationMs'.
+              // So we start fading at (TotalDuration - SlideDuration).
+              const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - slideDurationMs); 
 
               fadeOutTimeout = setTimeout(() => {
                   // Only auto-fade if not paused (simplified logic)
                   if (audioRef.current && !audioRef.current.paused && !audioRef.current.loop) {
-                      console.log("Auto-fading music 8s before end...");
-                      fadeOutAudio(audioRef.current);
+                      console.log(`Auto-fading music over the last ${slideshowConfig.duration} seconds...`);
+                      fadeOutAudio(audioRef.current, slideDurationMs);
                   }
               }, fadeOutStartTime);
           }
@@ -207,9 +219,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
 
   const closeSlideshow = () => {
-    // Fade Out Audio if it's still playing
+    // Fade Out Audio quickly if it's still playing manually closed
     if (audioRef.current && !audioRef.current.paused) {
-        fadeOutAudio(audioRef.current, () => {
+        fadeOutAudio(audioRef.current, 1000, () => {
              audioRef.current = null;
         });
     } else {
@@ -590,7 +602,7 @@ ${shotList}
                          <p className="text-xs text-gray-500 mt-1">
                              {slideshowConfig.repeat 
                                 ? "Music loops with slideshow." 
-                                : "Music fades out 8s before end."}
+                                : `Music fades out over last ${slideshowConfig.duration}s.`}
                          </p>
                      </div>
                  </div>
