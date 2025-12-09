@@ -3,7 +3,7 @@ import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause } from 'lucide-react';
 
 interface ResultsPageProps {
   design: SavedDesign;
@@ -38,6 +38,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
   // Slideshow State
   const [slideshowActive, setSlideshowActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [showSlideshowConfig, setShowSlideshowConfig] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slideshowConfig, setSlideshowConfig] = useState<SlideshowConfig>({
@@ -100,6 +101,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
               repeat: true
           });
           setCurrentSlide(0);
+          setIsPaused(false);
           setSlideshowActive(true);
       }
   };
@@ -107,7 +109,13 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const startAdvancedSlideshow = () => {
       setShowSlideshowConfig(false);
       setCurrentSlide(0);
+      setIsPaused(false);
       setSlideshowActive(true);
+  };
+
+  const togglePause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPaused(prev => !prev);
   };
 
   // Helper function to gently fade out audio
@@ -122,6 +130,17 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
         }
     }, 200); // Step down volume every 200ms
   };
+
+  // Sync Audio Play/Pause with visual state
+  useEffect(() => {
+    if (audioRef.current) {
+        if (isPaused) {
+            audioRef.current.pause();
+        } else if (slideshowActive) {
+            audioRef.current.play().catch(e => console.error("Audio resume failed", e));
+        }
+    }
+  }, [isPaused, slideshowActive]);
 
   // Audio Logic: Fading In/Out and Looping
   useEffect(() => {
@@ -153,12 +172,13 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
           // We calculate the total duration of the slideshow in milliseconds
           if (!slideshowConfig.repeat) {
               const totalSlideshowDurationMs = likedRenderings.length * slideshowConfig.duration * 1000;
-              // Start fading 5 seconds before the end, or halfway if short
-              const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - 5000); 
+              // Start fading 8 seconds before the end
+              const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - 8000); 
 
               fadeOutTimeout = setTimeout(() => {
-                  if (audioRef.current && !audioRef.current.paused) {
-                      console.log("Auto-fading music 5s before end...");
+                  // Only auto-fade if not paused (simplified logic)
+                  if (audioRef.current && !audioRef.current.paused && !audioRef.current.loop) {
+                      console.log("Auto-fading music 8s before end...");
                       fadeOutAudio(audioRef.current);
                   }
               }, fadeOutStartTime);
@@ -175,7 +195,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
   // Slide Timer Logic
   useEffect(() => {
-      if (slideshowActive) {
+      if (slideshowActive && !isPaused) {
           slideTimerRef.current = setInterval(() => {
               nextSlide();
           }, slideshowConfig.duration * 1000);
@@ -183,7 +203,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       return () => {
           if (slideTimerRef.current) clearInterval(slideTimerRef.current);
       };
-  }, [slideshowActive, slideshowConfig.duration, likedRenderings.length, slideshowConfig.repeat]);
+  }, [slideshowActive, isPaused, slideshowConfig.duration, likedRenderings.length, slideshowConfig.repeat]);
 
 
   const closeSlideshow = () => {
@@ -196,6 +216,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
         audioRef.current = null;
     }
     setSlideshowActive(false);
+    setIsPaused(false);
   };
   
   const nextSlide = () => {
@@ -214,8 +235,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     });
   }
 
-  const prevSlide = () => {
+  const prevSlide = (e?: React.MouseEvent) => {
+    if(e) e.stopPropagation();
     setCurrentSlide((prev) => (prev - 1 + likedRenderings.length) % likedRenderings.length);
+  }
+  
+  const nextSlideManual = (e?: React.MouseEvent) => {
+    if(e) e.stopPropagation();
+    nextSlide();
   }
 
   const handleBulkDelete = () => {
@@ -563,7 +590,7 @@ ${shotList}
                          <p className="text-xs text-gray-500 mt-1">
                              {slideshowConfig.repeat 
                                 ? "Music loops with slideshow." 
-                                : "Music fades out 5s before end."}
+                                : "Music fades out 8s before end."}
                          </p>
                      </div>
                  </div>
@@ -582,10 +609,14 @@ ${shotList}
 
       {/* Slideshow Overlay */}
       {slideshowActive && likedRenderings.length > 0 && (
-         <div className="fixed inset-0 bg-black z-[90] flex items-center justify-center overflow-hidden" onClick={closeSlideshow}>
+         <div 
+            className="fixed inset-0 bg-black z-[90] flex items-center justify-center overflow-hidden cursor-pointer" 
+            onClick={togglePause}
+            title="Click anywhere to Play/Pause"
+         >
             <div className="relative w-full h-full" onClick={e => e.stopPropagation()}>
-                {/* Image Container with Transitions */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                {/* Image Container with Transitions - Click handles Pause */}
+                <div className="absolute inset-0 flex items-center justify-center" onClick={togglePause}>
                     <img 
                         key={currentSlide} // Key change triggers CSS animation restart
                         src={likedRenderings[currentSlide].imageUrl} 
@@ -593,12 +624,21 @@ ${shotList}
                         className={`max-h-screen max-w-full object-contain ${getTransitionClass()}`}
                     />
                 </div>
+                
+                {/* Pause Indicator */}
+                {isPaused && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                        <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full">
+                            <Pause className="h-12 w-12 text-white fill-white" />
+                        </div>
+                    </div>
+                )}
 
-                {/* Smart Captions */}
+                {/* Smart Captions - Full Width Bar */}
                 {slideshowConfig.showCaptions && (
-                    <div className="absolute bottom-10 left-0 right-0 text-center p-4">
-                        <div className="inline-block bg-black/60 backdrop-blur-sm p-4 rounded-xl max-w-2xl mx-auto">
-                            <p className="text-white text-lg font-light leading-relaxed">
+                    <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
+                        <div className="bg-black/60 backdrop-blur-md p-6 text-center border-t border-white/10">
+                            <p className="text-white text-lg md:text-xl font-light leading-relaxed max-w-5xl mx-auto">
                                 {getSmartCaption(likedRenderings[currentSlide])}
                             </p>
                         </div>
@@ -606,12 +646,28 @@ ${shotList}
                 )}
 
                 {/* Controls */}
-                <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all">‹</button>
-                <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all">›</button>
-                <button onClick={closeSlideshow} className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/50 p-3 rounded-full transition-all"><X/></button>
+                <button 
+                    onClick={prevSlide} 
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30"
+                >
+                    ‹
+                </button>
+                <button 
+                    onClick={nextSlideManual} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30"
+                >
+                    ›
+                </button>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); closeSlideshow(); }} 
+                    className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/50 p-3 rounded-full transition-all z-30"
+                    title="Close Slideshow"
+                >
+                    <X/>
+                </button>
                 
                 {/* Progress Bar */}
-                <div className="absolute top-0 left-0 h-1 bg-brand-500 transition-all duration-300 ease-linear" style={{ width: `${((currentSlide + 1) / likedRenderings.length) * 100}%` }}></div>
+                <div className="absolute top-0 left-0 h-1 bg-brand-500 transition-all duration-300 ease-linear z-30" style={{ width: `${((currentSlide + 1) / likedRenderings.length) * 100}%` }}></div>
             </div>
         </div>
       )}
