@@ -286,15 +286,32 @@ ${shotList}
 
   // Helper for Smart Captions
   const getSmartCaption = (rendering: Rendering) => {
-      // Simple parser: Extract the core description or fallback to category
-      if (!rendering.prompt) return rendering.category;
+      if (!rendering.prompt) return `A professional visualization of the ${rendering.category}.`;
       
-      // Try to find specific details added in customization
-      const detailsMatch = rendering.prompt.match(/incorporate the following specific details.*?: (.*?)\./);
-      if (detailsMatch && detailsMatch[1]) {
-          return `${rendering.category}: ${detailsMatch[1]}`;
+      // 1. Extract specific customization details (High priority for interior/customized rooms)
+      // Matches text after "incorporate the following [specific] details...: " until the next period or keyword.
+      const detailsRegex = /incorporate the following (?:specific )?details.*?: (.*?)(?:\.|$| Crucially)/i;
+      const detailsMatch = rendering.prompt.match(detailsRegex);
+      
+      if (detailsMatch && detailsMatch[1] && detailsMatch[1].trim().length > 5) {
+          const details = detailsMatch[1].trim();
+          // Ensure it reads naturally as a sentence
+          return `${rendering.category} designed ${details}.`;
       }
-      return rendering.category;
+
+      // 2. Extract general design concept (High priority for initial exterior views)
+      // Matches text inside quotes after "concept is:" or "description: "
+      const conceptRegex = /(?:concept|description)(?: is|): "(.*?)"/i;
+      const conceptMatch = rendering.prompt.match(conceptRegex);
+      
+      if (conceptMatch && conceptMatch[1]) {
+           let concept = conceptMatch[1].trim();
+           if (concept.length > 120) concept = concept.substring(0, 117) + '...';
+           return `${rendering.category}: ${concept}`;
+      }
+
+      // 3. Robust Fallback
+      return `A stunning 3D visualization of the ${rendering.category}.`;
   };
 
   const getTransitionClass = () => {
