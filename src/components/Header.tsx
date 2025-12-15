@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2 } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
 
@@ -178,6 +178,10 @@ const Header: React.FC<HeaderProps> = ({
                                         <li className="flex items-start gap-2">
                                             <Cloud className="h-4 w-4 text-brand-500 mt-1" />
                                             <span><strong>Cloud Sync:</strong> Sign in with Google to save your designs to the cloud. Access your sessions from any computer or mobile device.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
+                                            <Share2 className="h-4 w-4 text-indigo-500 mt-1" />
+                                            <span><strong>Project Sharing:</strong> Collaborate with others by inviting them to view or edit your designs via email.</span>
                                         </li>
                                         <li className="flex items-start gap-2">
                                             <Video className="h-4 w-4 text-pink-500 mt-1" />

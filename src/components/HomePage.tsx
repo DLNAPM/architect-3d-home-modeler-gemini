@@ -227,6 +227,14 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                                 <li>Generate new, specific renderings for each room to fully visualize your design.</li>
                             </ul>
                         </div>
+                        <div>
+                            <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">4. Share & Collaborate</h3>
+                            <p>Once you are happy with your designs:</p>
+                            <ul className="list-disc list-inside space-y-1 pl-2">
+                                <li>Use the <strong>Share</strong> button to send your project to others via email.</li>
+                                <li>Grant <strong>View</strong> access for feedback or <strong>Edit</strong> access to collaborate on the design.</li>
+                            </ul>
+                        </div>
                          <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-600">
                             <h3 className="font-semibold text-lg text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle/> Important: Content Policy</h3>
                             <p>This is a professional architectural design tool. Any attempt to generate pornographic, nude, or sexually explicit content is a violation of our terms of service. All prompts are monitored. Violators will have their access permanently revoked without warning.</p>
