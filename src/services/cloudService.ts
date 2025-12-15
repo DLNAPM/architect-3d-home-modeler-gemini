@@ -6,7 +6,7 @@ import { SavedDesign, AccessLevel } from "../types";
 /**
  * Compresses a Data URI or Base64 string to a JPEG under specific dimensions and quality.
  */
-const compressImage = (source: string, mimeType: string = 'image/jpeg', maxWidth: number = 1024, quality: number = 0.7): Promise<string> => {
+const compressImage = (source: string, mimeType: string = 'image/jpeg', maxWidth: number = 800, quality: number = 0.5): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     // Handle both Data URI and raw Base64 inputs
@@ -59,12 +59,16 @@ export const cloudService = {
     try {
       // Deep clone the design to avoid modifying the local high-res state
       const designToSave = JSON.parse(JSON.stringify(design)) as SavedDesign;
+      
+      // Threshold: ~150KB (Length of base64 string is roughly 1.33 * size in bytes)
+      // We start compressing if string length is > 200,000 characters
+      const SIZE_THRESHOLD = 200000; 
 
       // 1. Compress Renderings
       if (designToSave.renderings && designToSave.renderings.length > 0) {
         designToSave.renderings = await Promise.all(designToSave.renderings.map(async (r) => {
-          if (r.imageUrl && r.imageUrl.length > 500000) { // Only compress if > ~500KB
-             const compressedDataUri = await compressImage(r.imageUrl);
+          if (r.imageUrl && r.imageUrl.length > SIZE_THRESHOLD) { 
+             const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 800, 0.5);
              return { ...r, imageUrl: compressedDataUri };
           }
           return r;
@@ -76,8 +80,8 @@ export const cloudService = {
         const keys = ['frontPlan', 'backPlan', 'facadeImage'] as const;
         for (const key of keys) {
             const imgData = designToSave.uploadedImages[key];
-            if (imgData && imgData.base64 && imgData.base64.length > 500000) {
-                const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType);
+            if (imgData && imgData.base64 && imgData.base64.length > SIZE_THRESHOLD) {
+                const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, 800, 0.5);
                 // Split back into base64 and update mimetype to jpeg
                 designToSave.uploadedImages[key] = {
                     base64: compressedDataUri.split(',')[1],
@@ -85,6 +89,39 @@ export const cloudService = {
                 };
             }
         }
+      }
+
+      // 3. Emergency Size Check
+      // Firestore limit is 1,048,576 bytes. We check estimate JSON size.
+      const jsonString = JSON.stringify(designToSave);
+      const estimatedSize = new TextEncoder().encode(jsonString).length;
+
+      if (estimatedSize >= 1000000) { // If still close to 1MB
+          console.warn(`Design size ${estimatedSize} exceeds safe limit. Applying emergency compression.`);
+          
+          // Emergency pass: Compress ALL renderings aggressively
+          if (designToSave.renderings) {
+             designToSave.renderings = await Promise.all(designToSave.renderings.map(async (r) => {
+                 // Force compression on everything to 600px width and low quality
+                 const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 600, 0.4);
+                 return { ...r, imageUrl: compressedDataUri };
+             }));
+          }
+          
+          // Emergency pass: Compress uploaded images
+           if (designToSave.uploadedImages) {
+                const keys = ['frontPlan', 'backPlan', 'facadeImage'] as const;
+                for (const key of keys) {
+                    const imgData = designToSave.uploadedImages[key];
+                    if (imgData && imgData.base64) {
+                        const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, 600, 0.4);
+                        designToSave.uploadedImages[key] = {
+                            base64: compressedDataUri.split(',')[1],
+                            mimeType: 'image/jpeg'
+                        };
+                    }
+                }
+            }
       }
 
       // We create a reference to: users -> {userId} -> designs -> {designId}
