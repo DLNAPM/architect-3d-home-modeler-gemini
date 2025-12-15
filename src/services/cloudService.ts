@@ -1,6 +1,7 @@
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
+
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where } from "firebase/firestore";
 import { db } from "./firebase";
-import { SavedDesign } from "../types";
+import { SavedDesign, AccessLevel } from "../types";
 
 /**
  * Compresses a Data URI or Base64 string to a JPEG under specific dimensions and quality.
@@ -91,9 +92,12 @@ export const cloudService = {
       
       const dataToSave = {
         ...designToSave,
-        userId: userId,
+        userId: userId, // Ensure owner ID is stamped on the doc
         lastSynced: Date.now()
       };
+      
+      // Remove transient fields if present before saving
+      delete (dataToSave as any).accessLevel;
 
       await setDoc(designRef, dataToSave);
       console.log("Design saved to cloud successfully");
@@ -116,7 +120,9 @@ export const cloudService = {
       
       const designs: SavedDesign[] = [];
       querySnapshot.forEach((doc) => {
-        designs.push(doc.data() as SavedDesign);
+        const data = doc.data() as SavedDesign;
+        // Owned designs have 'owner' access level by default
+        designs.push({ ...data, ownerId: userId, accessLevel: 'owner' });
       });
       
       return designs;
@@ -139,5 +145,89 @@ export const cloudService = {
       console.error("Error deleting design from cloud:", error);
       throw error;
     }
+  },
+
+  /**
+   * Shares a design with another user by email.
+   */
+  async shareDesign(ownerId: string, designId: string, targetEmail: string, permission: AccessLevel): Promise<void> {
+      try {
+          // Normalize email
+          const email = targetEmail.trim().toLowerCase();
+          
+          // Add to 'shared_projects' collection
+          await addDoc(collection(db, "shared_projects"), {
+              ownerId,
+              designId,
+              targetEmail: email,
+              permission,
+              createdAt: Date.now()
+          });
+      } catch (error) {
+          console.error("Error sharing design:", error);
+          throw error;
+      }
+  },
+
+  /**
+   * Fetches designs shared with the given email address.
+   */
+  async getSharedDesigns(userEmail: string): Promise<SavedDesign[]> {
+      try {
+          const email = userEmail.trim().toLowerCase();
+          const q = query(collection(db, "shared_projects"), where("targetEmail", "==", email));
+          const querySnapshot = await getDocs(q);
+
+          const sharedDesigns: SavedDesign[] = [];
+
+          for (const shareDoc of querySnapshot.docs) {
+              const { ownerId, designId, permission } = shareDoc.data();
+              
+              // Fetch the actual design
+              try {
+                const designRef = doc(db, "users", ownerId, "designs", designId);
+                const designSnap = await getDoc(designRef);
+
+                if (designSnap.exists()) {
+                    const designData = designSnap.data() as SavedDesign;
+                    sharedDesigns.push({
+                        ...designData,
+                        ownerId: ownerId,
+                        accessLevel: permission as AccessLevel
+                    });
+                } else {
+                    console.warn(`Shared design not found: ${designId} owned by ${ownerId}`);
+                }
+              } catch (err) {
+                  console.error(`Failed to fetch shared design ${designId}`, err);
+              }
+          }
+          return sharedDesigns;
+
+      } catch (error) {
+          console.error("Error fetching shared designs:", error);
+          return [];
+      }
+  },
+
+  /**
+   * Removes a share record (stop sharing or remove from 'Shared with me')
+   */
+  async removeShare(userEmail: string, designId: string): Promise<void> {
+      // This is a simplification. Ideally we'd delete by ID, but searching by composite key works for now.
+      try {
+        const email = userEmail.trim().toLowerCase();
+        const q = query(
+            collection(db, "shared_projects"), 
+            where("targetEmail", "==", email),
+            where("designId", "==", designId)
+        );
+        const snapshot = await getDocs(q);
+        snapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+        });
+      } catch (error) {
+          console.error("Error removing share:", error);
+      }
   }
 };

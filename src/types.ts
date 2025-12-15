@@ -1,3 +1,4 @@
+
 export interface Rendering {
   id: string;
   category: string;
@@ -13,7 +14,7 @@ export interface CustomizationOption {
 }
 
 export interface Room {
-  name: string;
+  name:string;
   options: Record<string, CustomizationOption>;
   subOptionKey?: string;
   subOptions?: Record<string, Record<string, CustomizationOption>>;
@@ -27,6 +28,8 @@ export interface HousePlan {
   rooms: Room[];
 }
 
+export type AccessLevel = 'owner' | 'edit' | 'view';
+
 export interface SavedDesign {
   housePlan: HousePlan;
   renderings: Rendering[];
@@ -35,7 +38,9 @@ export interface SavedDesign {
     frontPlan?: { base64: string; mimeType: string; };
     backPlan?: { base64: string; mimeType: string; };
     facadeImage?: { base64: string; mimeType: string; };
-  }
+  };
+  ownerId?: string; // ID of the original owner
+  accessLevel?: AccessLevel; // Access level for the current user session
 }
 
 export enum AppView {

@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock } from 'lucide-react';
 
 interface ResultsPageProps {
   design: SavedDesign;
@@ -20,6 +21,7 @@ interface ResultsPageProps {
   isLoading: boolean;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  onOpenShareModal: () => void;
 }
 
 interface SlideshowConfig {
@@ -30,8 +32,11 @@ interface SlideshowConfig {
   repeat: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey }) => {
-  const { housePlan, renderings, initialPrompt } = design;
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal }) => {
+  const { housePlan, renderings, initialPrompt, accessLevel = 'owner' } = design;
+  const isViewOnly = accessLevel === 'view';
+  const isOwner = accessLevel === 'owner';
+
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
@@ -79,7 +84,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     setSelectedRoom(room);
     
     // Auto-generate Back Exterior if it's selected and doesn't exist yet
-    if (room.name === 'Back Exterior' && !isLoading) {
+    // Disabled in view-only mode
+    if (!isViewOnly && room.name === 'Back Exterior' && !isLoading) {
         const hasBackRendering = renderings.some(r => r.category === 'Back Exterior');
         if (!hasBackRendering) {
              const prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house. The overall architectural style should be consistent with this main description: "${initialPrompt}". Focus on the backyard view. Crucially, DO NOT include front-of-house elements like driveways or the street.`;
@@ -126,9 +132,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   };
 
   // Helper function to gently fade out audio
-  // duration: Total time in ms to fade from current volume to 0
   const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 2000, callback?: () => void) => {
-    const steps = 10; // Number of volume steps to take (decreasing by ~0.1 or proportional each time)
+    const steps = 10; 
     const intervalTime = duration / steps;
     
     const startVolume = audio.volume;
@@ -146,7 +151,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     }, intervalTime);
   };
 
-  // Sync Audio Play/Pause with visual state
   useEffect(() => {
     if (audioRef.current) {
         if (isPaused) {
@@ -157,23 +161,17 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     }
   }, [isPaused, slideshowActive]);
 
-  // Audio Logic: Fading In/Out and Looping
   useEffect(() => {
       let fadeOutTimeout: ReturnType<typeof setTimeout>;
 
       if (slideshowActive && slideshowConfig.audioFile) {
           const audioUrl = URL.createObjectURL(slideshowConfig.audioFile);
           const audio = new Audio(audioUrl);
-          
-          // 1. Handle Looping based on config
           audio.loop = slideshowConfig.repeat;
-          
-          audio.volume = 0; // Start at 0 for fade in
+          audio.volume = 0; 
           audioRef.current = audio;
-          
           audio.play().catch(e => console.error("Audio playback failed", e));
 
-          // 2. Fade In (Quick fade in over 2 seconds)
           const fadeInterval = setInterval(() => {
               if (audio.volume < 0.9) {
                   audio.volume += 0.1;
@@ -183,21 +181,13 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
               }
           }, 200);
 
-          // 3. Handle Auto Fade Out if Repeat is OFF
-          // We calculate the total duration of the slideshow in milliseconds
           if (!slideshowConfig.repeat) {
               const slideDurationMs = slideshowConfig.duration * 1000;
               const totalSlideshowDurationMs = likedRenderings.length * slideDurationMs;
-              
-              // Start fading exactly when the LAST slide begins.
-              // The last slide is displayed for 'slideDurationMs'.
-              // So we start fading at (TotalDuration - SlideDuration).
               const fadeOutStartTime = Math.max(0, totalSlideshowDurationMs - slideDurationMs); 
 
               fadeOutTimeout = setTimeout(() => {
-                  // Only auto-fade if not paused (simplified logic)
                   if (audioRef.current && !audioRef.current.paused && !audioRef.current.loop) {
-                      console.log(`Auto-fading music over the last ${slideshowConfig.duration} seconds...`);
                       fadeOutAudio(audioRef.current, slideDurationMs);
                   }
               }, fadeOutStartTime);
@@ -206,13 +196,11 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
           return () => {
               clearInterval(fadeInterval);
               clearTimeout(fadeOutTimeout);
-              // Cleanup URL when component unmounts or slideshow stops
               URL.revokeObjectURL(audioUrl);
           };
       }
   }, [slideshowActive, slideshowConfig.audioFile, slideshowConfig.repeat, slideshowConfig.duration, likedRenderings.length]);
 
-  // Slide Timer Logic
   useEffect(() => {
       if (slideshowActive && !isPaused) {
           slideTimerRef.current = setInterval(() => {
@@ -226,7 +214,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
 
   const closeSlideshow = () => {
-    // Fade Out Audio quickly if it's still playing manually closed
     if (audioRef.current && !audioRef.current.paused) {
         fadeOutAudio(audioRef.current, 1000, () => {
              audioRef.current = null;
@@ -242,11 +229,10 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     setCurrentSlide((prev) => {
         const next = prev + 1;
         if (next >= likedRenderings.length) {
-            // End of slideshow
             if (slideshowConfig.repeat) {
-                return 0; // Loop back to start
+                return 0; 
             } else {
-                closeSlideshow(); // Stop slideshow
+                closeSlideshow(); 
                 return prev;
             }
         }
@@ -278,12 +264,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   
   const handleGenerateMarketingVideo = () => {
       if (!canCreateMarketingVideo) return;
-      
       const totalDuration = (likedRenderings.length * 4) + 8;
-
       const shotList = likedRenderings.map((rendering, index) => {
         const detailsPart = rendering.prompt.split('incorporate the following specific details for this room: ')[1]?.split('.')[0] || `a beautiful ${rendering.category}`;
-        
         return `
 ---
 **Shot ${index + 2}: Scene of the ${rendering.category}**
@@ -296,16 +279,13 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
       const prompt = `
 You are a professional video director creating a high-end, cinematic real estate marketing video for "C&SH Group Properties, LLC".
-
 **CRITICAL INSTRUCTIONS:**
-1.  **Total Duration:** The final video MUST be exactly **${totalDuration} seconds** long. This is non-negotiable.
-2.  **Structure:** The video must follow the precise SHOT LIST provided below. Do not deviate.
-3.  **Pacing:** Each scene described in the shot list must be exactly 4 seconds long. Use smooth, slow dissolve transitions between each shot.
+1.  **Total Duration:** The final video MUST be exactly **${totalDuration} seconds** long.
+2.  **Structure:** The video must follow the precise SHOT LIST provided below.
+3.  **Pacing:** Each scene described in the shot list must be exactly 4 seconds long.
 4.  **Music:** The video must have an inspiring, sophisticated, and instrumental background music track appropriate for a luxury property tour. The music must gently start to fade out 8 seconds before the end of the video.
 5.  **Quality:** All scenes must be photorealistic, with high-end architectural visualization and cinematic lighting.
-
 **--- SHOT LIST ---**
-
 ---
 **Shot 1: Title Card**
 - **Duration**: 4 seconds.
@@ -318,7 +298,6 @@ ${shotList}
 - **Content**: Display the company name "C&SH Group Properties, LLC" and a contact number "(555) 123-4567". Match the style of the title card.
 ---
 `;
-      
       onGenerateVideoTour(prompt);
   };
 
@@ -330,7 +309,6 @@ ${shotList}
     setEnlargedImageUrl(null);
   };
 
-  // Helper for Smart Captions
   const getSmartCaption = (rendering: Rendering) => {
       if (!rendering.prompt) return `A professional visualization of the ${rendering.category}.`;
       
@@ -341,16 +319,13 @@ ${shotList}
           const details = detailsMatch[1].trim();
           return `${rendering.category} designed ${details}.`;
       }
-
       const conceptRegex = /(?:concept|description)(?: is|): "(.*?)"/i;
       const conceptMatch = rendering.prompt.match(conceptRegex);
-      
       if (conceptMatch && conceptMatch[1]) {
            let concept = conceptMatch[1].trim();
            if (concept.length > 120) concept = concept.substring(0, 117) + '...';
            return `${rendering.category}: ${concept}`;
       }
-
       return `A stunning 3D visualization of the ${rendering.category}.`;
   };
 
@@ -362,16 +337,29 @@ ${shotList}
       }
   };
 
-  // Determine Re-Create Eligibility
   const selectedCategory = selectedRoom?.name;
   const canRecreate = selectedCategory && (selectedCategory === 'Front Exterior' || selectedCategory === 'Back Exterior');
   const hasRenderingForSelected = canRecreate ? renderings.some(r => r.category === selectedCategory) : false;
 
   return (
     <div>
-      <div className="text-center mb-8">
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">{housePlan.title}</h2>
+      <div className="text-center mb-8 relative">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white flex items-center justify-center gap-3">
+            {housePlan.title}
+            {isViewOnly && <Lock className="h-6 w-6 text-gray-400" title="View Only" />}
+        </h2>
         <p className="text-lg text-brand-600 dark:text-brand-400 font-medium mt-1">{housePlan.style}</p>
+        
+        {isOwner && (
+            <div className="absolute top-0 right-0">
+                 <button 
+                  onClick={onOpenShareModal}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-brand-600 bg-white border border-brand-200 rounded-full hover:bg-brand-50 shadow-sm transition-colors"
+                >
+                    <Share2 className="h-4 w-4" /> Share
+                </button>
+            </div>
+        )}
       </div>
 
       {error && (
@@ -386,6 +374,12 @@ ${shotList}
                 <X className="h-4 w-4"/>
             </button>
         </div>
+      )}
+
+      {isViewOnly && (
+         <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-center text-sm">
+             You are viewing this project in <strong>Read-Only Mode</strong>. Editing and generation are disabled.
+         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -426,15 +420,17 @@ ${shotList}
               </li>
             ))}
           </ul>
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                  onClick={() => setIsAddRoomModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-              >
-                  <PlusCircle className="h-5 w-5" />
-                  Add Room
-              </button>
-          </div>
+          {!isViewOnly && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                    onClick={() => setIsAddRoomModalOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                >
+                    <PlusCircle className="h-5 w-5" />
+                    Add Room
+                </button>
+            </div>
+          )}
         </div>
 
         {/* Column 2: Renderings */}
@@ -442,7 +438,7 @@ ${shotList}
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2 flex-wrap justify-end">
-                {canRecreate && hasRenderingForSelected && (
+                {canRecreate && hasRenderingForSelected && !isViewOnly && (
                   <button 
                     onClick={() => selectedCategory && onRecreateRendering(selectedCategory)} 
                     disabled={isLoading || !isKeyReady}
@@ -475,7 +471,7 @@ ${shotList}
                         <Play className="h-4 w-4" /> Slideshow
                     </button>
                 )}
-                {selectedRenderings.length > 0 && (
+                {selectedRenderings.length > 0 && !isViewOnly && (
                     <button 
                       onClick={handleBulkDelete} 
                       disabled={isLoading}
@@ -504,16 +500,18 @@ ${shotList}
         <div className="lg:col-span-3">
             <div className="sticky top-24">
               {selectedRoom ? (
-                <CustomizationPanel
-                  key={selectedRoom.name}
-                  room={selectedRoom}
-                  housePlan={housePlan}
-                  initialPrompt={initialPrompt}
-                  onGenerate={onNewRendering}
-                  isLoading={isLoading}
-                  isKeyReady={isKeyReady}
-                  onSelectKey={onSelectKey}
-                />
+                <div className={isViewOnly ? 'opacity-60 pointer-events-none grayscale' : ''}>
+                    <CustomizationPanel
+                    key={selectedRoom.name}
+                    room={selectedRoom}
+                    housePlan={housePlan}
+                    initialPrompt={initialPrompt}
+                    onGenerate={onNewRendering}
+                    isLoading={isLoading}
+                    isKeyReady={isKeyReady}
+                    onSelectKey={onSelectKey}
+                    />
+                </div>
               ) : (
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md text-center">
                     <p className="text-gray-500 dark:text-gray-400">This house plan has no rooms to customize.</p>
@@ -523,10 +521,11 @@ ${shotList}
         </div>
       </div>
       
-      {/* Advanced Slideshow Configuration Modal */}
+      {/* Slideshow & Modals ... */}
       {showSlideshowConfig && (
          <div className="fixed inset-0 bg-black bg-opacity-70 z-[80] flex items-center justify-center p-4">
              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6">
+                 {/* ... existing modal code ... */}
                  <div className="flex justify-between items-center mb-6">
                      <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                          <Settings className="h-6 w-6 text-brand-500" />
@@ -536,7 +535,6 @@ ${shotList}
                  </div>
                  
                  <div className="space-y-6">
-                     {/* Duration */}
                      <div>
                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                              <Clock className="h-4 w-4" /> Slide Duration (Seconds)
@@ -551,8 +549,6 @@ ${shotList}
                          />
                          <div className="text-right text-sm text-gray-500">{slideshowConfig.duration}s</div>
                      </div>
-
-                     {/* Transitions */}
                      <div>
                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                              <Activity className="h-4 w-4" /> Transition Style
@@ -567,8 +563,6 @@ ${shotList}
                              <option value="zoom">Slow Zoom</option>
                          </select>
                      </div>
-
-                     {/* Repeat Option */}
                      <div className="flex items-center justify-between">
                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                              <Repeat className="h-4 w-4" /> Loop Slideshow
@@ -580,8 +574,6 @@ ${shotList}
                             className="h-5 w-5 text-brand-600 rounded focus:ring-brand-500"
                          />
                      </div>
-
-                     {/* Smart Captions */}
                      <div className="flex items-center justify-between">
                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                              <Type className="h-4 w-4" /> Smart Captions
@@ -593,8 +585,6 @@ ${shotList}
                             className="h-5 w-5 text-brand-600 rounded focus:ring-brand-500"
                          />
                      </div>
-
-                     {/* Audio Upload */}
                      <div>
                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                              <Music className="h-4 w-4" /> Background Music
@@ -625,7 +615,6 @@ ${shotList}
          </div>
       )}
 
-      {/* Slideshow Overlay */}
       {slideshowActive && likedRenderings.length > 0 && (
          <div 
             className="fixed inset-0 bg-black z-[90] flex items-center justify-center overflow-hidden cursor-pointer" 
@@ -633,17 +622,15 @@ ${shotList}
             title="Click anywhere to Play/Pause"
          >
             <div className="relative w-full h-full" onClick={e => e.stopPropagation()}>
-                {/* Image Container with Transitions - Click handles Pause */}
                 <div className="absolute inset-0 flex items-center justify-center" onClick={togglePause}>
                     <img 
-                        key={currentSlide} // Key change triggers CSS animation restart
+                        key={currentSlide} 
                         src={likedRenderings[currentSlide].imageUrl} 
                         alt="Slideshow image" 
                         className={`max-h-screen max-w-full object-contain ${getTransitionClass()}`}
                     />
                 </div>
                 
-                {/* Pause Indicator */}
                 {isPaused && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                         <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full">
@@ -652,7 +639,6 @@ ${shotList}
                     </div>
                 )}
 
-                {/* Smart Captions - Full Width Bar */}
                 {slideshowConfig.showCaptions && (
                     <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
                         <div className="bg-black/60 backdrop-blur-md p-6 text-center border-t border-white/10">
@@ -663,28 +649,10 @@ ${shotList}
                     </div>
                 )}
 
-                {/* Controls */}
-                <button 
-                    onClick={prevSlide} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30"
-                >
-                    ‹
-                </button>
-                <button 
-                    onClick={nextSlideManual} 
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30"
-                >
-                    ›
-                </button>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); closeSlideshow(); }} 
-                    className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/50 p-3 rounded-full transition-all z-30"
-                    title="Close Slideshow"
-                >
-                    <X/>
-                </button>
+                <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30">‹</button>
+                <button onClick={nextSlideManual} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-black/20 hover:bg-black/50 p-4 rounded-full transition-all z-30">›</button>
+                <button onClick={(e) => { e.stopPropagation(); closeSlideshow(); }} className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 hover:bg-black/50 p-3 rounded-full transition-all z-30"><X/></button>
                 
-                {/* Progress Bar */}
                 <div className="absolute top-0 left-0 h-1 bg-brand-500 transition-all duration-300 ease-linear z-30" style={{ width: `${((currentSlide + 1) / likedRenderings.length) * 100}%` }}></div>
             </div>
         </div>
