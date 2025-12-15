@@ -508,6 +508,18 @@ function App() {
     await saveDesignChange(updatedDesign);
   }, [currentDesignId, savedDesigns, saveDesignChange]);
 
+  // NEW: Handler for reordering renderings
+  const handleReorderRenderings = useCallback(async (reorderedRenderings: Rendering[]) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') return;
+
+    const updatedDesign = { ...design, renderings: reorderedRenderings };
+    await saveDesignChange(updatedDesign);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
+
   const handleSelectDesign = useCallback((designId: string) => {
     setCurrentDesignId(designId);
     setView(AppView.Results);
@@ -695,6 +707,7 @@ function App() {
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
             onOpenShareModal={() => setIsShareModalOpen(true)}
+            onReorderRenderings={handleReorderRenderings}
           />
         )}
       </main>

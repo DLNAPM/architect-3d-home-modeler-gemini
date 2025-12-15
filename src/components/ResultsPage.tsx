@@ -4,7 +4,7 @@ import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move } from 'lucide-react';
 
 interface ResultsPageProps {
   design: SavedDesign;
@@ -22,6 +22,7 @@ interface ResultsPageProps {
   isKeyReady: boolean;
   onSelectKey: () => void;
   onOpenShareModal: () => void;
+  onReorderRenderings: (renderings: Rendering[]) => void;
 }
 
 interface SlideshowConfig {
@@ -32,7 +33,7 @@ interface SlideshowConfig {
   repeat: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal, onReorderRenderings }) => {
   const { housePlan, renderings, initialPrompt, accessLevel = 'owner' } = design;
   const isViewOnly = accessLevel === 'view';
   const isOwner = accessLevel === 'owner';
@@ -40,6 +41,8 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [draggedRenderingIndex, setDraggedRenderingIndex] = useState<number | null>(null);
 
   // Slideshow State
   const [slideshowActive, setSlideshowActive] = useState(false);
@@ -337,6 +340,30 @@ ${shotList}
       }
   };
 
+  // Reorder Logic
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedRenderingIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Optional: Set a drag image here if desired
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedRenderingIndex === null || draggedRenderingIndex === targetIndex) return;
+
+    const newRenderings = [...renderings];
+    const [movedItem] = newRenderings.splice(draggedRenderingIndex, 1);
+    newRenderings.splice(targetIndex, 0, movedItem);
+
+    onReorderRenderings(newRenderings);
+    setDraggedRenderingIndex(null);
+  };
+
   const selectedCategory = selectedRoom?.name;
   const canRecreate = selectedCategory && (selectedCategory === 'Front Exterior' || selectedCategory === 'Back Exterior');
   const hasRenderingForSelected = canRecreate ? renderings.some(r => r.category === selectedCategory) : false;
@@ -438,6 +465,19 @@ ${shotList}
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2 flex-wrap justify-end">
+                {renderings.length > 1 && !isViewOnly && (
+                    <button 
+                        onClick={() => setIsReordering(!isReordering)}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            isReordering 
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-inner' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                        title="Drag and drop images to change order"
+                    >
+                        <Move className="h-4 w-4" /> {isReordering ? 'Done' : 'Rearrange'}
+                    </button>
+                )}
                 {canRecreate && hasRenderingForSelected && !isViewOnly && (
                   <button 
                     onClick={() => selectedCategory && onRecreateRendering(selectedCategory)} 
@@ -483,15 +523,29 @@ ${shotList}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {renderings.map(rendering => (
-              <ImageCard
+            {renderings.map((rendering, index) => (
+              <div
                 key={rendering.id}
-                rendering={rendering}
-                onUpdate={onUpdateRendering}
-                isSelected={selectedRenderings.includes(rendering.id)}
-                onSelectToggle={handleSelectToggle}
-                onEnlarge={handleEnlarge}
-              />
+                draggable={isReordering}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`relative rounded-lg transition-transform ${isReordering ? 'cursor-grab active:cursor-grabbing hover:scale-[1.02]' : ''} ${draggedRenderingIndex === index ? 'opacity-50' : ''}`}
+              >
+                  {isReordering && (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 rounded-lg border-2 border-dashed border-white/50 pointer-events-none">
+                          <Move className="h-12 w-12 text-white/80" />
+                      </div>
+                  )}
+                  {/* Overlay for drop target indication could go here */}
+                  <ImageCard
+                    rendering={rendering}
+                    onUpdate={onUpdateRendering}
+                    isSelected={selectedRenderings.includes(rendering.id)}
+                    onSelectToggle={handleSelectToggle}
+                    onEnlarge={handleEnlarge}
+                  />
+              </div>
             ))}
           </div>
         </div>
