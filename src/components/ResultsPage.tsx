@@ -11,7 +11,7 @@ interface ResultsPageProps {
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
   onGenerateVideoTour: (prompt: string) => void;
-  onRecreateInitialRendering: () => void;
+  onRecreateRendering: (category: string) => void;
   onAddRoom: (room: Room) => void;
   videoUrl: string | null;
   onCloseVideo: () => void;
@@ -30,7 +30,7 @@ interface SlideshowConfig {
   repeat: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateInitialRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey }) => {
   const { housePlan, renderings, initialPrompt } = design;
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(housePlan.rooms[0] || null);
   const [selectedRenderings, setSelectedRenderings] = useState<string[]>([]);
@@ -75,10 +75,17 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const canStartSlideshow = likedRenderings.length > 4;
   const hasAdvancedSlideshowFeatures = likedRenderings.length >= 10;
   
-  const showRecreateButton = renderings.length === 1 && renderings[0].category === 'Front Exterior';
-
   const handleRoomSelect = (room: Room) => {
     setSelectedRoom(room);
+    
+    // Auto-generate Back Exterior if it's selected and doesn't exist yet
+    if (room.name === 'Back Exterior' && !isLoading) {
+        const hasBackRendering = renderings.some(r => r.category === 'Back Exterior');
+        if (!hasBackRendering) {
+             const prompt = `Photorealistic 3D rendering of the BACK exterior of a ${housePlan.style} house. The overall architectural style should be consistent with this main description: "${initialPrompt}". Focus on the backyard view. Crucially, DO NOT include front-of-house elements like driveways or the street.`;
+             onNewRendering(prompt, 'Back Exterior');
+        }
+    }
   };
 
 
@@ -327,19 +334,14 @@ ${shotList}
   const getSmartCaption = (rendering: Rendering) => {
       if (!rendering.prompt) return `A professional visualization of the ${rendering.category}.`;
       
-      // 1. Extract specific customization details (High priority for interior/customized rooms)
-      // Matches text after "incorporate the following [specific] details...: " until the next period or keyword.
       const detailsRegex = /incorporate the following (?:specific )?details.*?: (.*?)(?:\.|$| Crucially)/i;
       const detailsMatch = rendering.prompt.match(detailsRegex);
       
       if (detailsMatch && detailsMatch[1] && detailsMatch[1].trim().length > 5) {
           const details = detailsMatch[1].trim();
-          // Ensure it reads naturally as a sentence
           return `${rendering.category} designed ${details}.`;
       }
 
-      // 2. Extract general design concept (High priority for initial exterior views)
-      // Matches text inside quotes after "concept is:" or "description: "
       const conceptRegex = /(?:concept|description)(?: is|): "(.*?)"/i;
       const conceptMatch = rendering.prompt.match(conceptRegex);
       
@@ -349,7 +351,6 @@ ${shotList}
            return `${rendering.category}: ${concept}`;
       }
 
-      // 3. Robust Fallback
       return `A stunning 3D visualization of the ${rendering.category}.`;
   };
 
@@ -360,6 +361,11 @@ ${shotList}
           case 'fade': default: return 'transition-opacity duration-1000 ease-in-out';
       }
   };
+
+  // Determine Re-Create Eligibility
+  const selectedCategory = selectedRoom?.name;
+  const canRecreate = selectedCategory && (selectedCategory === 'Front Exterior' || selectedCategory === 'Back Exterior');
+  const hasRenderingForSelected = canRecreate ? renderings.some(r => r.category === selectedCategory) : false;
 
   return (
     <div>
@@ -436,13 +442,13 @@ ${shotList}
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2 flex-wrap justify-end">
-                {showRecreateButton && (
+                {canRecreate && hasRenderingForSelected && (
                   <button 
-                    onClick={onRecreateInitialRendering} 
+                    onClick={() => selectedCategory && onRecreateRendering(selectedCategory)} 
                     disabled={isLoading || !isKeyReady}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
-                      <RefreshCw className="h-4 w-4" /> Re-Create
+                      <RefreshCw className="h-4 w-4" /> Re-Create {selectedCategory}
                   </button>
                 )}
                  <button 

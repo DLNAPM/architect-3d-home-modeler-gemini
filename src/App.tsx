@@ -387,34 +387,48 @@ function App() {
     }
   }, [currentDesignId, savedDesigns, saveDesignChange, handleError, checkGuestLimit]);
 
-  const handleRecreateInitialRendering = useCallback(async () => {
-    if (!currentDesign || currentDesign.renderings.length !== 1 || currentDesign.renderings[0].category !== 'Front Exterior') {
-      return;
-    }
+  const handleRecreateRendering = useCallback(async (category: string) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    // Find if we have a rendering for this category
+    const existingRendering = design.renderings.find(r => r.category === category);
     
+    // Only proceed for Front/Back and if it exists
+    if (!existingRendering || (category !== 'Front Exterior' && category !== 'Back Exterior')) return;
+
     setIsLoading(true);
-    setLoadingMessage('Re-creating front exterior...');
+    setLoadingMessage(`Re-creating ${category}...`);
     setError(null);
 
-    const initialRendering = currentDesign.renderings[0];
-    const { prompt } = initialRendering;
-
     try {
+      const { prompt } = existingRendering;
       let imageUrl: string;
-      const facadeImage = currentDesign.uploadedImages?.facadeImage;
       
-      if (facadeImage && prompt.includes("Using the provided example facade image")) {
-        imageUrl = await generateImageFromImage(prompt, facadeImage.base64, facadeImage.mimeType);
-      } else {
-        imageUrl = await generateImage(prompt);
+      if (category === 'Front Exterior') {
+         const facadeImage = design.uploadedImages?.facadeImage;
+         if (facadeImage && prompt.includes("example facade")) {
+            imageUrl = await generateImageFromImage(prompt, facadeImage.base64, facadeImage.mimeType);
+         } else {
+            imageUrl = await generateImage(prompt);
+         }
+      } else { // Back Exterior
+         const backPlan = design.uploadedImages?.backPlan;
+         if (backPlan) {
+            imageUrl = await generateImageFromImage(prompt, backPlan.base64, backPlan.mimeType);
+         } else {
+            imageUrl = await generateImage(prompt);
+         }
       }
 
-      const newRendering: Rendering = {
-        ...initialRendering,
-        imageUrl,
+      const updatedRendering: Rendering = {
+          ...existingRendering,
+          imageUrl,
       };
 
-      const updatedDesign = { ...currentDesign, renderings: [newRendering] };
+      const newRenderings = design.renderings.map(r => r.id === existingRendering.id ? updatedRendering : r);
+      const updatedDesign = { ...design, renderings: newRenderings };
       await saveDesignChange(updatedDesign);
 
     } catch (err) {
@@ -423,7 +437,7 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [currentDesign, saveDesignChange, handleError]);
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
 
 
   const handleGenerateVideoTour = useCallback(async (prompt: string) => {
@@ -611,7 +625,7 @@ function App() {
             onUpdateRendering={updateRendering}
             onDeleteRenderings={deleteRenderings}
             onGenerateVideoTour={handleGenerateVideoTour}
-            onRecreateInitialRendering={handleRecreateInitialRendering}
+            onRecreateRendering={handleRecreateRendering}
             onAddRoom={handleAddRoom}
             videoUrl={videoUrl}
             onCloseVideo={handleCloseVideo}
