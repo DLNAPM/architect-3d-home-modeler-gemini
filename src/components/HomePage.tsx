@@ -195,49 +195,27 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                         <div>
                             <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">1. Write a Great Description</h3>
                             <p className="mb-2">The quality of your initial description is key. Be descriptive but concise. Think like you're talking to an architect.</p>
-                            <ul className="list-disc list-inside space-y-1 pl-2">
-                                <li><strong>Start with the big picture:</strong> Begin with the overall style and size.
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 pl-4"><em>e.g., "A sprawling single-story mid-century modern home" or "A cozy two-story colonial revival house with a symmetrical facade."</em></p>
-                                </li>
-                                <li><strong>Mention key features:</strong> Call out important architectural elements.
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 pl-4"><em>e.g., "...with a large wrap-around porch," "...featuring floor-to-ceiling windows," "...a gabled roof with dormers."</em></p>
-                                </li>
-                                <li><strong>List important rooms:</strong> Tell the AI what spaces are most important to you.
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 pl-4"><em>e.g., "...an open-concept kitchen and living area, a dedicated home office, and a master suite with a private balcony."</em></p>
-                                </li>
-                                <li><strong>Add material/color details:</strong> If you have a vision, share it.
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 pl-4"><em>e.g., "The exterior is white brick with black trim," "...dark hardwood floors throughout the main level."</em></p>
-                                </li>
-                            </ul>
                         </div>
                         <div>
                             <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">2. Upload Plans & Images (Optional)</h3>
                             <p>Supplement your description by uploading images. Clear, high-contrast images work best.</p>
-                             <ul className="list-disc list-inside space-y-1 pl-2">
-                                <li><strong>Architectural Plans:</strong> Upload front and back floor plans for the AI to understand the layout.</li>
-                                <li><strong>Example Facade:</strong> Upload a photo of a house you like. The AI will use it as a primary style reference for the initial 3D rendering.</li>
-                            </ul>
                         </div>
                          <div>
                             <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">3. Generate & Customize</h3>
-                            <p>After the initial generation, you'll land on the results page. From there, you can:</p>
-                            <ul className="list-disc list-inside space-y-1 pl-2">
-                                <li>Select different rooms from the list on the left.</li>
-                                <li>Use the customization panel on the right to fine-tune details.</li>
-                                <li>Generate new, specific renderings for each room to fully visualize your design.</li>
-                            </ul>
+                            <p>After initial generation, go to the results page to fine-tune details for each room.</p>
                         </div>
                         <div>
                             <h3 className="font-semibold text-lg text-gray-800 dark:text-white mb-2">4. Share & Collaborate</h3>
                             <p>Once you are happy with your designs:</p>
                             <ul className="list-disc list-inside space-y-1 pl-2">
-                                <li>Use the <strong>Share</strong> button to send your project to others via email.</li>
-                                <li>Grant <strong>View</strong> access for feedback or <strong>Edit</strong> access to collaborate on the design.</li>
+                                <li>Use the <strong>Share</strong> button to invite others to the project.</li>
+                                <li>Click the <strong>Email</strong> icon on any card to send that rendering "as is" via your email program.</li>
+                                <li>Select multiple renderings and click <strong>Email Selection</strong> to bundle them into a ZIP file automatically.</li>
                             </ul>
                         </div>
                          <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-600">
                             <h3 className="font-semibold text-lg text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle/> Important: Content Policy</h3>
-                            <p>This is a professional architectural design tool. Any attempt to generate pornographic, nude, or sexually explicit content is a violation of our terms of service. All prompts are monitored. Violators will have their access permanently revoked without warning.</p>
+                            <p>All prompts are monitored. Adult or explicit content generation is strictly prohibited.</p>
                         </div>
                     </div>
                 </div>
@@ -276,14 +254,6 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                     >
                         Select API Key
                     </button>
-                    <a
-                      href="https://ai.google.dev/gemini-api/docs/billing"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 block text-xs text-brand-600 dark:text-brand-400 hover:underline"
-                    >
-                      Learn more about billing
-                    </a>
                 </div>
             )}
             {error && (
@@ -356,7 +326,6 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                     type="button"
                     onClick={() => setShowHowTo(true)}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                    title="How to use the app"
                 >
                     <HelpCircle className="h-4 w-4" />
                     <span className="hidden sm:inline">How To Use</span>
@@ -370,13 +339,6 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
                     Generate
                 </button>
             </div>
-        </div>
-      </div>
-
-      <div className="mt-8 w-full max-w-3xl flex items-start p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-gray-800 dark:text-yellow-300" role="alert">
-        <AlertTriangle className="flex-shrink-0 inline w-4 h-4 mr-3 mt-0.5" />
-        <div>
-          <span className="font-medium">Usage Policy:</span> This application is strictly for architectural and interior design purposes. Generating images of a sexually explicit, nude, or adult nature is prohibited. Violations will be logged and may lead to permanent suspension of access.
         </div>
       </div>
 

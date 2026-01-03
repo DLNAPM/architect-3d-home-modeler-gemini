@@ -1,5 +1,5 @@
+
 import React from 'react';
-// FIX: Replaced path alias with relative path to fix module resolution error.
 import { Rendering } from '../types';
 import { Heart, Star, Download, Send, CheckSquare, Square, ZoomIn } from 'lucide-react';
 
@@ -30,15 +30,39 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onUpdate, isSelected, 
     document.body.removeChild(link);
   }
 
-  const handleEmail = () => {
+  const handleEmail = async () => {
     if (!liked) {
-      alert("Please 'Like' the rendering to enable email.");
+      alert("Please 'Like' the rendering to enable email sharing.");
       return;
     }
-    // Mock email functionality
-    alert("Email functionality is not implemented in this demo.");
-  }
 
+    const fileName = `${category.replace(/\s+/g, '_')}_${id.substring(0, 6)}.jpg`;
+    
+    try {
+      // Fetch the blob from data URI
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+      // Check if Web Share API is available and supports file sharing
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Architectural Rendering: ${category}`,
+          text: `Check out this ${category} rendering I created with Architect 3D!`,
+        });
+      } else {
+        // Fallback: Trigger download and open mailto
+        handleDownload();
+        const subject = encodeURIComponent(`Architectural Rendering: ${category}`);
+        const body = encodeURIComponent(`Hello,\n\nI've attached the architectural rendering for the ${category}.\n\n(Note: If the file didn't attach automatically, please attach the recently downloaded file: ${fileName})\n\nSent via Architect 3D Home Modeler.`);
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      }
+    } catch (err) {
+      console.error("Error sharing rendering:", err);
+      alert("Failed to share image. Please try downloading it manually.");
+    }
+  }
 
   return (
     <div className={`group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 ${isSelected ? 'border-brand-500' : 'border-transparent'}`}>
@@ -73,10 +97,10 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onUpdate, isSelected, 
             </button>
           </div>
           <div className="flex items-center space-x-2">
-             <button onClick={handleDownload} disabled={!liked} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+             <button onClick={handleDownload} disabled={!liked} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" title="Download Image">
                 <Download className="h-5 w-5" />
             </button>
-            <button onClick={handleEmail} disabled={!liked} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button onClick={handleEmail} disabled={!liked} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" title="Email Image">
                 <Send className="h-5 w-5" />
             </button>
           </div>

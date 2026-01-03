@@ -4,7 +4,8 @@ import { Rendering, Room, SavedDesign } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move, Send } from 'lucide-react';
+import JSZip from 'jszip';
 
 interface ResultsPageProps {
   design: SavedDesign;
@@ -79,15 +80,12 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const likedRenderings = useMemo(() => renderings.filter(r => r.liked), [renderings]);
   const canCreateMarketingVideo = likedRenderings.length >= 10;
   
-  // Logic: > 4 images enables basic slideshow. >= 10 enables advanced features.
   const canStartSlideshow = likedRenderings.length > 4;
   const hasAdvancedSlideshowFeatures = likedRenderings.length >= 10;
   
   const handleRoomSelect = (room: Room) => {
     setSelectedRoom(room);
     
-    // Auto-generate Back Exterior if it's selected and doesn't exist yet
-    // Disabled in view-only mode
     if (!isViewOnly && room.name === 'Back Exterior' && !isLoading) {
         const hasBackRendering = renderings.some(r => r.category === 'Back Exterior');
         if (!hasBackRendering) {
@@ -108,7 +106,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       if (hasAdvancedSlideshowFeatures) {
           setShowSlideshowConfig(true);
       } else {
-          // Start basic slideshow immediately
           setSlideshowConfig({
               duration: 3,
               transition: 'fade',
@@ -134,7 +131,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     setIsPaused(prev => !prev);
   };
 
-  // Helper function to gently fade out audio
   const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 2000, callback?: () => void) => {
     const steps = 10; 
     const intervalTime = duration / steps;
@@ -260,6 +256,73 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     }
   }
 
+  const handleBulkEmail = async () => {
+    if (selectedRenderings.length === 0) return;
+
+    const selectedList = renderings.filter(r => selectedRenderings.includes(r.id));
+    const allLiked = selectedList.every(r => r.liked);
+    
+    if (!allLiked) {
+      alert("Please 'Like' all selected renderings to enable email sharing.");
+      return;
+    }
+
+    if (selectedList.length === 1) {
+      // Use single sharing logic (trigger via ref or just re-implement)
+      const r = selectedList[0];
+      const fileName = `${r.category.replace(/\s+/g, '_')}_${r.id.substring(0, 6)}.jpg`;
+      try {
+        const response = await fetch(r.imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: r.category });
+        } else {
+          // Manual mailto fallback
+          const link = document.createElement('a');
+          link.href = r.imageUrl;
+          link.download = fileName;
+          link.click();
+          const subject = encodeURIComponent(`Architectural Rendering: ${r.category}`);
+          const body = encodeURIComponent(`Attached is the ${r.category} rendering.\n\n(Attach ${fileName})`);
+          window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+      } catch (e) { alert("Sharing failed."); }
+      return;
+    }
+
+    // MULTIPLE ITEMS: Zip and email
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("renderings");
+      
+      for (const r of selectedList) {
+        const base64Data = r.imageUrl.split(',')[1];
+        folder?.file(`${r.category.replace(/\s+/g, '_')}_${r.id.substring(0, 6)}.jpg`, base64Data, { base64: true });
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const zipName = `House_Renderings_${Date.now()}.zip`;
+      
+      // Download the zip
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = zipName;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      // Open email
+      const subject = encodeURIComponent(`Architectural Project: ${housePlan.title} Renderings`);
+      const body = encodeURIComponent(`Hello,\n\nI've attached a zip file containing ${selectedList.length} renderings for the project: "${housePlan.title}".\n\n(Please attach the downloaded file: ${zipName})\n\nSent via Architect 3D.`);
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+
+    } catch (err) {
+      console.error("Zipping error:", err);
+      alert("Failed to create zip file for email.");
+    }
+  };
+
   const handleGenerateVideoClick = () => {
     const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
     onGenerateVideoTour(prompt);
@@ -344,7 +407,6 @@ ${shotList}
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedRenderingIndex(index);
     e.dataTransfer.effectAllowed = "move";
-    // Optional: Set a drag image here if desired
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -465,6 +527,15 @@ ${shotList}
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
             <div className="flex items-center gap-2 flex-wrap justify-end">
+                {selectedRenderings.length > 0 && (
+                   <button 
+                      onClick={handleBulkEmail}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-500 rounded-md hover:bg-indigo-600 transition-colors"
+                      title="Share selected as email"
+                    >
+                        <Send className="h-4 w-4" /> Email ({selectedRenderings.length})
+                    </button>
+                )}
                 {renderings.length > 1 && !isViewOnly && (
                     <button 
                         onClick={() => setIsReordering(!isReordering)}
@@ -537,7 +608,6 @@ ${shotList}
                           <Move className="h-12 w-12 text-white/80" />
                       </div>
                   )}
-                  {/* Overlay for drop target indication could go here */}
                   <ImageCard
                     rendering={rendering}
                     onUpdate={onUpdateRendering}
@@ -575,11 +645,9 @@ ${shotList}
         </div>
       </div>
       
-      {/* Slideshow & Modals ... */}
       {showSlideshowConfig && (
          <div className="fixed inset-0 bg-black bg-opacity-70 z-[80] flex items-center justify-center p-4">
              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6">
-                 {/* ... existing modal code ... */}
                  <div className="flex justify-between items-center mb-6">
                      <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                          <Settings className="h-6 w-6 text-brand-500" />

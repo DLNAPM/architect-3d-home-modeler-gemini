@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2 } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
 
@@ -180,6 +180,10 @@ const Header: React.FC<HeaderProps> = ({
                                             <span><strong>Cloud Sync:</strong> Sign in with Google to save your designs to the cloud. Access your sessions from any computer or mobile device.</span>
                                         </li>
                                         <li className="flex items-start gap-2">
+                                            <Send className="h-4 w-4 text-indigo-500 mt-1" />
+                                            <span><strong>Email & Export:</strong> Share individual renderings or bundle multiple designs into a ZIP file to send via your device's default email client.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
                                             <Share2 className="h-4 w-4 text-indigo-500 mt-1" />
                                             <span><strong>Project Sharing:</strong> Collaborate with others by inviting them to view or edit your designs via email.</span>
                                         </li>
@@ -198,7 +202,7 @@ const Header: React.FC<HeaderProps> = ({
                             <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
                                 <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2 text-sm">Pro Tip</h4>
                                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                                    Be specific in your descriptions! Mentioning "Golden hour lighting", "Mid-century modern furniture", or "Matte black finishes" helps the AI create exactly what you envision.
+                                    To share multiple renderings at once, use the checkbox on each card to select them, then click the "Email" button in the toolbar. We'll automatically bundle them into a zip file for you.
                                 </p>
                             </div>
                         </div>
