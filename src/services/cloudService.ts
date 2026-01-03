@@ -6,7 +6,7 @@ import { SavedDesign, AccessLevel } from "../types";
 /**
  * Compresses a Data URI or Base64 string to a JPEG under specific dimensions and quality.
  */
-const compressImage = (source: string, mimeType: string = 'image/jpeg', maxWidth: number = 800, quality: number = 0.5): Promise<string> => {
+const compressImage = (source: string, mimeType: string = 'image/jpeg', maxWidth: number = 1280, quality: number = 0.8): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     // Handle both Data URI and raw Base64 inputs
@@ -60,15 +60,15 @@ export const cloudService = {
       // Deep clone the design to avoid modifying the local high-res state
       const designToSave = JSON.parse(JSON.stringify(design)) as SavedDesign;
       
-      // Threshold: ~150KB (Length of base64 string is roughly 1.33 * size in bytes)
-      // We start compressing if string length is > 200,000 characters
-      const SIZE_THRESHOLD = 200000; 
+      // Threshold: Increased threshold for high-quality images (~300KB)
+      const SIZE_THRESHOLD = 400000; 
 
       // 1. Compress Renderings
       if (designToSave.renderings && designToSave.renderings.length > 0) {
         designToSave.renderings = await Promise.all(designToSave.renderings.map(async (r) => {
           if (r.imageUrl && r.imageUrl.length > SIZE_THRESHOLD) { 
-             const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 800, 0.5);
+             // Using higher quality defaults: 1280px width, 0.8 quality
+             const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 1280, 0.8);
              return { ...r, imageUrl: compressedDataUri };
           }
           return r;
@@ -81,7 +81,7 @@ export const cloudService = {
         for (const key of keys) {
             const imgData = designToSave.uploadedImages[key];
             if (imgData && imgData.base64 && imgData.base64.length > SIZE_THRESHOLD) {
-                const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, 800, 0.5);
+                const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, 1024, 0.7);
                 // Split back into base64 and update mimetype to jpeg
                 designToSave.uploadedImages[key] = {
                     base64: compressedDataUri.split(',')[1],
@@ -99,29 +99,13 @@ export const cloudService = {
       if (estimatedSize >= 1000000) { // If still close to 1MB
           console.warn(`Design size ${estimatedSize} exceeds safe limit. Applying emergency compression.`);
           
-          // Emergency pass: Compress ALL renderings aggressively
+          // Emergency pass: Compress renderings more aggressively to fit the 1MB limit
           if (designToSave.renderings) {
              designToSave.renderings = await Promise.all(designToSave.renderings.map(async (r) => {
-                 // Force compression on everything to 600px width and low quality
-                 const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 600, 0.4);
+                 const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 1024, 0.6);
                  return { ...r, imageUrl: compressedDataUri };
              }));
           }
-          
-          // Emergency pass: Compress uploaded images
-           if (designToSave.uploadedImages) {
-                const keys = ['frontPlan', 'backPlan', 'facadeImage'] as const;
-                for (const key of keys) {
-                    const imgData = designToSave.uploadedImages[key];
-                    if (imgData && imgData.base64) {
-                        const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, 600, 0.4);
-                        designToSave.uploadedImages[key] = {
-                            base64: compressedDataUri.split(',')[1],
-                            mimeType: 'image/jpeg'
-                        };
-                    }
-                }
-            }
       }
 
       // We create a reference to: users -> {userId} -> designs -> {designId}
@@ -140,7 +124,6 @@ export const cloudService = {
       console.log("Design saved to cloud successfully");
     } catch (error) {
       console.error("Error saving design to cloud:", error);
-      // We throw specifically to let the UI know if the limit was still hit (unlikely with compression)
       throw error;
     }
   },
@@ -251,7 +234,6 @@ export const cloudService = {
    * Removes a share record (stop sharing or remove from 'Shared with me')
    */
   async removeShare(userEmail: string, designId: string): Promise<void> {
-      // This is a simplification. Ideally we'd delete by ID, but searching by composite key works for now.
       try {
         const email = userEmail.trim().toLowerCase();
         const q = query(

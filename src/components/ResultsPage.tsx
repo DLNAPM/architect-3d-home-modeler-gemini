@@ -268,26 +268,36 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     }
 
     if (selectedList.length === 1) {
-      // Use single sharing logic (trigger via ref or just re-implement)
+      // Single item sharing logic
       const r = selectedList[0];
-      const fileName = `${r.category.replace(/\s+/g, '_')}_${r.id.substring(0, 6)}.jpg`;
+      const mime = r.imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+      const extension = mime.split('/')[1] || 'jpg';
+      const fileName = `${r.category.replace(/[^a-z0-9]/gi, '_')}_${r.id.substring(0, 6)}.${extension}`;
+      
       try {
         const response = await fetch(r.imageUrl);
         const blob = await response.blob();
-        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        const file = new File([blob], fileName, { type: mime });
+        
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: r.category });
+          await navigator.share({ 
+            files: [file], 
+            title: `Architectural Rendering: ${r.category}`,
+            text: `High-quality rendering of ${r.category} for project ${housePlan.title}.`
+          });
         } else {
-          // Manual mailto fallback
+          // Trigger download as fallback
           const link = document.createElement('a');
           link.href = r.imageUrl;
           link.download = fileName;
           link.click();
           const subject = encodeURIComponent(`Architectural Rendering: ${r.category}`);
-          const body = encodeURIComponent(`Attached is the ${r.category} rendering.\n\n(Attach ${fileName})`);
+          const body = encodeURIComponent(`Hello,\n\nI've attached the rendering for the ${r.category}.\n\n(Note: If the file didn't attach automatically, please attach the downloaded file: ${fileName})\n\nProject: ${housePlan.title}`);
           window.location.href = `mailto:?subject=${subject}&body=${body}`;
         }
-      } catch (e) { alert("Sharing failed."); }
+      } catch (e) { 
+        alert("Email sharing failed. Please try downloading manually."); 
+      }
       return;
     }
 
@@ -298,11 +308,18 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       
       for (const r of selectedList) {
         const base64Data = r.imageUrl.split(',')[1];
-        folder?.file(`${r.category.replace(/\s+/g, '_')}_${r.id.substring(0, 6)}.jpg`, base64Data, { base64: true });
+        const mime = r.imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+        const extension = mime.split('/')[1] || 'jpg';
+        folder?.file(`${r.category.replace(/[^a-z0-9]/gi, '_')}_${r.id.substring(0, 6)}.${extension}`, base64Data, { base64: true });
       }
 
-      const content = await zip.generateAsync({ type: "blob" });
-      const zipName = `House_Renderings_${Date.now()}.zip`;
+      const content = await zip.generateAsync({ 
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+      
+      const zipName = `${housePlan.title.replace(/[^a-z0-9]/gi, '_')}_Renderings.zip`;
       
       // Download the zip
       const url = URL.createObjectURL(content);
@@ -312,9 +329,9 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       link.click();
       URL.revokeObjectURL(url);
 
-      // Open email
+      // Open email client
       const subject = encodeURIComponent(`Architectural Project: ${housePlan.title} Renderings`);
-      const body = encodeURIComponent(`Hello,\n\nI've attached a zip file containing ${selectedList.length} renderings for the project: "${housePlan.title}".\n\n(Please attach the downloaded file: ${zipName})\n\nSent via Architect 3D.`);
+      const body = encodeURIComponent(`Hello,\n\nI've attached a high-quality zip file containing ${selectedList.length} renderings for the project: "${housePlan.title}".\n\n(Please attach the downloaded file: ${zipName})\n\nSent via Architect 3D.`);
       window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
     } catch (err) {
