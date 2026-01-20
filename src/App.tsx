@@ -35,18 +35,16 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   
   const [user, setUser] = useState<User | null>(null);
-  const userRef = useRef<User | null>(null); // To track previous user for migration logic
+  const userRef = useRef<User | null>(null);
 
   const getUserId = useCallback(() => {
     return user ? user.email : 'anonymous';
   }, [user]);
 
-  // Calculate total renderings to enforce guest limits (only count owned designs)
   const totalRenderingsCount = useMemo(() => {
     return savedDesigns.filter(d => d.accessLevel === 'owner').reduce((acc, design) => acc + design.renderings.length, 0);
   }, [savedDesigns]);
 
-  // Subscribe to authentication state changes
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((newUser) => {
       const prevEmail = userRef.current?.email;
@@ -60,7 +58,6 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Handle data migration and initial data load
   useEffect(() => {
       const handleDataLoadAndMigration = async () => {
         const currentUser = user;
@@ -74,7 +71,6 @@ function App() {
             return;
         }
 
-        // Migration Logic
         if (currentUser && !previousUser) {
              try {
                 const anonymousDesigns = await dbService.getUserDesigns('anonymous');
@@ -100,44 +96,27 @@ function App() {
              }
         }
 
-        // Standard Data Loading
         try {
-            // 1. Load Local Designs
             let allDesigns = await dbService.getUserDesigns(currentUserId);
-            // Assign owner access level to locally loaded designs for consistency
             allDesigns = allDesigns.map(d => ({ ...d, ownerId: currentUserId, accessLevel: 'owner' }));
 
-            // 2. Load Cloud Designs (Owned + Shared)
             if (currentUser && currentUser.email !== 'anonymous') {
                 try {
-                    // Fetch Owned
                     const cloudOwned = await cloudService.getUserDesigns(currentUserId);
-                    
-                    // Fetch Shared
                     const cloudShared = await cloudService.getSharedDesigns(currentUser.email);
                     
-                    // Merge strategies
-                    // We prioritize Cloud versions for shared designs.
-                    // For owned designs, we use cloud versions to sync, and update local cache.
-                    
-                    // 1. Update local DB with owned cloud designs
                     for (const d of cloudOwned) {
                         await dbService.saveDesign(d, currentUserId);
                     }
                     
-                    // Re-read local DB to get updated owned designs
                     const refreshedLocal = await dbService.getUserDesigns(currentUserId);
                     const finalOwned = refreshedLocal.map(d => ({ ...d, ownerId: currentUserId, accessLevel: 'owner' as AccessLevel }));
-
-                    // Combine
                     allDesigns = [...finalOwned, ...cloudShared];
                 } catch (cloudErr) {
                     console.error("Cloud fetch failed, using local", cloudErr);
                 }
             }
-            
             setSavedDesigns(allDesigns);
-
         } catch (e) {
             console.error("Failed to load designs:", e);
             setError("Could not load saved designs.");
@@ -149,7 +128,6 @@ function App() {
       }
   }, [user, isAuthLoading]);
 
-  
   const checkApiKey = useCallback(async () => {
     if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
       try {
@@ -188,15 +166,12 @@ function App() {
     });
   }, [searchQuery, savedDesigns]);
 
-  // Update design: Handles both local (owned) and shared (cloud) updates
   const saveDesignChange = useCallback(async (updatedDesign: SavedDesign) => {
       const currentUserId = getUserId();
-      // Determine effective owner
       const designOwnerId = updatedDesign.ownerId || currentUserId;
       const isOwner = designOwnerId === currentUserId;
 
       try {
-          // Update State
           setSavedDesigns(prev => {
               const idx = prev.findIndex(d => d.housePlan.id === updatedDesign.housePlan.id);
               if (idx >= 0) {
@@ -209,16 +184,12 @@ function App() {
           });
           
           if (isOwner) {
-            // Save to Local DB if owner
             await dbService.saveDesign(updatedDesign, currentUserId);
           }
           
-          // Save to Cloud (if logged in)
-          // Use designOwnerId to save to the correct path in Firestore
           if (user && user.email !== 'anonymous') {
              await cloudService.saveDesign(designOwnerId, updatedDesign);
           }
-
       } catch (err) {
           console.error("Failed to save design:", err);
           setError("Failed to save changes.");
@@ -236,7 +207,6 @@ function App() {
       try {
           const ownerId = currentDesign.ownerId || user.email;
           await cloudService.saveDesign(ownerId, currentDesign);
-          
           if (ownerId === user.email) {
              await dbService.saveDesign(currentDesign, user.email);
           }
@@ -279,7 +249,7 @@ function App() {
 
   const checkGuestLimit = useCallback(() => {
      if (user?.name === 'Guest Architect' && totalRenderingsCount >= 2) {
-         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.\n\nClick OK to return to the login screen.")) {
+         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.")) {
              handleSignOut();
          }
          return false;
@@ -407,19 +377,60 @@ function App() {
     }
   }, [currentDesignId, savedDesigns, saveDesignChange, handleError, checkGuestLimit]);
 
+  const handleRefineRendering = useCallback(async (renderingId: string, instructions: string) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') {
+        alert("You have 'View Only' access to this project.");
+        return;
+    }
+
+    const rendering = design.renderings.find(r => r.id === renderingId);
+    if (!rendering) return;
+
+    setIsLoading(true);
+    setLoadingMessage(`Refining ${rendering.category}...`);
+    setError(null);
+
+    try {
+        const base64Data = rendering.imageUrl.split(',')[1];
+        const mimeType = rendering.imageUrl.split(';')[0].split(':')[1];
+        
+        const refinePrompt = `You are a professional architectural visualizer. Modify the provided image according to these specific instructions: "${instructions}". Keep the overall structure and style consistent with the original image, but precisely apply the requested changes (adding or removing elements as described). Ensure the output is a high-quality photorealistic architectural rendering.`;
+
+        const refinedImageUrl = await generateImageFromImage(refinePrompt, base64Data, mimeType);
+
+        const updatedRendering: Rendering = {
+            ...rendering,
+            imageUrl: refinedImageUrl,
+            prompt: `${rendering.prompt} | Refined with: ${instructions}`
+        };
+
+        const newRenderings = design.renderings.map(r => r.id === renderingId ? updatedRendering : r);
+        const updatedDesign = { ...design, renderings: newRenderings };
+        await saveDesignChange(updatedDesign);
+
+    } catch (err) {
+        handleError(err);
+    } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+    }
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
+
   const handleRecreateRendering = useCallback(async (category: string) => {
     if (!currentDesignId) return;
     const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
     if (!design) return;
 
-    // Check permissions (must have edit access)
     if (design.accessLevel === 'view') {
         alert("You have 'View Only' access to this project.");
         return;
     }
 
     const existingRendering = design.renderings.find(r => r.category === category);
-    
     if (!existingRendering || (category !== 'Front Exterior' && category !== 'Back Exterior')) return;
 
     setIsLoading(true);
@@ -437,7 +448,7 @@ function App() {
          } else {
             imageUrl = await generateImage(prompt);
          }
-      } else { // Back Exterior
+      } else {
          const backPlan = design.uploadedImages?.backPlan;
          if (backPlan) {
             imageUrl = await generateImageFromImage(prompt, backPlan.base64, backPlan.mimeType);
@@ -462,7 +473,6 @@ function App() {
       setLoadingMessage('');
     }
   }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
-
 
   const handleGenerateVideoTour = useCallback(async (prompt: string) => {
       setIsLoading(true);
@@ -508,7 +518,6 @@ function App() {
     await saveDesignChange(updatedDesign);
   }, [currentDesignId, savedDesigns, saveDesignChange]);
 
-  // NEW: Handler for reordering renderings
   const handleReorderRenderings = useCallback(async (reorderedRenderings: Rendering[]) => {
     if (!currentDesignId) return;
     const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
@@ -545,7 +554,6 @@ function App() {
                 await cloudService.deleteDesign(userId, designId);
             }
         } else {
-            // It's a shared design, remove the share record
             if (user) {
                 await cloudService.removeShare(user.email, designId);
             }
@@ -622,16 +630,12 @@ function App() {
 
   const handleShareDesign = useCallback(async (email: string, permission: AccessLevel) => {
       if (!currentDesignId || !user) return;
-      
       const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
       if (!design) return;
-
-      // Only owner can share
       if (design.accessLevel !== 'owner') {
           setError("Only the project owner can share this design.");
           return;
       }
-
       try {
           await cloudService.shareDesign(user.email, currentDesignId, email, permission);
       } catch (e) {
@@ -639,13 +643,10 @@ function App() {
       }
   }, [currentDesignId, user, savedDesigns]);
 
-  // --- RENDERING LOGIC ---
-
   if (isKeyReady === null || isAuthLoading) {
       return <LoadingOverlay message="Initializing..." />;
   }
 
-  // GATEKEEPER: If no user, show Landing Page
   if (!user) {
       return (
         <>
@@ -661,7 +662,6 @@ function App() {
       );
   }
 
-  // MAIN APP
   return (
     <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
@@ -694,6 +694,7 @@ function App() {
             key={currentDesign.housePlan.id}
             design={currentDesign}
             onNewRendering={handleNewRendering}
+            onRefineRendering={handleRefineRendering}
             onUpdateRendering={updateRendering}
             onDeleteRenderings={deleteRenderings}
             onGenerateVideoTour={handleGenerateVideoTour}
@@ -712,7 +713,6 @@ function App() {
         )}
       </main>
 
-      {/* Share Modal */}
       <ShareModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}

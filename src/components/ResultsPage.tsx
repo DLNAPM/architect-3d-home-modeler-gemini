@@ -10,6 +10,7 @@ import JSZip from 'jszip';
 interface ResultsPageProps {
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
+  onRefineRendering: (id: string, instructions: string) => void;
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
   onGenerateVideoTour: (prompt: string) => void;
@@ -34,7 +35,7 @@ interface SlideshowConfig {
   repeat: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal, onReorderRenderings }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onRefineRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal, onReorderRenderings }) => {
   const { housePlan, renderings, initialPrompt, accessLevel = 'owner' } = design;
   const isViewOnly = accessLevel === 'view';
   const isOwner = accessLevel === 'owner';
@@ -45,7 +46,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const [isReordering, setIsReordering] = useState(false);
   const [draggedRenderingIndex, setDraggedRenderingIndex] = useState<number | null>(null);
 
-  // Slideshow State
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showSlideshowConfig, setShowSlideshowConfig] = useState(false);
@@ -58,7 +58,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
     repeat: true
   });
   
-  // Audio Ref for slideshow music
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -134,7 +133,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
   const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 2000, callback?: () => void) => {
     const steps = 10; 
     const intervalTime = duration / steps;
-    
     const startVolume = audio.volume;
     const volStep = startVolume / steps;
 
@@ -258,27 +256,21 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
 
   const handleBulkEmail = async () => {
     if (selectedRenderings.length === 0) return;
-
     const selectedList = renderings.filter(r => selectedRenderings.includes(r.id));
     const allLiked = selectedList.every(r => r.liked);
-    
     if (!allLiked) {
       alert("Please 'Like' all selected renderings to enable email sharing.");
       return;
     }
-
     if (selectedList.length === 1) {
-      // Single item sharing logic
       const r = selectedList[0];
       const mime = r.imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
       const extension = mime.split('/')[1] || 'jpg';
       const fileName = `${r.category.replace(/[^a-z0-9]/gi, '_')}_${r.id.substring(0, 6)}.${extension}`;
-      
       try {
         const response = await fetch(r.imageUrl);
         const blob = await response.blob();
         const file = new File([blob], fileName, { type: mime });
-        
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ 
             files: [file], 
@@ -286,7 +278,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
             text: `High-quality rendering of ${r.category} for project ${housePlan.title}.`
           });
         } else {
-          // Trigger download as fallback
           const link = document.createElement('a');
           link.href = r.imageUrl;
           link.download = fileName;
@@ -300,40 +291,30 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onUpd
       }
       return;
     }
-
-    // MULTIPLE ITEMS: Zip and email
     try {
       const zip = new JSZip();
       const folder = zip.folder("renderings");
-      
       for (const r of selectedList) {
         const base64Data = r.imageUrl.split(',')[1];
         const mime = r.imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
         const extension = mime.split('/')[1] || 'jpg';
         folder?.file(`${r.category.replace(/[^a-z0-9]/gi, '_')}_${r.id.substring(0, 6)}.${extension}`, base64Data, { base64: true });
       }
-
       const content = await zip.generateAsync({ 
         type: "blob",
         compression: "DEFLATE",
         compressionOptions: { level: 6 }
       });
-      
       const zipName = `${housePlan.title.replace(/[^a-z0-9]/gi, '_')}_Renderings.zip`;
-      
-      // Download the zip
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
       link.download = zipName;
       link.click();
       URL.revokeObjectURL(url);
-
-      // Open email client
       const subject = encodeURIComponent(`Architectural Project: ${housePlan.title} Renderings`);
       const body = encodeURIComponent(`Hello,\n\nI've attached a high-quality zip file containing ${selectedList.length} renderings for the project: "${housePlan.title}".\n\n(Please attach the downloaded file: ${zipName})\n\nSent via Architect 3D.`);
       window.location.href = `mailto:?subject=${subject}&body=${body}`;
-
     } catch (err) {
       console.error("Zipping error:", err);
       alert("Failed to create zip file for email.");
@@ -394,10 +375,8 @@ ${shotList}
 
   const getSmartCaption = (rendering: Rendering) => {
       if (!rendering.prompt) return `A professional visualization of the ${rendering.category}.`;
-      
       const detailsRegex = /incorporate the following (?:specific )?details.*?: (.*?)(?:\.|$| Crucially)/i;
       const detailsMatch = rendering.prompt.match(detailsRegex);
-      
       if (detailsMatch && detailsMatch[1] && detailsMatch[1].trim().length > 5) {
           const details = detailsMatch[1].trim();
           return `${rendering.category} designed ${details}.`;
@@ -420,7 +399,6 @@ ${shotList}
       }
   };
 
-  // Reorder Logic
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedRenderingIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -434,11 +412,9 @@ ${shotList}
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (draggedRenderingIndex === null || draggedRenderingIndex === targetIndex) return;
-
     const newRenderings = [...renderings];
     const [movedItem] = newRenderings.splice(draggedRenderingIndex, 1);
     newRenderings.splice(targetIndex, 0, movedItem);
-
     onReorderRenderings(newRenderings);
     setDraggedRenderingIndex(null);
   };
@@ -489,7 +465,6 @@ ${shotList}
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Column 1: Room List */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md h-fit sticky top-24">
           <h3 className="font-bold text-lg mb-2">Exterior</h3>
           <ul className="mb-4">
@@ -539,7 +514,6 @@ ${shotList}
           )}
         </div>
 
-        {/* Column 2: Renderings */}
         <div className="lg:col-span-7">
           <div className='flex justify-between items-center mb-4'>
             <h3 className="font-bold text-xl">Renderings</h3>
@@ -627,6 +601,7 @@ ${shotList}
                   )}
                   <ImageCard
                     rendering={rendering}
+                    onRefine={onRefineRendering}
                     onUpdate={onUpdateRendering}
                     isSelected={selectedRenderings.includes(rendering.id)}
                     onSelectToggle={handleSelectToggle}
@@ -637,7 +612,6 @@ ${shotList}
           </div>
         </div>
 
-        {/* Column 3: Customization Panel */}
         <div className="lg:col-span-3">
             <div className="sticky top-24">
               {selectedRoom ? (
