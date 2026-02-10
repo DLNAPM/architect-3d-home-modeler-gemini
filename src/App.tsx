@@ -12,6 +12,7 @@ import { cloudService } from './services/cloudService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
 import ShareModal from './components/ShareModal';
+import Footer from './components/Footer';
 
 interface UploadedFiles {
     frontPlan: File | null;
@@ -663,7 +664,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col">
       {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
       <Header 
         user={user}
@@ -676,7 +677,7 @@ function App() {
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
       />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-grow">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
         {view === AppView.Home && <HomePage 
             onGenerate={handleGenerationRequest} 
@@ -712,6 +713,8 @@ function App() {
           />
         )}
       </main>
+
+      <Footer />
 
       <ShareModal 
         isOpen={isShareModalOpen}

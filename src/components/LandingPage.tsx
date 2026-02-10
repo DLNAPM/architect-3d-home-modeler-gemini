@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle } from 'lucide-react';
+import Footer from './Footer';
 
 interface LandingPageProps {
   onSignIn: () => void;
@@ -117,6 +119,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKe
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };
