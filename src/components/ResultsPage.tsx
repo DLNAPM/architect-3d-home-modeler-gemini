@@ -428,7 +428,11 @@ ${shotList}
       <div className="text-center mb-8 relative">
         <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white flex items-center justify-center gap-3">
             {housePlan.title}
-            {isViewOnly && <Lock className="h-6 w-6 text-gray-400" title="View Only" />}
+            {isViewOnly && (
+                <span title="View Only">
+                    <Lock className="h-6 w-6 text-gray-400" />
+                </span>
+            )}
         </h2>
         <p className="text-lg text-brand-600 dark:text-brand-400 font-medium mt-1">{housePlan.style}</p>
         

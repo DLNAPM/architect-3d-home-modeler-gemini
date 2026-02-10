@@ -228,3 +228,502 @@ function App() {
     setError(errorMessage);
     if (defaultView === AppView.Home) {
         setView(AppView.Home);
+    }
+  }, []);
+
+  const resetApp = useCallback(() => {
+    setView(AppView.Home);
+    setCurrentDesignId(null);
+    setError(null);
+    setIsLoading(false);
+    setSearchQuery('');
+    setVideoUrl(prev => {
+        if(prev) URL.revokeObjectURL(prev);
+        return null;
+    });
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await authService.signOut();
+    resetApp();
+  }, [resetApp]);
+
+  const checkGuestLimit = useCallback(() => {
+     if (user?.name === 'Guest Architect' && totalRenderingsCount >= 2) {
+         if (window.confirm("Guest Account Limit Reached\n\nYou are limited to 2 active renderings as a Guest.\n\nPlease Sign In with your Google Account to create unlimited designs, access cloud storage, and advanced features.")) {
+             handleSignOut();
+         }
+         return false;
+     }
+     return true;
+  }, [user, totalRenderingsCount, handleSignOut]);
+
+  const handleGenerationRequest = useCallback(async (description: string, files: UploadedFiles) => {
+    if (!checkGuestLimit()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setLoadingMessage('Processing your design inputs...');
+
+    try {
+      const imageInputs: { file: File, description: string }[] = [];
+      if (files.frontPlan) imageInputs.push({ file: files.frontPlan, description: "front architectural plan" });
+      if (files.backPlan) imageInputs.push({ file: files.backPlan, description: "back architectural plan" });
+      if (files.facadeImage) imageInputs.push({ file: files.facadeImage, description: "example facade for style reference" });
+
+      const processedImages = await Promise.all(imageInputs.map(async (input) => {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+              reader.onload = () => resolve((reader.result as string).split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(input.file);
+          });
+          return { base64, mimeType: input.file.type, description: input.description };
+      }));
+      
+      setLoadingMessage('Designing your dream home structure...');
+      const planData = await generateHousePlanFromDescription(description, processedImages);
+      
+      const newHousePlan: HousePlan = {
+          ...planData,
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+      };
+      
+      let frontImageUrl: string;
+      let frontExteriorPrompt: string;
+      const facadeForRendering = processedImages.find(p => p.description.includes('facade'));
+
+      if (facadeForRendering) {
+        setLoadingMessage('Rendering 3D model from your image...');
+        frontExteriorPrompt = `Using the provided example facade image as a strong style reference, create a photorealistic, high-quality 3D architectural rendering of a complete house exterior. The overall design concept is: "${description}". Enhance the lighting, textures, and surroundings to create a professional visualization.`;
+        frontImageUrl = await generateImageFromImage(frontExteriorPrompt, facadeForRendering.base64, facadeForRendering.mimeType);
+      } else {
+        setLoadingMessage('Rendering front exterior...');
+        frontExteriorPrompt = `Photorealistic 3D rendering of the front exterior of a ${newHousePlan.style} house. This image should focus on the street-facing view, including the main entrance, facade, and any front yard landscaping. The overall architectural concept is: "${description}". Crucially, DO NOT include backyard-specific features like swimming pools, large patios, or putting greens in this front view.`;
+        frontImageUrl = await generateImage(frontExteriorPrompt);
+      }
+
+      const frontRendering: Rendering = {
+        id: crypto.randomUUID(),
+        category: 'Front Exterior',
+        imageUrl: frontImageUrl,
+        prompt: frontExteriorPrompt,
+        liked: false,
+        favorited: false
+      };
+
+      const newDesign: SavedDesign = {
+        housePlan: newHousePlan,
+        renderings: [frontRendering],
+        initialPrompt: description,
+        uploadedImages: {
+            frontPlan: processedImages.find(p => p.description.includes('front architectural plan')),
+            backPlan: processedImages.find(p => p.description.includes('back architectural plan')),
+            facadeImage: processedImages.find(p => p.description.includes('facade'))
+        },
+        ownerId: getUserId(),
+        accessLevel: 'owner'
+      };
+      
+      await saveDesignChange(newDesign);
+      setCurrentDesignId(newHousePlan.id);
+      setView(AppView.Results);
+
+    } catch (err) {
+      handleError(err, AppView.Home);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [saveDesignChange, handleError, getUserId, checkGuestLimit]);
+  
+  const handleNewRendering = useCallback(async (prompt: string, category: string) => {
+    if (!currentDesignId) return;
+    if (!checkGuestLimit()) return;
+
+    setIsLoading(true);
+    setLoadingMessage(`Rendering ${category}...`);
+    setError(null);
+    try {
+      const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+      if (!design) return;
+
+      let imageUrl: string;
+      const backPlanImage = design?.uploadedImages?.backPlan;
+
+      if (category === 'Back Exterior' && backPlanImage) {
+        imageUrl = await generateImageFromImage(prompt, backPlanImage.base64, backPlanImage.mimeType);
+      } else {
+        imageUrl = await generateImage(prompt);
+      }
+
+      const newRendering: Rendering = {
+        id: crypto.randomUUID(),
+        category,
+        imageUrl,
+        prompt,
+        liked: false,
+        favorited: false
+      };
+      
+      const updatedDesign = { ...design, renderings: [...design.renderings, newRendering] };
+      await saveDesignChange(updatedDesign);
+
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError, checkGuestLimit]);
+
+  const handleRefineRendering = useCallback(async (renderingId: string, instructions: string) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') {
+        alert("You have 'View Only' access to this project.");
+        return;
+    }
+
+    const rendering = design.renderings.find(r => r.id === renderingId);
+    if (!rendering) return;
+
+    setIsLoading(true);
+    setLoadingMessage(`Refining ${rendering.category}...`);
+    setError(null);
+
+    try {
+        const base64Data = rendering.imageUrl.split(',')[1];
+        const mimeType = rendering.imageUrl.split(';')[0].split(':')[1];
+        
+        const refinePrompt = `You are a professional architectural visualizer. Modify the provided image according to these specific instructions: "${instructions}". Keep the overall structure and style consistent with the original image, but precisely apply the requested changes (adding or removing elements as described). Ensure the output is a high-quality photorealistic architectural rendering.`;
+
+        const refinedImageUrl = await generateImageFromImage(refinePrompt, base64Data, mimeType);
+
+        const updatedRendering: Rendering = {
+            ...rendering,
+            imageUrl: refinedImageUrl,
+            prompt: `${rendering.prompt} | Refined with: ${instructions}`
+        };
+
+        const newRenderings = design.renderings.map(r => r.id === renderingId ? updatedRendering : r);
+        const updatedDesign = { ...design, renderings: newRenderings };
+        await saveDesignChange(updatedDesign);
+
+    } catch (err) {
+        handleError(err);
+    } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+    }
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
+
+  const handleRecreateRendering = useCallback(async (category: string) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') {
+        alert("You have 'View Only' access to this project.");
+        return;
+    }
+
+    const existingRendering = design.renderings.find(r => r.category === category);
+    if (!existingRendering || (category !== 'Front Exterior' && category !== 'Back Exterior')) return;
+
+    setIsLoading(true);
+    setLoadingMessage(`Re-creating ${category}...`);
+    setError(null);
+
+    try {
+      const { prompt } = existingRendering;
+      let imageUrl: string;
+      
+      if (category === 'Front Exterior') {
+         const facadeImage = design.uploadedImages?.facadeImage;
+         if (facadeImage && prompt.includes("example facade")) {
+            imageUrl = await generateImageFromImage(prompt, facadeImage.base64, facadeImage.mimeType);
+         } else {
+            imageUrl = await generateImage(prompt);
+         }
+      } else {
+         const backPlan = design.uploadedImages?.backPlan;
+         if (backPlan) {
+            imageUrl = await generateImageFromImage(prompt, backPlan.base64, backPlan.mimeType);
+         } else {
+            imageUrl = await generateImage(prompt);
+         }
+      }
+
+      const updatedRendering: Rendering = {
+          ...existingRendering,
+          imageUrl,
+      };
+
+      const newRenderings = design.renderings.map(r => r.id === existingRendering.id ? updatedRendering : r);
+      const updatedDesign = { ...design, renderings: newRenderings };
+      await saveDesignChange(updatedDesign);
+
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [currentDesignId, savedDesigns, saveDesignChange, handleError]);
+
+  const handleGenerateVideoTour = useCallback(async (prompt: string) => {
+      setIsLoading(true);
+      setLoadingMessage('Creating cinematic tour... This may take minutes.');
+      setError(null);
+      try {
+          const url = await generateVideo(prompt);
+          setVideoUrl(url);
+      } catch (err) {
+        handleError(err);
+      } finally {
+          setIsLoading(false);
+          setLoadingMessage('');
+      }
+  }, [handleError]);
+
+  const handleCloseVideo = useCallback(() => {
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+    }
+    setVideoUrl(null);
+  }, [videoUrl]);
+
+  const updateRendering = useCallback(async (renderingId: string, updates: Partial<Rendering>) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    const newRenderings = design.renderings.map(r => r.id === renderingId ? { ...r, ...updates } : r);
+    const updatedDesign = { ...design, renderings: newRenderings };
+    await saveDesignChange(updatedDesign);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
+
+  const deleteRenderings = useCallback(async (renderingIds: string[]) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') return;
+
+    const newRenderings = design.renderings.filter(r => !renderingIds.includes(r.id));
+    const updatedDesign = { ...design, renderings: newRenderings };
+    await saveDesignChange(updatedDesign);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
+
+  const handleReorderRenderings = useCallback(async (reorderedRenderings: Rendering[]) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') return;
+
+    const updatedDesign = { ...design, renderings: reorderedRenderings };
+    await saveDesignChange(updatedDesign);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
+
+  const handleSelectDesign = useCallback((designId: string) => {
+    setCurrentDesignId(designId);
+    setView(AppView.Results);
+    setError(null);
+  }, []);
+
+  const handleDeleteDesign = useCallback(async (designId: string) => {
+    const design = savedDesigns.find(d => d.housePlan.id === designId);
+    if (!design) return;
+
+    const isOwner = design.accessLevel === 'owner';
+    const message = isOwner 
+        ? "Are you sure you want to delete this design and all its renderings? This action cannot be undone."
+        : "Remove this shared design from your list?";
+
+    if (window.confirm(message)) {
+      try {
+        const userId = getUserId();
+        
+        if (isOwner) {
+            await dbService.deleteDesign(designId);
+            if (user && user.email !== 'anonymous') {
+                await cloudService.deleteDesign(userId, designId);
+            }
+        } else {
+            if (user) {
+                await cloudService.removeShare(user.email, designId);
+            }
+        }
+        
+        setSavedDesigns(prev => prev.filter(d => d.housePlan.id !== designId));
+        if (currentDesignId === designId) {
+            resetApp();
+        }
+      } catch (err) {
+        console.error("Failed to delete design", err);
+        setError("Failed to delete design.");
+      }
+    }
+  }, [currentDesignId, resetApp, getUserId, user, savedDesigns]);
+  
+  const handleAddRoom = useCallback(async (newRoom: Room) => {
+    if (!currentDesignId) return;
+    const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+    if (!design) return;
+
+    if (design.accessLevel === 'view') return;
+
+    const updatedHousePlan = {
+        ...design.housePlan,
+        rooms: [...design.housePlan.rooms, newRoom]
+    };
+    const updatedDesign = { ...design, housePlan: updatedHousePlan };
+    await saveDesignChange(updatedDesign);
+  }, [currentDesignId, savedDesigns, saveDesignChange]);
+
+  const handleSelectKey = useCallback(async () => {
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        try {
+          await window.aistudio.openSelectKey();
+          setIsKeyReady(true);
+          checkApiKey();
+        } catch (e) {
+          setError("Could not open API key selection. Please try again.");
+        }
+      } else {
+          setIsKeyReady(true);
+      }
+  }, [checkApiKey]);
+  
+  const handleClearError = useCallback(() => setError(null), []);
+
+  const handleSignIn = useCallback(async () => {
+      setIsLoading(true);
+      setLoadingMessage("Signing in with Google...");
+      try {
+        await authService.signIn();
+      } catch (e) {
+        setError("Sign in failed. Please try again.");
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+  }, []);
+
+  const handleSignInGuest = useCallback(async () => {
+      setIsLoading(true);
+      setLoadingMessage("Setting up Guest Account...");
+      try {
+        await authService.signInGuest();
+      } catch (e) {
+        console.error("Guest Sign In Error:", e);
+        setError("Guest sign in failed. Please try again.");
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+  }, []);
+
+  const handleShareDesign = useCallback(async (email: string, permission: AccessLevel) => {
+      if (!currentDesignId || !user) return;
+      const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
+      if (!design) return;
+      if (design.accessLevel !== 'owner') {
+          setError("Only the project owner can share this design.");
+          return;
+      }
+      try {
+          await cloudService.shareDesign(user.email, currentDesignId, email, permission);
+      } catch (e) {
+          throw e;
+      }
+  }, [currentDesignId, user, savedDesigns]);
+
+  if (isKeyReady === null || isAuthLoading) {
+      return <LoadingOverlay message="Initializing..." />;
+  }
+
+  if (!user) {
+      return (
+        <>
+            {isLoading && <LoadingOverlay message={loadingMessage} />}
+            <LandingPage 
+                onSignIn={handleSignIn} 
+                onSignInGuest={handleSignInGuest}
+                isKeyReady={isKeyReady !== false} 
+                onSelectKey={handleSelectKey}
+                error={error}
+            />
+        </>
+      );
+  }
+
+  return (
+    <div className="min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col">
+      {isKeyReady === false && <ApiKeyPrompt onSelectKey={handleSelectKey} />}
+      <Header 
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+        onNewDesign={resetApp}
+        onSaveDesign={handleManualSaveToCloud}
+        isSaving={isSavingCloud}
+        hasActiveDesign={!!currentDesign}
+        searchQuery={searchQuery} 
+        onSearchChange={setSearchQuery} 
+      />
+      <main className="container mx-auto px-4 py-8 flex-grow">
+        {isLoading && <LoadingOverlay message={loadingMessage} />}
+        {view === AppView.Home && <HomePage 
+            onGenerate={handleGenerationRequest} 
+            error={error} 
+            designs={filteredDesigns}
+            onSelectDesign={handleSelectDesign}
+            onDeleteDesign={handleDeleteDesign}
+            onErrorClear={handleClearError}
+            isKeyReady={isKeyReady}
+            onSelectKey={handleSelectKey}
+            user={user}
+        />}
+        {view === AppView.Results && currentDesign && (
+          <ResultsPage
+            key={currentDesign.housePlan.id}
+            design={currentDesign}
+            onNewRendering={handleNewRendering}
+            onRefineRendering={handleRefineRendering}
+            onUpdateRendering={updateRendering}
+            onDeleteRenderings={deleteRenderings}
+            onGenerateVideoTour={handleGenerateVideoTour}
+            onRecreateRendering={handleRecreateRendering}
+            onAddRoom={handleAddRoom}
+            videoUrl={videoUrl}
+            onCloseVideo={handleCloseVideo}
+            error={error}
+            onErrorClear={handleClearError}
+            isLoading={isLoading}
+            isKeyReady={isKeyReady}
+            onSelectKey={handleSelectKey}
+            onOpenShareModal={() => setIsShareModalOpen(true)}
+            onReorderRenderings={handleReorderRenderings}
+          />
+        )}
+      </main>
+
+      <Footer />
+
+      <ShareModal 
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        onShare={handleShareDesign}
+        designTitle={currentDesign?.housePlan.title || 'Project'}
+      />
+    </div>
+  );
+}
+
+export default App;
