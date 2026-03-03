@@ -72,7 +72,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, is
     }
   };
 
-  const canEdit = category === 'Front Exterior';
+  const canEdit = category === 'Front Exterior' || category === 'Back Exterior';
 
   return (
     <div className={`group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 ${isSelected ? 'border-brand-500' : 'border-transparent'}`}>
@@ -135,7 +135,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, is
                 <div className="p-6 border-b dark:border-gray-700 flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <Pencil className="h-5 w-5 text-brand-600" />
-                        Edit Front Exterior
+                        Edit {category}
                     </h3>
                     <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                         <X className="h-5 w-5" />
