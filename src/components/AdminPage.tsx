@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User } from '../types';
 import { cloudService } from '../services/cloudService';
-import { ShieldAlert, Users, Check, X, Search } from 'lucide-react';
+import { ShieldAlert, Users, Check, X, Search, PieChart as PieChartIcon } from 'lucide-react';
 import LoadingOverlay from './LoadingOverlay';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface AdminPageProps {
   user: User;
@@ -51,6 +52,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
     (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const chartData = useMemo(() => {
+    const basicCount = users.filter(u => !u.subscriptionLevel || u.subscriptionLevel === 'basic').length;
+    const premiumCount = users.filter(u => u.subscriptionLevel === 'premium').length;
+    
+    return [
+      { name: 'Basic', value: basicCount, color: '#6b7280' }, // gray-500
+      { name: 'Premium', value: premiumCount, color: '#9333ea' } // purple-600
+    ];
+  }, [users]);
+
   if (isLoading) {
     return <LoadingOverlay message="Loading Admin Dashboard..." />;
   }
@@ -77,9 +88,88 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">Manage user accounts and subscription levels.</p>
         </div>
-        <div className="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-4 py-2 rounded-lg flex items-center gap-2 font-medium">
-          <Users className="h-5 w-5" />
-          {users.length} Total Users
+        <div className="flex flex-col items-end gap-2">
+          <div className="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-4 py-2 rounded-lg flex items-center gap-2 font-medium">
+            <Users className="h-5 w-5" />
+            {users.length} Total Users
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <PieChartIcon className="h-5 w-5 text-brand-600" />
+            Subscription Distribution
+          </h2>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: 'none', 
+                    borderRadius: '8px',
+                    color: '#fff' 
+                  }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            {chartData.map(item => (
+              <div key={item.name} className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">{item.name}</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{item.value}</p>
+                <p className="text-xs text-gray-400">
+                  {users.length > 0 ? ((item.value / users.length) * 100).toFixed(1) : 0}%
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md flex flex-col justify-center">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+              <ShieldAlert className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Admin Quick Stats</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Overview of system health and user status.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Premium</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{chartData[1].value}</p>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Basic Users</p>
+              <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">{chartData[0].value}</p>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Conversion Rate</p>
+              <p className="text-2xl font-bold text-brand-600 dark:text-brand-400">
+                {users.length > 0 ? ((chartData[1].value / users.length) * 100).toFixed(1) : 0}%
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
