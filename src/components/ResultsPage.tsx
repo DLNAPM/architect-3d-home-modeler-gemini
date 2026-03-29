@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Rendering, Room, SavedDesign } from '../types';
+import { Rendering, Room, SavedDesign, User } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
@@ -8,6 +8,7 @@ import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, Plu
 import JSZip from 'jszip';
 
 interface ResultsPageProps {
+  user: User | null;
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string) => void;
   onRefineRendering: (id: string, instructions: string) => void;
@@ -35,7 +36,7 @@ interface SlideshowConfig {
   repeat: boolean;
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onRefineRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal, onReorderRenderings }) => {
+const ResultsPage: React.FC<ResultsPageProps> = ({ user, design, onNewRendering, onRefineRendering, onUpdateRendering, onDeleteRenderings, onGenerateVideoTour, onRecreateRendering, onAddRoom, videoUrl, onCloseVideo, error, onErrorClear, isLoading, isKeyReady, onSelectKey, onOpenShareModal, onReorderRenderings }) => {
   const { housePlan, renderings, initialPrompt, accessLevel = 'owner' } = design;
   const isViewOnly = accessLevel === 'view';
   const isOwner = accessLevel === 'owner';
@@ -99,23 +100,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onRef
     setSelectedRenderings(prev =>
       prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id]
     );
-  };
-
-  const handleSlideshowClick = () => {
-      if (hasAdvancedSlideshowFeatures) {
-          setShowSlideshowConfig(true);
-      } else {
-          setSlideshowConfig({
-              duration: 3,
-              transition: 'fade',
-              showCaptions: false,
-              audioFile: null,
-              repeat: true
-          });
-          setCurrentSlide(0);
-          setIsPaused(false);
-          setSlideshowActive(true);
-      }
   };
 
   const startAdvancedSlideshow = () => {
@@ -255,6 +239,10 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onRef
   }
 
   const handleBulkEmail = async () => {
+    if (!isPremium) {
+      alert("Email sharing is a Premium feature. Please upgrade your account to access this service.");
+      return;
+    }
     if (selectedRenderings.length === 0) return;
     const selectedList = renderings.filter(r => selectedRenderings.includes(r.id));
     const allLiked = selectedList.every(r => r.liked);
@@ -321,12 +309,22 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ design, onNewRendering, onRef
     }
   };
 
+  const isPremium = user?.subscriptionLevel === 'premium';
+
   const handleGenerateVideoClick = () => {
+    if (!isPremium) {
+      alert("Video Tour is a Premium feature. Please upgrade your account to access this service.");
+      return;
+    }
     const prompt = `Create a cinematic 30-second video tour of the exterior of a ${housePlan.style} house, based on the description: "${initialPrompt}". Showcase both the front and back of the house using smooth camera movements and dramatic lighting, for example during a golden hour sunset. The video should pan smoothly around the property and include an inspiring background music track.`;
     onGenerateVideoTour(prompt);
   };
   
   const handleGenerateMarketingVideo = () => {
+      if (!isPremium) {
+        alert("Marketing Video is a Premium feature. Please upgrade your account to access this service.");
+        return;
+      }
       if (!canCreateMarketingVideo) return;
       const totalDuration = (likedRenderings.length * 4) + 8;
       const shotList = likedRenderings.map((rendering, index) => {
@@ -363,6 +361,27 @@ ${shotList}
 ---
 `;
       onGenerateVideoTour(prompt);
+  };
+
+  const handleSlideshowClick = () => {
+      if (!isPremium) {
+        alert("Slideshow is a Premium feature. Please upgrade your account to access this service.");
+        return;
+      }
+      if (hasAdvancedSlideshowFeatures) {
+          setShowSlideshowConfig(true);
+      } else {
+          setSlideshowConfig({
+              duration: 3,
+              transition: 'fade',
+              showCaptions: false,
+              audioFile: null,
+              repeat: true
+          });
+          setCurrentSlide(0);
+          setIsPaused(false);
+          setSlideshowActive(true);
+      }
   };
 
   const handleEnlarge = (imageUrl: string) => {
@@ -439,7 +458,13 @@ ${shotList}
         {isOwner && (
             <div className="absolute top-0 right-0">
                  <button 
-                  onClick={onOpenShareModal}
+                  onClick={() => {
+                    if (!isPremium) {
+                      alert("Sharing is a Premium feature. Please upgrade your account to access this service.");
+                      return;
+                    }
+                    onOpenShareModal();
+                  }}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-brand-600 bg-white border border-brand-200 rounded-full hover:bg-brand-50 shadow-sm transition-colors"
                 >
                     <Share2 className="h-4 w-4" /> Share
@@ -546,7 +571,13 @@ ${shotList}
                 )}
                 {canRecreate && hasRenderingForSelected && !isViewOnly && (
                   <button 
-                    onClick={() => selectedCategory && onRecreateRendering(selectedCategory)} 
+                    onClick={() => {
+                      if (!isPremium) {
+                        alert("Re-Create is a Premium feature. Please upgrade your account to access this service.");
+                        return;
+                      }
+                      selectedCategory && onRecreateRendering(selectedCategory);
+                    }} 
                     disabled={isLoading || !isKeyReady}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
@@ -610,6 +641,7 @@ ${shotList}
                     isSelected={selectedRenderings.includes(rendering.id)}
                     onSelectToggle={handleSelectToggle}
                     onEnlarge={handleEnlarge}
+                    isPremium={isPremium}
                   />
               </div>
             ))}

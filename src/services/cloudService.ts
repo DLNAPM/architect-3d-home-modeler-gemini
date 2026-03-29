@@ -50,6 +50,98 @@ const compressImage = (source: string, mimeType: string = 'image/jpeg', maxWidth
 
 export const cloudService = {
   /**
+   * Saves or updates a user profile in Firestore.
+   */
+  async saveUser(user: { name: string; email: string; picture: string }): Promise<void> {
+    if (!user.email) return;
+    try {
+      const userRef = doc(db, "users", user.email);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          ...user,
+          subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
+          createdAt: Date.now()
+        });
+      } else {
+        // Update name and picture, but preserve subscriptionLevel
+        const updateData: any = {
+          name: user.name,
+          picture: user.picture,
+          lastLogin: Date.now()
+        };
+        if (user.email === 'dlaniger.napm.consulting@gmail.com' && userSnap.data().subscriptionLevel !== 'premium') {
+          updateData.subscriptionLevel = 'premium';
+        }
+        await setDoc(userRef, updateData, { merge: true });
+      }
+    } catch (error) {
+      console.error("Error saving user profile:", error);
+    }
+  },
+
+  /**
+   * Retrieves a user profile from Firestore.
+   */
+  async getUserProfile(email: string): Promise<{ subscriptionLevel: 'basic' | 'premium' } | null> {
+    if (!email) return null;
+    try {
+      const userRef = doc(db, "users", email);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data() as { subscriptionLevel: 'basic' | 'premium' };
+        if (email === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
+          return { ...data, subscriptionLevel: 'premium' };
+        }
+        return data;
+      }
+      if (email === 'dlaniger.napm.consulting@gmail.com') {
+        return { subscriptionLevel: 'premium' };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  },
+
+  /**
+   * Retrieves all users (Admin only).
+   */
+  async getAllUsers(): Promise<any[]> {
+    try {
+      const usersRef = collection(db, "users");
+      const querySnapshot = await getDocs(usersRef);
+      const users: any[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (doc.id === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
+          data.subscriptionLevel = 'premium';
+        }
+        users.push({ email: doc.id, ...data });
+      });
+      return users;
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Updates a user's subscription level (Admin only).
+   */
+  async updateUserSubscription(email: string, level: 'basic' | 'premium'): Promise<void> {
+    try {
+      const userRef = doc(db, "users", email);
+      await setDoc(userRef, { subscriptionLevel: level }, { merge: true });
+    } catch (error) {
+      console.error("Error updating user subscription:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Saves a design to the user's Firestore collection.
    * Compresses images before saving to ensure the document stays under the 1MB Firestore limit.
    */

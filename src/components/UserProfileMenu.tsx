@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
-import { LogOut, ChevronDown } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldAlert } from 'lucide-react';
 
 interface UserProfileMenuProps {
   user: User;
   onSignOut: () => void;
+  onAdminClick?: () => void;
 }
 
-const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) => {
+const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onAdminClick }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +23,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) =>
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const isAdmin = user.email === 'dlaniger.napm.consulting@gmail.com';
 
   return (
     <div className="relative" ref={menuRef}>
@@ -40,7 +43,25 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut }) =>
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                {user.subscriptionLevel && (
+                  <p className="text-xs font-semibold mt-1 uppercase text-brand-600 dark:text-brand-400">
+                    {user.subscriptionLevel} Plan
+                  </p>
+                )}
             </div>
+            {isAdmin && onAdminClick && (
+              <button
+                onClick={() => {
+                  onAdminClick();
+                  setIsOpen(false);
+                }}
+                className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                role="menuitem"
+              >
+                <ShieldAlert className="h-4 w-4 text-brand-500" />
+                <span>Admin Dashboard</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 onSignOut();

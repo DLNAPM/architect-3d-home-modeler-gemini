@@ -5,6 +5,7 @@ import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
+import AdminPage from './components/AdminPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
@@ -676,9 +677,11 @@ function App() {
         hasActiveDesign={!!currentDesign}
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
+        onAdminClick={() => setView(AppView.Admin)}
       />
       <main className="container mx-auto px-4 py-8 flex-grow">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
+        {view === AppView.Admin && user && <AdminPage user={user} />}
         {view === AppView.Home && <HomePage 
             onGenerate={handleGenerationRequest} 
             error={error} 
@@ -692,6 +695,7 @@ function App() {
         />}
         {view === AppView.Results && currentDesign && (
           <ResultsPage
+            user={user}
             key={currentDesign.housePlan.id}
             design={currentDesign}
             onNewRendering={handleNewRendering}

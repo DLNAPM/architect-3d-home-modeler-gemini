@@ -10,9 +10,10 @@ interface ImageCardProps {
   isSelected: boolean;
   onSelectToggle: (id: string) => void;
   onEnlarge: (imageUrl: string) => void;
+  isPremium?: boolean;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, isSelected, onSelectToggle, onEnlarge }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, isSelected, onSelectToggle, onEnlarge, isPremium = false }) => {
   const { id, category, imageUrl, liked, favorited } = rendering;
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editInstructions, setEditInstructions] = useState('');
@@ -100,7 +101,13 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, is
             <h4 className="font-bold text-lg">{category}</h4>
             {canEdit && (
                 <button 
-                    onClick={() => setIsEditModalOpen(true)}
+                    onClick={() => {
+                      if (!isPremium) {
+                        alert("Edit Rendering is a Premium feature. Please upgrade your account to access this service.");
+                        return;
+                      }
+                      setIsEditModalOpen(true);
+                    }}
                     className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 px-2 py-1 rounded transition-colors"
                 >
                     <Pencil className="h-3 w-3" /> Edit Rendering

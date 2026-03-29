@@ -14,6 +14,7 @@ interface HeaderProps {
     onSearchChange: (query: string) => void;
     isSaving?: boolean;
     hasActiveDesign: boolean;
+    onAdminClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -25,7 +26,8 @@ const Header: React.FC<HeaderProps> = ({
     searchQuery, 
     onSearchChange,
     isSaving = false,
-    hasActiveDesign
+    hasActiveDesign,
+    onAdminClick
 }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
@@ -104,7 +106,7 @@ const Header: React.FC<HeaderProps> = ({
                         </button>
                         
                         {user ? (
-                        <UserProfileMenu user={user} onSignOut={onSignOut} />
+                        <UserProfileMenu user={user} onSignOut={onSignOut} onAdminClick={onAdminClick} />
                         ) : (
                         <button 
                             onClick={onSignIn}

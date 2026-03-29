@@ -30,6 +30,8 @@ export interface HousePlan {
 
 export type AccessLevel = 'owner' | 'edit' | 'view';
 
+export type SubscriptionLevel = 'basic' | 'premium';
+
 export interface SavedDesign {
   housePlan: HousePlan;
   renderings: Rendering[];
@@ -45,11 +47,13 @@ export interface SavedDesign {
 
 export enum AppView {
   Home,
-  Results
+  Results,
+  Admin
 }
 
 export interface User {
   name: string;
   email: string;
   picture: string;
+  subscriptionLevel?: SubscriptionLevel;
 }

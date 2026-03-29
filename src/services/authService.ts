@@ -1,13 +1,14 @@
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged as firebaseOnAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 import { User } from "../types";
+import { cloudService } from "./cloudService";
 
 // Local state to manage the user (both Firebase and Local Guest)
 let currentUser: User | null = null;
 const listeners: ((user: User | null) => void)[] = [];
 
 // Initialize Firebase Listener once to sync Google Logins
-firebaseOnAuthStateChanged(auth, (firebaseUser) => {
+firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
         // Real Google User found
         currentUser = {
@@ -15,6 +16,16 @@ firebaseOnAuthStateChanged(auth, (firebaseUser) => {
             email: firebaseUser.email || '',
             picture: firebaseUser.photoURL || ''
         };
+        
+        // Save user to Firestore and fetch profile
+        if (currentUser.email) {
+            await cloudService.saveUser(currentUser);
+            const profile = await cloudService.getUserProfile(currentUser.email);
+            if (profile) {
+                currentUser.subscriptionLevel = profile.subscriptionLevel;
+            }
+        }
+
         notifyListeners();
     } else {
         // Firebase says no user. 
