@@ -57,4 +57,5 @@ export interface User {
   email: string;
   picture: string;
   subscriptionLevel?: SubscriptionLevel;
+  isFrozen?: boolean;
 }

@@ -108,7 +108,7 @@ export const cloudService = {
   /**
    * Retrieves a user profile from Firestore.
    */
-  async getUserProfile(uid: string, email: string): Promise<{ subscriptionLevel: 'basic' | 'premium' } | null> {
+  async getUserProfile(uid: string, email: string): Promise<{ subscriptionLevel: 'basic' | 'premium'; isFrozen?: boolean } | null> {
     if (!uid && !email) return null;
     try {
       let userSnap = null;
@@ -125,7 +125,7 @@ export const cloudService = {
       }
 
       if (userSnap && userSnap.exists()) {
-        const data = userSnap.data() as { subscriptionLevel: 'basic' | 'premium' };
+        const data = userSnap.data() as { subscriptionLevel: 'basic' | 'premium'; isFrozen?: boolean };
         if (email === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
           return { ...data, subscriptionLevel: 'premium' };
         }
@@ -187,6 +187,54 @@ export const cloudService = {
       });
     } catch (error) {
       console.error("Error updating user subscription:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Deletes a user and all their associated documents (Admin only).
+   */
+  async deleteUser(email: string): Promise<void> {
+    try {
+      // 1. Find all documents associated with this email
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises: Promise<void>[] = [];
+      
+      querySnapshot.forEach((document) => {
+        // Delete the user document itself
+        deletePromises.push(deleteDoc(doc(db, "users", document.id)));
+      });
+      
+      await Promise.all(deletePromises);
+      console.log(`User ${email} deleted successfully`);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Toggles the frozen status of a user's account (Admin only).
+   */
+  async toggleUserFreeze(email: string, isFrozen: boolean): Promise<void> {
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      
+      const updatePromises: Promise<void>[] = [];
+      
+      querySnapshot.forEach((document) => {
+        updatePromises.push(setDoc(doc(db, "users", document.id), { isFrozen }, { merge: true }));
+      });
+      
+      await Promise.all(updatePromises);
+      console.log(`User ${email} freeze status updated to ${isFrozen}`);
+    } catch (error) {
+      console.error("Error toggling user freeze status:", error);
       throw error;
     }
   },

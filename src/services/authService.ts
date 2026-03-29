@@ -24,6 +24,7 @@ firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
             const profile = await cloudService.getUserProfile(currentUser.uid, currentUser.email);
             if (profile) {
                 currentUser.subscriptionLevel = profile.subscriptionLevel;
+                currentUser.isFrozen = profile.isFrozen;
             }
         }
 

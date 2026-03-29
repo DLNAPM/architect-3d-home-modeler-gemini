@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User } from '../types';
 import { cloudService } from '../services/cloudService';
-import { ShieldAlert, Users, Check, X, Search, PieChart as PieChartIcon } from 'lucide-react';
+import { ShieldAlert, Users, Check, X, Search, PieChart as PieChartIcon, Trash2, Snowflake, Lock, Unlock } from 'lucide-react';
 import LoadingOverlay from './LoadingOverlay';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
@@ -44,6 +44,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
     } catch (err) {
       console.error("Failed to update subscription", err);
       alert("Failed to update subscription.");
+    }
+  };
+
+  const handleDeleteUser = async (email: string) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await cloudService.deleteUser(email);
+      setUsers(users.filter(u => u.email !== email));
+    } catch (err) {
+      console.error("Failed to delete user", err);
+      alert("Failed to delete user.");
+    }
+  };
+
+  const handleToggleFreeze = async (email: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    try {
+      await cloudService.toggleUserFreeze(email, newStatus);
+      setUsers(users.map(u => u.email === email ? { ...u, isFrozen: newStatus } : u));
+    } catch (err) {
+      console.error("Failed to toggle freeze status", err);
+      alert("Failed to toggle freeze status.");
     }
   };
 
@@ -197,24 +222,28 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
                 <th className="p-4 font-semibold">Email</th>
                 <th className="p-4 font-semibold">Joined</th>
                 <th className="p-4 font-semibold">Subscription</th>
+                <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.map(u => (
-                <tr key={u.email} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <tr key={u.email} className={`hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors ${u.isFrozen ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <img src={u.picture || `https://ui-avatars.com/api/?name=${u.name || 'U'}`} alt={u.name} className="w-10 h-10 rounded-full bg-gray-200" />
-                      <span className="font-medium text-gray-900 dark:text-white">{u.name || 'Unknown'}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900 dark:text-white">{u.name || 'Unknown'}</span>
+                        {u.isFrozen && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Account Frozen</span>}
+                      </div>
                     </div>
                   </td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400">{u.email}</td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400">
+                  <td className="p-4 text-gray-600 dark:text-gray-400 text-sm">{u.email}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400 text-sm">
                     {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
                       u.subscriptionLevel === 'premium' 
                         ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' 
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -222,21 +251,58 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
                       {u.subscriptionLevel || 'basic'}
                     </span>
                   </td>
+                  <td className="p-4">
+                    {u.isFrozen ? (
+                      <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">
+                        <Snowflake className="h-3 w-3" /> Frozen
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-[10px] font-bold uppercase">
+                        <Check className="h-3 w-3" /> Active
+                      </span>
+                    )}
+                  </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-2">
+                      <div className="flex bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+                        <button
+                          onClick={() => handleUpdateSubscription(u.email, 'basic')}
+                          disabled={u.subscriptionLevel === 'basic' || !u.subscriptionLevel || u.email === user.email}
+                          className={`px-2 py-1 text-[10px] font-bold rounded ${u.subscriptionLevel === 'basic' ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                          title="Set to Basic"
+                        >
+                          BASIC
+                        </button>
+                        <button
+                          onClick={() => handleUpdateSubscription(u.email, 'premium')}
+                          disabled={u.subscriptionLevel === 'premium' || u.email === user.email}
+                          className={`px-2 py-1 text-[10px] font-bold rounded ${u.subscriptionLevel === 'premium' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                          title="Set to Premium"
+                        >
+                          PREMIUM
+                        </button>
+                      </div>
+
                       <button
-                        onClick={() => handleUpdateSubscription(u.email, 'basic')}
-                        disabled={u.subscriptionLevel === 'basic' || !u.subscriptionLevel}
-                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => handleToggleFreeze(u.email, !!u.isFrozen)}
+                        disabled={u.email === user.email}
+                        className={`p-1.5 rounded-md border transition-colors ${
+                          u.isFrozen 
+                            ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400' 
+                            : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:text-blue-600 hover:border-blue-300 dark:text-gray-400 dark:hover:text-blue-400'
+                        }`}
+                        title={u.isFrozen ? "Unfreeze Account" : "Freeze Account"}
                       >
-                        Set Basic
+                        {u.isFrozen ? <Unlock className="h-4 w-4" /> : <Snowflake className="h-4 w-4" />}
                       </button>
+
                       <button
-                        onClick={() => handleUpdateSubscription(u.email, 'premium')}
-                        disabled={u.subscriptionLevel === 'premium'}
-                        className="px-3 py-1.5 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => handleDeleteUser(u.email)}
+                        disabled={u.email === user.email}
+                        className="p-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-gray-500 hover:text-red-600 hover:border-red-300 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+                        title="Delete User"
                       >
-                        Set Premium
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
