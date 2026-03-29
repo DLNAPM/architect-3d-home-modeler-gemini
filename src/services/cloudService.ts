@@ -52,29 +52,53 @@ export const cloudService = {
   /**
    * Saves or updates a user profile in Firestore.
    */
-  async saveUser(user: { name: string; email: string; picture: string }): Promise<void> {
-    if (!user.email) return;
+  async saveUser(user: { uid: string; name: string; email: string; picture: string }): Promise<void> {
+    if (!user.email || !user.uid) return;
     try {
-      const userRef = doc(db, "users", user.email);
-      const userSnap = await getDoc(userRef);
+      // Save to users/{uid} to satisfy Firestore rules that check request.auth.uid
+      const userUidRef = doc(db, "users", user.uid);
+      const userUidSnap = await getDoc(userUidRef);
       
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          ...user,
-          subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
-          createdAt: Date.now()
-        });
+      const userData = {
+        uid: user.uid,
+        name: user.name,
+        email: user.email,
+        picture: user.picture,
+        subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
+        role: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'admin' : 'user',
+        lastLogin: Date.now()
+      };
+
+      if (!userUidSnap.exists()) {
+        await setDoc(userUidRef, { ...userData, createdAt: Date.now() });
       } else {
-        // Update name and picture, but preserve subscriptionLevel
-        const updateData: any = {
-          name: user.name,
-          picture: user.picture,
-          lastLogin: Date.now()
-        };
-        if (user.email === 'dlaniger.napm.consulting@gmail.com' && userSnap.data().subscriptionLevel !== 'premium') {
-          updateData.subscriptionLevel = 'premium';
+        const updateData: any = { ...userData };
+        if (user.email === 'dlaniger.napm.consulting@gmail.com') {
+          if (userUidSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
+          if (userUidSnap.data()?.role !== 'admin') updateData.role = 'admin';
+        } else {
+          delete updateData.subscriptionLevel; // preserve existing
+          delete updateData.role; // preserve existing
         }
-        await setDoc(userRef, updateData, { merge: true });
+        await setDoc(userUidRef, updateData, { merge: true });
+      }
+
+      // Also save to users/{email} for backward compatibility with existing designs
+      const userEmailRef = doc(db, "users", user.email);
+      const userEmailSnap = await getDoc(userEmailRef);
+      
+      if (!userEmailSnap.exists()) {
+        await setDoc(userEmailRef, { ...userData, createdAt: Date.now() });
+      } else {
+        const updateData: any = { ...userData };
+        if (user.email === 'dlaniger.napm.consulting@gmail.com') {
+          if (userEmailSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
+          if (userEmailSnap.data()?.role !== 'admin') updateData.role = 'admin';
+        } else {
+          delete updateData.subscriptionLevel; // preserve existing
+          delete updateData.role; // preserve existing
+        }
+        await setDoc(userEmailRef, updateData, { merge: true });
       }
     } catch (error) {
       console.error("Error saving user profile:", error);
@@ -84,12 +108,23 @@ export const cloudService = {
   /**
    * Retrieves a user profile from Firestore.
    */
-  async getUserProfile(email: string): Promise<{ subscriptionLevel: 'basic' | 'premium' } | null> {
-    if (!email) return null;
+  async getUserProfile(uid: string, email: string): Promise<{ subscriptionLevel: 'basic' | 'premium' } | null> {
+    if (!uid && !email) return null;
     try {
-      const userRef = doc(db, "users", email);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
+      let userSnap = null;
+      if (uid) {
+        const userUidRef = doc(db, "users", uid);
+        userSnap = await getDoc(userUidRef).catch(() => null);
+      }
+      
+      if (!userSnap || !userSnap.exists()) {
+        if (email) {
+          const userEmailRef = doc(db, "users", email);
+          userSnap = await getDoc(userEmailRef).catch(() => null);
+        }
+      }
+
+      if (userSnap && userSnap.exists()) {
         const data = userSnap.data() as { subscriptionLevel: 'basic' | 'premium' };
         if (email === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
           return { ...data, subscriptionLevel: 'premium' };
@@ -115,11 +150,15 @@ export const cloudService = {
       const querySnapshot = await getDocs(usersRef);
       const users: any[] = [];
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (doc.id === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
-          data.subscriptionLevel = 'premium';
+        // Only include documents where the ID is an email to avoid duplicates
+        // since we now save to both {uid} and {email}
+        if (doc.id.includes('@')) {
+          const data = doc.data();
+          if (doc.id === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
+            data.subscriptionLevel = 'premium';
+          }
+          users.push({ email: doc.id, ...data });
         }
-        users.push({ email: doc.id, ...data });
       });
       return users;
     } catch (error) {
@@ -135,6 +174,17 @@ export const cloudService = {
     try {
       const userRef = doc(db, "users", email);
       await setDoc(userRef, { subscriptionLevel: level }, { merge: true });
+      
+      // Also try to find and update the uid document if it exists
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      
+      querySnapshot.forEach(async (document) => {
+        if (document.id !== email) { // This is the uid document
+           await setDoc(doc(db, "users", document.id), { subscriptionLevel: level }, { merge: true });
+        }
+      });
     } catch (error) {
       console.error("Error updating user subscription:", error);
       throw error;

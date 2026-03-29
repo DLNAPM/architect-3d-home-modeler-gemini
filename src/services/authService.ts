@@ -12,6 +12,7 @@ firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
         // Real Google User found
         currentUser = {
+            uid: firebaseUser.uid,
             name: firebaseUser.displayName || 'User',
             email: firebaseUser.email || '',
             picture: firebaseUser.photoURL || ''
@@ -20,7 +21,7 @@ firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
         // Save user to Firestore and fetch profile
         if (currentUser.email) {
             await cloudService.saveUser(currentUser);
-            const profile = await cloudService.getUserProfile(currentUser.email);
+            const profile = await cloudService.getUserProfile(currentUser.uid, currentUser.email);
             if (profile) {
                 currentUser.subscriptionLevel = profile.subscriptionLevel;
             }
@@ -64,6 +65,7 @@ export const authService = {
         // Create a local guest user object
         // We use a specific ID to identify it as a local session
         currentUser = {
+            uid: "guest-local-session",
             name: "Guest Architect",
             email: "guest-local-session", 
             picture: "https://ui-avatars.com/api/?name=Guest+Architect&background=E5E7EB&color=374151"

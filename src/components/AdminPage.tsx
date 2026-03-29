@@ -27,7 +27,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
         setUsers(allUsers);
       } catch (err) {
         console.error("Failed to fetch users", err);
-        setError("Failed to load users.");
+        setError("Failed to load users. Please check your permissions.");
       } finally {
         setIsLoading(false);
       }
