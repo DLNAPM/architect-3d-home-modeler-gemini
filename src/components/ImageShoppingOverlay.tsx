@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ShoppingCart, X, Search, Loader2, Lock } from 'lucide-react';
+import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle } from 'lucide-react';
 import { searchShoppingForItem, ShoppingResult } from '../services/geminiService';
 
 interface ImageShoppingOverlayProps {
@@ -208,10 +208,18 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
       {(isShoppingMode || results.length > 0 || isSearching || error) && (
         <div className="w-full md:w-96 bg-white dark:bg-gray-900 h-1/3 md:h-full overflow-y-auto border-t md:border-t-0 md:border-l border-gray-200 dark:border-gray-800 flex flex-col" onClick={e => e.stopPropagation()}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Search className="h-5 w-5 text-brand-600" />
-              Shopping Results
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Search className="h-5 w-5 text-brand-600" />
+                Shopping Results
+              </h3>
+              <div className="relative group">
+                <HelpCircle className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
+                <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                  Product availability may vary. Some identified items may be discontinued or currently out of stock at participating retailers.
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="p-4 flex-1">
@@ -246,6 +254,11 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                     )}
                   </a>
                 ))}
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    Product availability may vary. Some identified items may be discontinued or currently out of stock at participating retailers.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 text-center space-y-2 py-12">
