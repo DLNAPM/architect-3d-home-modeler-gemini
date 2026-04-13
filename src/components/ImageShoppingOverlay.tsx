@@ -21,14 +21,28 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
 
   const imageRef = useRef<HTMLImageElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLImageElement>) => {
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent, rect: DOMRect) => {
+    if ('touches' in e) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    } else {
+      return {
+        x: (e as React.MouseEvent).clientX - rect.left,
+        y: (e as React.MouseEvent).clientY - rect.top
+      };
+    }
+  };
+
+  const handleStart = (e: React.MouseEvent<HTMLImageElement> | React.TouchEvent<HTMLImageElement>) => {
     if (!isShoppingMode) return;
-    e.preventDefault();
+    // Prevent default to stop scrolling on mobile while drawing
+    if (e.cancelable) e.preventDefault();
     const rect = imageRef.current?.getBoundingClientRect();
     if (!rect) return;
     
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCoordinates(e, rect);
     
     setStartPos({ x, y });
     setCurrentPos({ x, y });
@@ -38,18 +52,21 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     setError(null);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
+  const handleMove = (e: React.MouseEvent<HTMLImageElement> | React.TouchEvent<HTMLImageElement>) => {
     if (!isDrawing || !isShoppingMode) return;
+    if (e.cancelable) e.preventDefault();
     const rect = imageRef.current?.getBoundingClientRect();
     if (!rect) return;
     
-    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    const { x, y } = getCoordinates(e, rect);
     
-    setCurrentPos({ x, y });
+    setCurrentPos({ 
+      x: Math.max(0, Math.min(x, rect.width)), 
+      y: Math.max(0, Math.min(y, rect.height)) 
+    });
   };
 
-  const handleMouseUp = async () => {
+  const handleEnd = async () => {
     if (!isDrawing || !isShoppingMode) return;
     setIsDrawing(false);
     
@@ -137,11 +154,15 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
             ref={imageRef}
             src={imageUrl} 
             alt="Enlarged rendering" 
-            className={`object-contain max-w-full max-h-[80vh] md:max-h-[90vh] ${isShoppingMode ? 'cursor-crosshair' : ''}`}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            className={`object-contain max-w-full max-h-[80vh] md:max-h-[90vh] ${isShoppingMode ? 'cursor-crosshair touch-none' : ''}`}
+            onMouseDown={handleStart}
+            onMouseMove={handleMove}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            onTouchStart={handleStart}
+            onTouchMove={handleMove}
+            onTouchEnd={handleEnd}
+            onTouchCancel={handleEnd}
             draggable={false}
           />
           {renderSelectionBox()}
