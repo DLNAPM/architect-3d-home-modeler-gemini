@@ -283,19 +283,55 @@ export const cloudService = {
 
       // 3. Emergency Size Check
       // Firestore limit is 1,048,576 bytes. We check estimate JSON size.
-      const jsonString = JSON.stringify(designToSave);
-      const estimatedSize = new TextEncoder().encode(jsonString).length;
+      let jsonString = JSON.stringify(designToSave);
+      let estimatedSize = new TextEncoder().encode(jsonString).length;
 
-      if (estimatedSize >= 1000000) { // If still close to 1MB
-          console.warn(`Design size ${estimatedSize} exceeds safe limit. Applying emergency compression.`);
+      let quality = 0.6;
+      let maxWidth = 1024;
+
+      while (estimatedSize >= 900000 && maxWidth >= 400) {
+          console.warn(`Design size ${estimatedSize} exceeds safe limit. Applying emergency compression (width: ${maxWidth}, quality: ${quality}).`);
           
-          // Emergency pass: Compress renderings more aggressively to fit the 1MB limit
           if (designToSave.renderings) {
              designToSave.renderings = await Promise.all(designToSave.renderings.map(async (r) => {
-                 const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', 1024, 0.6);
+                 const compressedDataUri = await compressImage(r.imageUrl, 'image/jpeg', maxWidth, quality);
                  return { ...r, imageUrl: compressedDataUri };
              }));
           }
+
+          if (designToSave.uploadedImages) {
+            const keys = ['frontPlan', 'backPlan', 'facadeImage'] as const;
+            for (const key of keys) {
+                const imgData = designToSave.uploadedImages[key];
+                if (imgData && imgData.base64) {
+                    const compressedDataUri = await compressImage(imgData.base64, imgData.mimeType, maxWidth, quality);
+                    designToSave.uploadedImages[key] = {
+                        base64: compressedDataUri.split(',')[1],
+                        mimeType: 'image/jpeg'
+                    };
+                }
+            }
+          }
+
+          jsonString = JSON.stringify(designToSave);
+          estimatedSize = new TextEncoder().encode(jsonString).length;
+          
+          maxWidth = Math.floor(maxWidth * 0.75);
+          quality = Math.max(0.1, quality - 0.1);
+      }
+      
+      // If still too large, we might have to drop some renderings
+      while (estimatedSize >= 900000 && designToSave.renderings && designToSave.renderings.length > 1) {
+          console.warn(`Design size ${estimatedSize} still too large. Dropping oldest rendering.`);
+          // Drop the first (oldest) rendering that isn't favorited/liked if possible, otherwise just the oldest
+          const dropIndex = designToSave.renderings.findIndex(r => !r.favorited && !r.liked);
+          if (dropIndex >= 0) {
+              designToSave.renderings.splice(dropIndex, 1);
+          } else {
+              designToSave.renderings.shift();
+          }
+          jsonString = JSON.stringify(designToSave);
+          estimatedSize = new TextEncoder().encode(jsonString).length;
       }
 
       // We create a reference to: users -> {userId} -> designs -> {designId}
