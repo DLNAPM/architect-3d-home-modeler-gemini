@@ -140,12 +140,14 @@ export async function searchShoppingForItem(base64Image: string, mimeType: strin
   }
   prompt += `Use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products.
   
+CRITICAL INSTRUCTION FOR URLs: You MUST use the EXACT URL provided by the Google Search results. Do NOT make up, guess, or hallucinate URLs. If you cannot find a valid product page URL in the search results, do not include that product.
+
 You MUST respond with ONLY a valid JSON array of objects. Do not include any other text.
 Each object must have the following keys:
 - "title": The name of the product (string)
 - "price": The approximate price of the product (e.g., "$199.99") (string)
 - "store": The name of the store selling the product (string)
-- "url": A URL link to the product page (string)
+- "url": A URL link to the product page (string). This MUST be a real, verified URL from the search results.
 - "description": A brief description of the product (string, optional)`;
   
   try {
