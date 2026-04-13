@@ -16,6 +16,9 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
   const [selection, setSelection] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   
   const [isSearching, setIsSearching] = useState(false);
+  const [showSearchForm, setShowSearchForm] = useState(false);
+  const [searchDescription, setSearchDescription] = useState('');
+  const [searchStore, setSearchStore] = useState('');
   const [results, setResults] = useState<ShoppingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +53,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     setSelection(null);
     setResults([]);
     setError(null);
+    setShowSearchForm(false);
   };
 
   const handleMove = (e: React.MouseEvent<HTMLImageElement> | React.TouchEvent<HTMLImageElement>) => {
@@ -81,10 +85,18 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     }
     
     setSelection({ x, y, w, h });
-    await performSearch({ x, y, w, h });
+    setShowSearchForm(true);
   };
 
-  const performSearch = async (sel: { x: number, y: number, w: number, h: number }) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selection || !searchDescription.trim()) return;
+    
+    setShowSearchForm(false);
+    await performSearch(selection, searchDescription, searchStore);
+  };
+
+  const performSearch = async (sel: { x: number, y: number, w: number, h: number }, desc: string, store: string) => {
     const img = imageRef.current;
     if (!img) return;
 
@@ -112,7 +124,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       const base64 = dataUrl.split(',')[1];
       
-      const shoppingResults = await searchShoppingForItem(base64, 'image/jpeg');
+      const shoppingResults = await searchShoppingForItem(base64, 'image/jpeg', desc, store);
       setResults(shoppingResults);
     } catch (err) {
       console.error(err);
@@ -228,6 +240,52 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                 <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
                 <p>Analyzing object and searching the web...</p>
               </div>
+            ) : showSearchForm ? (
+              <form onSubmit={handleSearchSubmit} className="space-y-4">
+                <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800/30 mb-6">
+                  <p className="text-sm text-brand-800 dark:text-brand-300 font-medium">
+                    Object selected! Tell us a bit more to get better results.
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="searchDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Short Description <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="searchDescription"
+                    required
+                    value={searchDescription}
+                    onChange={(e) => setSearchDescription(e.target.value)}
+                    placeholder="e.g., Modern leather sofa"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="searchStore" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Store / Manufacturer <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="searchStore"
+                    value={searchStore}
+                    onChange={(e) => setSearchStore(e.target.value)}
+                    placeholder="e.g., West Elm, IKEA"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  disabled={!searchDescription.trim()}
+                  className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 mt-6"
+                >
+                  <Search className="h-4 w-4" />
+                  Search for Item
+                </button>
+              </form>
             ) : error ? (
               <div className="text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-sm">
                 {error}

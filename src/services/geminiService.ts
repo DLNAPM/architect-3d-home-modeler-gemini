@@ -132,9 +132,13 @@ const shoppingResultsSchema = {
   }
 };
 
-export async function searchShoppingForItem(base64Image: string, mimeType: string): Promise<ShoppingResult[]> {
+export async function searchShoppingForItem(base64Image: string, mimeType: string, description: string, store?: string): Promise<ShoppingResult[]> {
   const ai = getAiClient();
-  const prompt = `Identify the main furniture, fixture, or object in this image. Then, use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products.
+  let prompt = `Identify the main furniture, fixture, or object in this image. The user described it as: "${description}". `;
+  if (store) {
+    prompt += `They prefer to buy it from or manufactured by: "${store}". `;
+  }
+  prompt += `Use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products.
   
 You MUST respond with ONLY a valid JSON array of objects. Do not include any other text.
 Each object must have the following keys:
