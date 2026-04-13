@@ -108,6 +108,56 @@ const parseAndThrowApiError = (error: any, context: 'image' | 'video' | 'plan') 
 };
 
 
+export interface ShoppingResult {
+  title: string;
+  price: string;
+  store: string;
+  url: string;
+  description?: string;
+}
+
+const shoppingResultsSchema = {
+  type: Type.ARRAY,
+  description: "A list of shopping results for the identified item.",
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "The name of the product." },
+      price: { type: Type.STRING, description: "The approximate price of the product (e.g., '$199.99')." },
+      store: { type: Type.STRING, description: "The name of the store selling the product." },
+      url: { type: Type.STRING, description: "A URL link to the product page." },
+      description: { type: Type.STRING, description: "A brief description of the product." }
+    },
+    required: ["title", "price", "store", "url"]
+  }
+};
+
+export async function searchShoppingForItem(base64Image: string, mimeType: string): Promise<ShoppingResult[]> {
+  const ai = getAiClient();
+  const prompt = "Identify the main furniture, fixture, or object in this image. Then, use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products, including the store name, approximate price, a URL to the product, and a brief description.";
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        { text: prompt },
+        { inlineData: { data: base64Image, mimeType } }
+      ],
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: shoppingResultsSchema,
+      }
+    });
+
+    const parsed = JSON.parse(response.text);
+    return parsed as ShoppingResult[];
+  } catch (error) {
+    console.error("Error searching for item:", error);
+    throw new Error("Failed to search for the selected item.");
+  }
+}
+
 export async function generateRoomOptions(roomName: string): Promise<Record<string, CustomizationOption>> {
   const ai = getAiClient();
   const prompt = `You are an interior designer. Generate 5 distinct and relevant customization categories for designing a "${roomName}". For each category, provide a camelCase key, a display label, and 5 creative options. The options should be specific and inspiring.`;

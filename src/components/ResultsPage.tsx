@@ -7,6 +7,8 @@ import AddRoomModal from './AddRoomModal';
 import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move, Send } from 'lucide-react';
 import JSZip from 'jszip';
 
+import ImageShoppingOverlay from './ImageShoppingOverlay';
+
 interface ResultsPageProps {
   user: User | null;
   design: SavedDesign;
@@ -819,18 +821,11 @@ ${shotList}
       )}
 
       {enlargedImageUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-[80] flex items-center justify-center" onClick={handleCloseEnlarged}>
-          <div className="relative w-full h-full max-w-7xl max-h-[90vh] p-4" onClick={e => e.stopPropagation()}>
-            <img src={enlargedImageUrl} alt="Enlarged rendering" className="object-contain w-full h-full"/>
-            <button 
-              onClick={handleCloseEnlarged} 
-              className="absolute top-4 right-4 text-white bg-black/50 p-2 rounded-full hover:bg-black/80"
-              aria-label="Close enlarged view"
-            >
-              <X className="h-6 w-6"/>
-            </button>
-          </div>
-        </div>
+        <ImageShoppingOverlay 
+          imageUrl={enlargedImageUrl} 
+          isPremium={user?.subscriptionLevel === 'premium'}
+          onClose={handleCloseEnlarged} 
+        />
       )}
 
       <AddRoomModal
