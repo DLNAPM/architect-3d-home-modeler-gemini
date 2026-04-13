@@ -134,7 +134,15 @@ const shoppingResultsSchema = {
 
 export async function searchShoppingForItem(base64Image: string, mimeType: string): Promise<ShoppingResult[]> {
   const ai = getAiClient();
-  const prompt = "Identify the main furniture, fixture, or object in this image. Then, use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products, including the store name, approximate price, a URL to the product, and a brief description.";
+  const prompt = `Identify the main furniture, fixture, or object in this image. Then, use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products.
+  
+You MUST respond with ONLY a valid JSON array of objects. Do not include any other text.
+Each object must have the following keys:
+- "title": The name of the product (string)
+- "price": The approximate price of the product (e.g., "$199.99") (string)
+- "store": The name of the store selling the product (string)
+- "url": A URL link to the product page (string)
+- "description": A brief description of the product (string, optional)`;
   
   try {
     const response = await ai.models.generateContent({
@@ -145,12 +153,14 @@ export async function searchShoppingForItem(base64Image: string, mimeType: strin
       ],
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: shoppingResultsSchema,
       }
     });
 
-    const parsed = JSON.parse(response.text);
+    let text = response.text || "[]";
+    // Remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    const parsed = JSON.parse(text);
     return parsed as ShoppingResult[];
   } catch (error) {
     console.error("Error searching for item:", error);
