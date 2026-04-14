@@ -474,5 +474,57 @@ export const cloudService = {
       } catch (error) {
           console.error("Error removing share:", error);
       }
+  },
+
+  /**
+   * Saves an item to the user's wish list.
+   */
+  async saveWishListItem(userId: string, item: Omit<import('../types').WishListItem, 'id' | 'addedAt'>): Promise<string> {
+    if (!userId || !item) throw new Error("Missing userId or item");
+    try {
+      const wishListRef = collection(db, "users", userId, "wishlist");
+      const newItem = {
+        ...item,
+        addedAt: Date.now()
+      };
+      const docRef = await addDoc(wishListRef, newItem);
+      return docRef.id;
+    } catch (error) {
+      console.error("Error saving wish list item:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves the user's wish list.
+   */
+  async getWishList(userId: string): Promise<import('../types').WishListItem[]> {
+    if (!userId) return [];
+    try {
+      const wishListRef = collection(db, "users", userId, "wishlist");
+      const querySnapshot = await getDocs(wishListRef);
+      const items: import('../types').WishListItem[] = [];
+      querySnapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() } as import('../types').WishListItem);
+      });
+      return items.sort((a, b) => b.addedAt - a.addedAt);
+    } catch (error) {
+      console.error("Error fetching wish list:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Deletes an item from the user's wish list.
+   */
+  async deleteWishListItem(userId: string, itemId: string): Promise<void> {
+    if (!userId || !itemId) return;
+    try {
+      const itemRef = doc(db, "users", userId, "wishlist", itemId);
+      await deleteDoc(itemRef);
+    } catch (error) {
+      console.error("Error deleting wish list item:", error);
+      throw error;
+    }
   }
 };

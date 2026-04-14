@@ -13,6 +13,7 @@ import { cloudService } from './services/cloudService';
 import LoadingOverlay from './components/LoadingOverlay';
 import ApiKeyPrompt from './components/ApiKeyPrompt';
 import ShareModal from './components/ShareModal';
+import SharedWishListModal from './components/SharedWishListModal';
 import Footer from './components/Footer';
 import { Snowflake, LogOut } from 'lucide-react';
 
@@ -36,6 +37,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isKeyReady, setIsKeyReady] = useState<boolean | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [sharedWishListEmail, setSharedWishListEmail] = useState<string | null>(null);
   
   const [user, setUser] = useState<User | null>(null);
   const userRef = useRef<User | null>(null);
@@ -147,6 +149,15 @@ function App() {
 
   useEffect(() => {
     checkApiKey();
+    
+    // Check for shared wishlist in URL
+    const params = new URLSearchParams(window.location.search);
+    const wishlistEmail = params.get('wishlist');
+    if (wishlistEmail) {
+      setSharedWishListEmail(wishlistEmail);
+      // Clean up URL without reloading
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, [checkApiKey]);
 
   const currentDesign = useMemo(() => {
@@ -750,6 +761,13 @@ function App() {
         onShare={handleShareDesign}
         designTitle={currentDesign?.housePlan.title || 'Project'}
       />
+
+      {sharedWishListEmail && (
+        <SharedWishListModal 
+          targetEmail={sharedWishListEmail} 
+          onClose={() => setSharedWishListEmail(null)} 
+        />
+      )}
     </div>
   );
 }

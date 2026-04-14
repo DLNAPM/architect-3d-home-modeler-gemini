@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle, Heart } from 'lucide-react';
 import { searchShoppingForItem, ShoppingResult } from '../services/geminiService';
+import { cloudService } from '../services/cloudService';
+import { authService } from '../services/authService';
 
 interface ImageShoppingOverlayProps {
   imageUrl: string;
@@ -22,8 +24,34 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
   const [searchLocation, setSearchLocation] = useState('');
   const [results, setResults] = useState<ShoppingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [savedItemIndices, setSavedItemIndices] = useState<Set<number>>(new Set());
 
   const imageRef = useRef<HTMLImageElement>(null);
+
+  const handleSaveToWishList = async (e: React.MouseEvent, item: ShoppingResult, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const user = authService.currentUser;
+    if (!user) {
+      alert("Please log in to save items to your Wish List.");
+      return;
+    }
+
+    try {
+      await cloudService.saveWishListItem(user.email, {
+        title: item.title,
+        price: item.price,
+        store: item.store,
+        url: item.url,
+        description: item.description
+      });
+      setSavedItemIndices(prev => new Set(prev).add(index));
+    } catch (err) {
+      console.error("Failed to save to wish list:", err);
+      alert("Failed to save item to wish list.");
+    }
+  };
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent, rect: DOMRect) => {
     if ('touches' in e) {
@@ -55,6 +83,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     setResults([]);
     setError(null);
     setShowSearchForm(false);
+    setSavedItemIndices(new Set());
   };
 
   const handleMove = (e: React.MouseEvent<HTMLImageElement> | React.TouchEvent<HTMLImageElement>) => {
@@ -313,10 +342,22 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                     href={item.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-500 dark:hover:border-brand-500 transition-colors bg-gray-50 dark:bg-gray-800/50 group"
+                    className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-brand-500 dark:hover:border-brand-500 transition-colors bg-gray-50 dark:bg-gray-800/50 group relative"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2">{item.title}</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2 pr-8">{item.title}</h4>
+                      <button
+                        onClick={(e) => handleSaveToWishList(e, item, idx)}
+                        disabled={savedItemIndices.has(idx)}
+                        className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
+                          savedItemIndices.has(idx) 
+                            ? 'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400' 
+                            : 'bg-white text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:bg-gray-800 dark:hover:bg-gray-700 shadow-sm'
+                        }`}
+                        title={savedItemIndices.has(idx) ? "Saved to Wish List" : "Save to Wish List"}
+                      >
+                        <Heart className={`h-4 w-4 ${savedItemIndices.has(idx) ? 'fill-current' : ''}`} />
+                      </button>
                     </div>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{item.store}</span>

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send, Heart } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
+import WishListModal from './WishListModal';
 
 interface HeaderProps {
     user: User | null;
@@ -31,6 +32,7 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
+    const [showWishList, setShowWishList] = useState(false);
 
     useEffect(() => {
         const isDark = document.documentElement.classList.contains('dark');
@@ -97,6 +99,18 @@ const Header: React.FC<HeaderProps> = ({
                             <PlusSquare className="h-5 w-5" />
                             <span className="hidden sm:inline">New Design</span>
                         </button>
+                        
+                        {user && (
+                            <button
+                                onClick={() => setShowWishList(true)}
+                                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                title="View Wish List"
+                            >
+                                <Heart className="h-5 w-5" />
+                                <span className="hidden sm:inline">Wish List</span>
+                            </button>
+                        )}
+
                         <button
                             onClick={toggleDarkMode}
                             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -210,6 +224,9 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
                 </div>
+            )}
+            {showWishList && (
+                <WishListModal onClose={() => setShowWishList(false)} />
             )}
         </>
     );
