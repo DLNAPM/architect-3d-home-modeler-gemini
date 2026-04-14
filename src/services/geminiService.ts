@@ -132,11 +132,14 @@ const shoppingResultsSchema = {
   }
 };
 
-export async function searchShoppingForItem(base64Image: string, mimeType: string, description: string, store?: string): Promise<ShoppingResult[]> {
+export async function searchShoppingForItem(base64Image: string, mimeType: string, description: string, store?: string, location?: string): Promise<ShoppingResult[]> {
   const ai = getAiClient();
   let prompt = `Identify the main furniture, fixture, or object in this image. The user described it as: "${description}". `;
   if (store) {
     prompt += `They prefer to buy it from or manufactured by: "${store}". `;
+  }
+  if (location) {
+    prompt += `They prefer to find items available within 100 miles of this location: "${location}" for pickup or delivery. `;
   }
   prompt += `Use Google Search to find where this exact item or very similar items can be purchased. Provide a list of 3-5 specific products.
   

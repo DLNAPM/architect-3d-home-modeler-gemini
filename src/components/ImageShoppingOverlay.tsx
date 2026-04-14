@@ -19,6 +19,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
   const [showSearchForm, setShowSearchForm] = useState(false);
   const [searchDescription, setSearchDescription] = useState('');
   const [searchStore, setSearchStore] = useState('');
+  const [searchLocation, setSearchLocation] = useState('');
   const [results, setResults] = useState<ShoppingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,10 +94,10 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     if (!selection || !searchDescription.trim()) return;
     
     setShowSearchForm(false);
-    await performSearch(selection, searchDescription, searchStore);
+    await performSearch(selection, searchDescription, searchStore, searchLocation);
   };
 
-  const performSearch = async (sel: { x: number, y: number, w: number, h: number }, desc: string, store: string) => {
+  const performSearch = async (sel: { x: number, y: number, w: number, h: number }, desc: string, store: string, location: string) => {
     const img = imageRef.current;
     if (!img) return;
 
@@ -124,7 +125,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       const base64 = dataUrl.split(',')[1];
       
-      const shoppingResults = await searchShoppingForItem(base64, 'image/jpeg', desc, store);
+      const shoppingResults = await searchShoppingForItem(base64, 'image/jpeg', desc, store, location);
       setResults(shoppingResults);
     } catch (err) {
       console.error(err);
@@ -273,6 +274,20 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                     value={searchStore}
                     onChange={(e) => setSearchStore(e.target.value)}
                     placeholder="e.g., West Elm, IKEA"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="searchLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Location <span className="text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="searchLocation"
+                    value={searchLocation}
+                    onChange={(e) => setSearchLocation(e.target.value)}
+                    placeholder="e.g., Address or Zip Code"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
