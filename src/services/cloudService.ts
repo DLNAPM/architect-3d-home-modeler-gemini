@@ -517,5 +517,37 @@ export const cloudService = {
       console.error("Error deleting wish list item:", error);
       throw error;
     }
+  },
+
+  /**
+   * Saves the delivery address for the wish list.
+   */
+  async saveWishListAddress(userId: string, address: string): Promise<void> {
+    if (!userId) return;
+    try {
+      const userRef = doc(db, "users", userId);
+      await setDoc(userRef, { wishlistDeliveryAddress: address }, { merge: true });
+    } catch (error) {
+      console.error("Error saving wish list address:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves the delivery address for the wish list.
+   */
+  async getWishListAddress(userId: string): Promise<string | null> {
+    if (!userId) return null;
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        return userSnap.data().wishlistDeliveryAddress || null;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching wish list address:", error);
+      return null;
+    }
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Heart, ExternalLink, Loader2, MapPin } from 'lucide-react';
 import { WishListItem } from '../types';
 import { cloudService } from '../services/cloudService';
 
@@ -10,6 +10,7 @@ interface SharedWishListModalProps {
 
 const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, onClose }) => {
   const [items, setItems] = useState<WishListItem[]>([]);
+  const [deliveryAddress, setDeliveryAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,8 +21,12 @@ const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, 
   const loadWishList = async () => {
     setIsLoading(true);
     try {
-      const list = await cloudService.getWishList(targetEmail);
+      const [list, address] = await Promise.all([
+        cloudService.getWishList(targetEmail),
+        cloudService.getWishListAddress(targetEmail)
+      ]);
       setItems(list);
+      setDeliveryAddress(address);
     } catch (err: any) {
       console.error(err);
       if (err.message && err.message.includes("Missing or insufficient permissions")) {
@@ -70,8 +75,20 @@ const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">This wish list is empty</h3>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-6">
+            <div className="space-y-6">
+              {deliveryAddress && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex gap-3">
+                  <div className="mt-0.5">
+                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-1">Delivery Address</h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{deliveryAddress}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {items.length} {items.length === 1 ? 'item' : 'items'} saved
                 </p>
