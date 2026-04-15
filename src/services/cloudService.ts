@@ -496,7 +496,9 @@ export const cloudService = {
       const querySnapshot = await getDocs(wishListRef);
       const items: import('../types').WishListItem[] = [];
       querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as import('../types').WishListItem);
+        if (doc.id !== "_config_") {
+          items.push({ id: doc.id, ...doc.data() } as import('../types').WishListItem);
+        }
       });
       return items.sort((a, b) => b.addedAt - a.addedAt);
     } catch (error) {
@@ -525,8 +527,8 @@ export const cloudService = {
   async saveWishListAddress(userId: string, address: string): Promise<void> {
     if (!userId) return;
     try {
-      const userRef = doc(db, "users", userId);
-      await setDoc(userRef, { wishlistDeliveryAddress: address }, { merge: true });
+      const configRef = doc(db, "users", userId, "wishlist", "_config_");
+      await setDoc(configRef, { wishlistDeliveryAddress: address }, { merge: true });
     } catch (error) {
       console.error("Error saving wish list address:", error);
       throw error;
@@ -539,10 +541,10 @@ export const cloudService = {
   async getWishListAddress(userId: string): Promise<string | null> {
     if (!userId) return null;
     try {
-      const userRef = doc(db, "users", userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        return userSnap.data().wishlistDeliveryAddress || null;
+      const configRef = doc(db, "users", userId, "wishlist", "_config_");
+      const configSnap = await getDoc(configRef);
+      if (configSnap.exists()) {
+        return configSnap.data().wishlistDeliveryAddress || null;
       }
       return null;
     } catch (error) {
