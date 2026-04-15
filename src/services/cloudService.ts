@@ -55,50 +55,36 @@ export const cloudService = {
   async saveUser(user: { uid: string; name: string; email: string; picture: string }): Promise<void> {
     if (!user.email || !user.uid) return;
     try {
-      // Save to users/{uid} to satisfy Firestore rules that check request.auth.uid
-      const userUidRef = doc(db, "users", user.uid);
-      const userUidSnap = await getDoc(userUidRef);
-      
-      const userData = {
-        uid: user.uid,
-        name: user.name,
-        email: user.email,
-        picture: user.picture,
-        subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
-        role: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'admin' : 'user',
-        lastLogin: Date.now()
-      };
-
-      if (!userUidSnap.exists()) {
-        await setDoc(userUidRef, { ...userData, createdAt: Date.now() });
-      } else {
-        const updateData: any = { ...userData };
-        if (user.email === 'dlaniger.napm.consulting@gmail.com') {
-          if (userUidSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
-          if (userUidSnap.data()?.role !== 'admin') updateData.role = 'admin';
-        } else {
-          delete updateData.subscriptionLevel; // preserve existing
-          delete updateData.role; // preserve existing
-        }
-        await setDoc(userUidRef, updateData, { merge: true });
-      }
-
-      // Also save to users/{email} for backward compatibility with existing designs
+      // Save to users/{email} for backward compatibility with existing designs
       const userEmailRef = doc(db, "users", user.email);
-      const userEmailSnap = await getDoc(userEmailRef);
-      
-      if (!userEmailSnap.exists()) {
-        await setDoc(userEmailRef, { ...userData, createdAt: Date.now() });
-      } else {
-        const updateData: any = { ...userData };
-        if (user.email === 'dlaniger.napm.consulting@gmail.com') {
-          if (userEmailSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
-          if (userEmailSnap.data()?.role !== 'admin') updateData.role = 'admin';
+      try {
+        const userEmailSnap = await getDoc(userEmailRef);
+        
+        const userData = {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          picture: user.picture,
+          subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
+          role: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'admin' : 'user',
+          lastLogin: Date.now()
+        };
+
+        if (!userEmailSnap.exists()) {
+          await setDoc(userEmailRef, { ...userData, createdAt: Date.now() });
         } else {
-          delete updateData.subscriptionLevel; // preserve existing
-          delete updateData.role; // preserve existing
+          const updateData: any = { ...userData };
+          if (user.email === 'dlaniger.napm.consulting@gmail.com') {
+            if (userEmailSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
+            if (userEmailSnap.data()?.role !== 'admin') updateData.role = 'admin';
+          } else {
+            delete updateData.subscriptionLevel; // preserve existing
+            delete updateData.role; // preserve existing
+          }
+          await setDoc(userEmailRef, updateData, { merge: true });
         }
-        await setDoc(userEmailRef, updateData, { merge: true });
+      } catch (err) {
+        console.error(`Failed to save user profile to users/${user.email}:`, err);
       }
     } catch (error) {
       console.error("Error saving user profile:", error);
@@ -445,8 +431,12 @@ export const cloudService = {
                 } else {
                     console.warn(`Shared design not found: ${designId} owned by ${ownerId}`);
                 }
-              } catch (err) {
-                  console.error(`Failed to fetch shared design ${designId}`, err);
+              } catch (err: any) {
+                  if (err.message && err.message.includes("Missing or insufficient permissions")) {
+                      console.warn(`Could not access shared design ${designId}. This is likely an old share record that needs to be re-shared by the owner to work with the new security rules.`);
+                  } else {
+                      console.error(`Failed to fetch shared design ${designId}`, err);
+                  }
               }
           }
           return sharedDesigns;
