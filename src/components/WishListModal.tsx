@@ -74,7 +74,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
   };
 
   const handleShareBuilder = () => {
-    performShare();
+    performShare('builder');
     setShareMode('none');
   };
 
@@ -87,7 +87,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
     setIsSavingAddress(true);
     try {
       await cloudService.saveWishListAddress(user.email, deliveryAddress);
-      performShare();
+      performShare('family');
       setShareMode('none');
     } catch (err) {
       console.error(err);
@@ -97,9 +97,9 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
     }
   };
 
-  const performShare = () => {
+  const performShare = (mode: 'builder' | 'family') => {
     if (!user) return;
-    const shareUrl = `${window.location.origin}?wishlist=${encodeURIComponent(user.email)}`;
+    const shareUrl = `${window.location.origin}?wishlist=${encodeURIComponent(user.email)}&mode=${mode}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

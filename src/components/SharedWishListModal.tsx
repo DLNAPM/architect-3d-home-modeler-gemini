@@ -5,10 +5,11 @@ import { cloudService } from '../services/cloudService';
 
 interface SharedWishListModalProps {
   targetEmail: string;
+  mode?: string | null;
   onClose: () => void;
 }
 
-const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, onClose }) => {
+const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, mode, onClose }) => {
   const [items, setItems] = useState<WishListItem[]>([]);
   const [deliveryAddress, setDeliveryAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,14 +17,14 @@ const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, 
 
   useEffect(() => {
     loadWishList();
-  }, [targetEmail]);
+  }, [targetEmail, mode]);
 
   const loadWishList = async () => {
     setIsLoading(true);
     try {
       const [list, address] = await Promise.all([
         cloudService.getWishList(targetEmail),
-        cloudService.getWishListAddress(targetEmail)
+        mode === 'family' ? cloudService.getWishListAddress(targetEmail) : Promise.resolve(null)
       ]);
       setItems(list);
       setDeliveryAddress(address);
