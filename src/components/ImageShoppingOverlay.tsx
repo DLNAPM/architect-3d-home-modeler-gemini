@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle, Heart } from 'lucide-react';
+import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle, Heart, CheckSquare, Square } from 'lucide-react';
 import { searchShoppingForItem, ShoppingResult } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 import { authService } from '../services/authService';
+import { WishListInfo } from '../types';
 
 interface ImageShoppingOverlayProps {
   imageUrl: string;
@@ -25,10 +26,24 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
   const [results, setResults] = useState<ShoppingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [savedItemIndices, setSavedItemIndices] = useState<Set<number>>(new Set());
+  
+  const [wishlists, setWishlists] = useState<WishListInfo[]>([]);
+  const [selectedItemForWishlist, setSelectedItemForWishlist] = useState<{item: ShoppingResult, index: number} | null>(null);
+  const [selectedWishlistIds, setSelectedWishlistIds] = useState<Set<string>>(new Set(['default']));
+  const [isSavingToWishlist, setIsSavingToWishlist] = useState(false);
 
   const imageRef = useRef<HTMLImageElement>(null);
 
-  const handleSaveToWishList = async (e: React.MouseEvent, item: ShoppingResult, index: number) => {
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (user && user.email !== 'guest-local-session') {
+      cloudService.getWishListsConfig(user.email).then(lists => {
+        setWishlists(lists);
+      }).catch(err => console.error("Failed to load wishlists:", err));
+    }
+  }, []);
+
+  const handleSaveClick = (e: React.MouseEvent, item: ShoppingResult, index: number) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -38,15 +53,32 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
       return;
     }
 
+    if (wishlists.length <= 1) {
+      // Only one wishlist, save directly
+      saveItemToWishlists(item, index, ['default']);
+    } else {
+      // Show modal to select wishlists
+      setSelectedItemForWishlist({ item, index });
+      setSelectedWishlistIds(new Set(['default']));
+    }
+  };
+
+  const saveItemToWishlists = async (item: ShoppingResult, index: number, listIds: string[]) => {
+    const user = authService.getCurrentUser();
+    if (!user || user.email === 'guest-local-session') return;
+
+    setIsSavingToWishlist(true);
     try {
       await cloudService.saveWishListItem(user.email, {
         title: item.title,
         price: item.price,
         store: item.store,
         url: item.url,
-        description: item.description
+        description: item.description,
+        wishlistIds: listIds
       });
       setSavedItemIndices(prev => new Set(prev).add(index));
+      setSelectedItemForWishlist(null);
     } catch (err: any) {
       console.error("Failed to save to wish list:", err);
       if (err.message && err.message.includes("Missing or insufficient permissions")) {
@@ -54,6 +86,8 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
       } else {
         alert("Failed to save item to wish list.");
       }
+    } finally {
+      setIsSavingToWishlist(false);
     }
   };
 
@@ -351,7 +385,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2 pr-8">{item.title}</h4>
                       <button
-                        onClick={(e) => handleSaveToWishList(e, item, idx)}
+                        onClick={(e) => handleSaveClick(e, item, idx)}
                         disabled={savedItemIndices.has(idx)}
                         className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
                           savedItemIndices.has(idx) 
@@ -384,6 +418,50 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
                 <p>Select an object in the image to find where to buy it.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Wishlist Selection Modal */}
+      {selectedItemForWishlist && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Save to Wish Lists</h3>
+              <button 
+                onClick={() => setSelectedItemForWishlist(null)}
+                className="text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded-full"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
+              {wishlists.map(wl => (
+                <label key={wl.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newSet = new Set(selectedWishlistIds);
+                      if (newSet.has(wl.id)) newSet.delete(wl.id);
+                      else newSet.add(wl.id);
+                      setSelectedWishlistIds(newSet);
+                    }}
+                    className="text-brand-600 dark:text-brand-400"
+                  >
+                    {selectedWishlistIds.has(wl.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                  </button>
+                  <span className="text-gray-900 dark:text-white font-medium">{wl.name}</span>
+                </label>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => saveItemToWishlists(selectedItemForWishlist.item, selectedItemForWishlist.index, Array.from(selectedWishlistIds))}
+              disabled={selectedWishlistIds.size === 0 || isSavingToWishlist}
+              className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSavingToWishlist ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save Item'}
+            </button>
           </div>
         </div>
       )}

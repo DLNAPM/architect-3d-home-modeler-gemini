@@ -45,6 +45,12 @@ export interface SavedDesign {
   accessLevel?: AccessLevel; // Access level for the current user session
 }
 
+export interface WishListInfo {
+  id: string;
+  name: string;
+  deliveryAddress?: string;
+}
+
 export interface WishListItem {
   id: string;
   title: string;
@@ -53,6 +59,7 @@ export interface WishListItem {
   url: string;
   description?: string;
   addedAt: number;
+  wishlistIds?: string[];
 }
 
 export enum AppView {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, ExternalLink, Trash2, Loader2, Share2, Copy, CheckCircle2 } from 'lucide-react';
-import { WishListItem } from '../types';
+import { X, Heart, ExternalLink, Trash2, Loader2, Share2, Copy, CheckCircle2, Plus } from 'lucide-react';
+import { WishListItem, WishListInfo } from '../types';
 import { cloudService } from '../services/cloudService';
 import { authService } from '../services/authService';
 
@@ -10,6 +10,11 @@ interface WishListModalProps {
 
 const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
   const [items, setItems] = useState<WishListItem[]>([]);
+  const [wishlists, setWishlists] = useState<WishListInfo[]>([{ id: 'default', name: 'My Wish List' }]);
+  const [activeWishlistId, setActiveWishlistId] = useState<string>('default');
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -20,32 +25,35 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
 
   const user = authService.getCurrentUser();
 
+  const activeWishlist = wishlists.find(w => w.id === activeWishlistId) || wishlists[0];
+  const activeItems = items.filter(item => item.wishlistIds?.includes(activeWishlistId));
+
   useEffect(() => {
     if (user && user.email !== 'guest-local-session') {
-      loadWishList();
-      loadAddress();
+      loadData();
     } else {
       setIsLoading(false);
       setError("Please log in to view your Wish List.");
     }
   }, [user]);
 
-  const loadAddress = async () => {
-    if (!user) return;
-    try {
-      const address = await cloudService.getWishListAddress(user.email);
-      if (address) setDeliveryAddress(address);
-    } catch (err) {
-      console.error("Failed to load address", err);
-    }
-  };
-
-  const loadWishList = async () => {
+  const loadData = async () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const list = await cloudService.getWishList(user.email);
-      setItems(list);
+      const [listsConfig, listItems] = await Promise.all([
+        cloudService.getWishListsConfig(user.email),
+        cloudService.getWishList(user.email)
+      ]);
+      setWishlists(listsConfig);
+      setItems(listItems);
+      
+      const active = listsConfig.find(w => w.id === activeWishlistId);
+      if (active && active.deliveryAddress) {
+        setDeliveryAddress(active.deliveryAddress);
+      } else {
+        setDeliveryAddress('');
+      }
     } catch (err: any) {
       console.error(err);
       if (err.message && err.message.includes("Missing or insufficient permissions")) {
@@ -58,14 +66,53 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
     }
   };
 
+  useEffect(() => {
+    if (activeWishlist && activeWishlist.deliveryAddress) {
+      setDeliveryAddress(activeWishlist.deliveryAddress);
+    } else {
+      setDeliveryAddress('');
+    }
+  }, [activeWishlistId, activeWishlist]);
+
+  const handleCreateList = async () => {
+    if (!user || !newListName.trim()) return;
+    
+    const newId = newListName.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const newList: WishListInfo = { id: newId, name: newListName.trim() };
+    const updatedLists = [...wishlists, newList];
+    
+    try {
+      await cloudService.saveWishListsConfig(user.email, updatedLists);
+      setWishlists(updatedLists);
+      setActiveWishlistId(newId);
+      setIsCreatingList(false);
+      setNewListName('');
+    } catch (err) {
+      console.error("Failed to create list", err);
+      alert("Failed to create wish list.");
+    }
+  };
+
   const handleDelete = async (itemId: string) => {
     if (!user) return;
     try {
-      await cloudService.deleteWishListItem(user.email, itemId);
-      setItems(prev => prev.filter(item => item.id !== itemId));
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const newWishlistIds = (item.wishlistIds || ['default']).filter(id => id !== activeWishlistId);
+      
+      if (newWishlistIds.length === 0) {
+        // Remove completely
+        await cloudService.deleteWishListItem(user.email, itemId);
+        setItems(prev => prev.filter(i => i.id !== itemId));
+      } else {
+        // Just remove from this list
+        await cloudService.updateWishListItem(user.email, itemId, { wishlistIds: newWishlistIds });
+        setItems(prev => prev.map(i => i.id === itemId ? { ...i, wishlistIds: newWishlistIds } : i));
+      }
     } catch (err) {
       console.error(err);
-      alert("Failed to delete item.");
+      alert("Failed to remove item.");
     }
   };
 
@@ -86,7 +133,13 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
     if (!user) return;
     setIsSavingAddress(true);
     try {
-      await cloudService.saveWishListAddress(user.email, deliveryAddress);
+      await cloudService.saveWishListAddress(user.email, deliveryAddress, activeWishlistId);
+      
+      // Update local state
+      setWishlists(prev => prev.map(w => 
+        w.id === activeWishlistId ? { ...w, deliveryAddress } : w
+      ));
+
       performShare('family');
       setShareMode('none');
     } catch (err) {
@@ -99,7 +152,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
 
   const performShare = (mode: 'builder' | 'family') => {
     if (!user) return;
-    const shareUrl = `${window.location.origin}?wishlist=${encodeURIComponent(user.email)}&mode=${mode}`;
+    const shareUrl = `${window.location.origin}?wishlist=${encodeURIComponent(user.email)}&mode=${mode}&listId=${activeWishlistId}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -128,6 +181,53 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
+          {!isLoading && !error && (
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              {wishlists.map(wl => (
+                <button
+                  key={wl.id}
+                  onClick={() => setActiveWishlistId(wl.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    activeWishlistId === wl.id 
+                      ? 'bg-brand-600 text-white' 
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {wl.name}
+                </button>
+              ))}
+              
+              {user?.subscriptionLevel === 'premium' && (
+                isCreatingList ? (
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-full px-2 py-1">
+                    <input
+                      type="text"
+                      value={newListName}
+                      onChange={(e) => setNewListName(e.target.value)}
+                      placeholder="List name..."
+                      className="bg-transparent border-none focus:ring-0 text-sm w-24 dark:text-white px-2"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
+                    />
+                    <button onClick={handleCreateList} className="p-1 text-brand-600 hover:bg-brand-100 rounded-full">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => { setIsCreatingList(false); setNewListName(''); }} className="p-1 text-gray-500 hover:bg-gray-200 rounded-full">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsCreatingList(true)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors border border-dashed border-brand-300 dark:border-brand-700"
+                  >
+                    <Plus className="h-4 w-4" /> New List
+                  </button>
+                )
+              )}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
               <Loader2 className="h-8 w-8 animate-spin text-brand-600 mb-4" />
@@ -137,12 +237,12 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
             <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl">
               <p className="whitespace-pre-wrap text-left">{error}</p>
             </div>
-          ) : items.length === 0 ? (
+          ) : activeItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                 <Heart className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Your wish list is empty</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">This wish list is empty</h3>
               <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                 Use the Visual Shopping tool on your generated designs to find and save items you love.
               </p>
@@ -151,7 +251,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-6">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {items.length} {items.length === 1 ? 'item' : 'items'} saved
+                  {activeItems.length} {activeItems.length === 1 ? 'item' : 'items'} saved
                 </p>
                 <button
                   onClick={handleShareClick}
@@ -163,7 +263,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {items.map((item) => (
+                {activeItems.map((item) => (
                   <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col relative group">
                     <button
                       onClick={() => handleDelete(item.id)}

@@ -39,6 +39,7 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [sharedWishListEmail, setSharedWishListEmail] = useState<string | null>(null);
   const [sharedWishListMode, setSharedWishListMode] = useState<string | null>(null);
+  const [sharedWishListId, setSharedWishListId] = useState<string | null>(null);
   
   const [user, setUser] = useState<User | null>(null);
   const userRef = useRef<User | null>(null);
@@ -155,9 +156,11 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const wishlistEmail = params.get('wishlist');
     const mode = params.get('mode');
+    const listId = params.get('listId') || 'default';
     if (wishlistEmail) {
       setSharedWishListEmail(wishlistEmail);
       setSharedWishListMode(mode);
+      setSharedWishListId(listId);
       // Clean up URL without reloading
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -679,9 +682,11 @@ function App() {
               <SharedWishListModal 
                 targetEmail={sharedWishListEmail} 
                 mode={sharedWishListMode}
+                wishlistId={sharedWishListId || 'default'}
                 onClose={() => {
                   setSharedWishListEmail(null);
                   setSharedWishListMode(null);
+                  setSharedWishListId(null);
                 }} 
               />
             )}
@@ -779,9 +784,11 @@ function App() {
         <SharedWishListModal 
           targetEmail={sharedWishListEmail} 
           mode={sharedWishListMode}
+          wishlistId={sharedWishListId || 'default'}
           onClose={() => {
             setSharedWishListEmail(null);
             setSharedWishListMode(null);
+            setSharedWishListId(null);
           }} 
         />
       )}

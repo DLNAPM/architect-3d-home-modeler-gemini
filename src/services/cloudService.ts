@@ -476,6 +476,7 @@ export const cloudService = {
       const wishListRef = collection(db, "users", userId, "wishlist");
       const newItem = {
         ...item,
+        wishlistIds: item.wishlistIds || ['default'],
         addedAt: Date.now()
       };
       const docRef = await addDoc(wishListRef, newItem);
@@ -487,7 +488,21 @@ export const cloudService = {
   },
 
   /**
-   * Retrieves the user's wish list.
+   * Updates an existing wish list item (e.g. to change which wishlists it belongs to).
+   */
+  async updateWishListItem(userId: string, itemId: string, updates: Partial<import('../types').WishListItem>): Promise<void> {
+    if (!userId || !itemId) return;
+    try {
+      const itemRef = doc(db, "users", userId, "wishlist", itemId);
+      await setDoc(itemRef, updates, { merge: true });
+    } catch (error) {
+      console.error("Error updating wish list item:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves the user's wish list items.
    */
   async getWishList(userId: string): Promise<import('../types').WishListItem[]> {
     if (!userId) return [];
@@ -497,7 +512,12 @@ export const cloudService = {
       const items: import('../types').WishListItem[] = [];
       querySnapshot.forEach((doc) => {
         if (doc.id !== "_config_") {
-          items.push({ id: doc.id, ...doc.data() } as import('../types').WishListItem);
+          const data = doc.data();
+          items.push({ 
+            id: doc.id, 
+            ...data,
+            wishlistIds: data.wishlistIds || ['default'] 
+          } as import('../types').WishListItem);
         }
       });
       return items.sort((a, b) => b.addedAt - a.addedAt);
@@ -522,13 +542,61 @@ export const cloudService = {
   },
 
   /**
-   * Saves the delivery address for the wish list.
+   * Retrieves the wish lists configuration.
    */
-  async saveWishListAddress(userId: string, address: string): Promise<void> {
+  async getWishListsConfig(userId: string): Promise<import('../types').WishListInfo[]> {
+    if (!userId) return [];
+    try {
+      const configRef = doc(db, "users", userId, "wishlist", "_config_");
+      const configSnap = await getDoc(configRef);
+      if (configSnap.exists() && configSnap.data().wishlists) {
+        return configSnap.data().wishlists;
+      }
+      return [{ id: 'default', name: 'My Wish List' }];
+    } catch (error) {
+      console.error("Error fetching wish lists config:", error);
+      return [{ id: 'default', name: 'My Wish List' }];
+    }
+  },
+
+  /**
+   * Saves the wish lists configuration.
+   */
+  async saveWishListsConfig(userId: string, wishlists: import('../types').WishListInfo[]): Promise<void> {
     if (!userId) return;
     try {
       const configRef = doc(db, "users", userId, "wishlist", "_config_");
-      await setDoc(configRef, { wishlistDeliveryAddress: address }, { merge: true });
+      await setDoc(configRef, { wishlists }, { merge: true });
+    } catch (error) {
+      console.error("Error saving wish lists config:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Saves the delivery address for a specific wish list.
+   */
+  async saveWishListAddress(userId: string, address: string, wishlistId: string = 'default'): Promise<void> {
+    if (!userId) return;
+    try {
+      const configRef = doc(db, "users", userId, "wishlist", "_config_");
+      const configSnap = await getDoc(configRef);
+      let wishlists: import('../types').WishListInfo[] = [{ id: 'default', name: 'My Wish List' }];
+      
+      if (configSnap.exists() && configSnap.data().wishlists) {
+        wishlists = configSnap.data().wishlists;
+      }
+
+      const updatedWishlists = wishlists.map(wl => 
+        wl.id === wishlistId ? { ...wl, deliveryAddress: address } : wl
+      );
+
+      // If the wishlist wasn't found, add it (shouldn't happen normally)
+      if (!updatedWishlists.some(wl => wl.id === wishlistId)) {
+        updatedWishlists.push({ id: wishlistId, name: wishlistId, deliveryAddress: address });
+      }
+
+      await setDoc(configRef, { wishlists: updatedWishlists }, { merge: true });
     } catch (error) {
       console.error("Error saving wish list address:", error);
       throw error;
@@ -536,15 +604,17 @@ export const cloudService = {
   },
 
   /**
-   * Retrieves the delivery address for the wish list.
+   * Retrieves the delivery address for a specific wish list.
    */
-  async getWishListAddress(userId: string): Promise<string | null> {
+  async getWishListAddress(userId: string, wishlistId: string = 'default'): Promise<string | null> {
     if (!userId) return null;
     try {
       const configRef = doc(db, "users", userId, "wishlist", "_config_");
       const configSnap = await getDoc(configRef);
-      if (configSnap.exists()) {
-        return configSnap.data().wishlistDeliveryAddress || null;
+      if (configSnap.exists() && configSnap.data().wishlists) {
+        const wishlists: import('../types').WishListInfo[] = configSnap.data().wishlists;
+        const wl = wishlists.find(w => w.id === wishlistId);
+        return wl?.deliveryAddress || null;
       }
       return null;
     } catch (error) {
