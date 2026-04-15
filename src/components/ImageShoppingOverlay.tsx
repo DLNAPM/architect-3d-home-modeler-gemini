@@ -32,8 +32,8 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     e.preventDefault();
     e.stopPropagation();
     
-    const user = authService.currentUser;
-    if (!user) {
+    const user = authService.getCurrentUser();
+    if (!user || user.email === 'guest-local-session') {
       alert("Please log in to save items to your Wish List.");
       return;
     }
@@ -47,9 +47,13 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
         description: item.description
       });
       setSavedItemIndices(prev => new Set(prev).add(index));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save to wish list:", err);
-      alert("Failed to save item to wish list.");
+      if (err.message && err.message.includes("Missing or insufficient permissions")) {
+        alert("Permission Denied: You need to update your Firestore Security Rules to allow access to the 'wishlist' collection.\n\nPlease add this rule inside the match /users/{userEmail} block:\n\nmatch /wishlist/{itemId} {\n  allow read: if true;\n  allow write: if isOwner(userEmail);\n}");
+      } else {
+        alert("Failed to save item to wish list.");
+      }
     }
   };
 

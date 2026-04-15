@@ -22,9 +22,13 @@ const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, 
     try {
       const list = await cloudService.getWishList(targetEmail);
       setItems(list);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to load wish list.");
+      if (err.message && err.message.includes("Missing or insufficient permissions")) {
+        setError("Permission Denied: The owner of this wish list needs to update their Firestore Security Rules to allow public access to their 'wishlist' collection.");
+      } else {
+        setError("Failed to load wish list.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +60,7 @@ const SharedWishListModal: React.FC<SharedWishListModalProps> = ({ targetEmail, 
             </div>
           ) : error ? (
             <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl">
-              <p>{error}</p>
+              <p className="whitespace-pre-wrap text-left">{error}</p>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">

@@ -14,10 +14,10 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const user = authService.currentUser;
+  const user = authService.getCurrentUser();
 
   useEffect(() => {
-    if (user) {
+    if (user && user.email !== 'guest-local-session') {
       loadWishList();
     } else {
       setIsLoading(false);
@@ -31,9 +31,13 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
     try {
       const list = await cloudService.getWishList(user.email);
       setItems(list);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to load wish list.");
+      if (err.message && err.message.includes("Missing or insufficient permissions")) {
+        setError("Permission Denied: You need to update your Firestore Security Rules to allow access to the 'wishlist' collection.\n\nPlease add this rule inside the match /users/{userEmail} block:\n\nmatch /wishlist/{itemId} {\n  allow read: if true;\n  allow write: if isOwner(userEmail);\n}");
+      } else {
+        setError("Failed to load wish list.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +92,7 @@ const WishListModal: React.FC<WishListModalProps> = ({ onClose }) => {
             </div>
           ) : error ? (
             <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl">
-              <p>{error}</p>
+              <p className="whitespace-pre-wrap text-left">{error}</p>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">

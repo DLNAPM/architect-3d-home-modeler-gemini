@@ -400,9 +400,10 @@ export const cloudService = {
       try {
           // Normalize email
           const email = targetEmail.trim().toLowerCase();
+          const shareId = `${email}_${designId}`;
           
-          // Add to 'shared_projects' collection
-          await addDoc(collection(db, "shared_projects"), {
+          // Add to 'shared_projects' collection with a predictable ID for security rules
+          await setDoc(doc(db, "shared_projects", shareId), {
               ownerId,
               designId,
               targetEmail: email,
@@ -510,7 +511,7 @@ export const cloudService = {
       return items.sort((a, b) => b.addedAt - a.addedAt);
     } catch (error) {
       console.error("Error fetching wish list:", error);
-      return [];
+      throw error;
     }
   },
 

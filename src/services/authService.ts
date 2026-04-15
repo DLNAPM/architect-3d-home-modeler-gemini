@@ -102,4 +102,8 @@ export const authService = {
             }
         };
     },
+
+    getCurrentUser: (): User | null => {
+        return currentUser;
+    }
 };
