@@ -672,6 +672,12 @@ function App() {
                 onSelectKey={handleSelectKey}
                 error={error}
             />
+            {sharedWishListEmail && (
+              <SharedWishListModal 
+                targetEmail={sharedWishListEmail} 
+                onClose={() => setSharedWishListEmail(null)} 
+              />
+            )}
         </>
       );
   }
