@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send, Heart } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send, Heart, ShoppingCart } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
 import WishListModal from './WishListModal';
@@ -210,6 +210,10 @@ const Header: React.FC<HeaderProps> = ({
                                         <li className="flex items-start gap-2">
                                             <Sparkles className="h-4 w-4 text-yellow-500 mt-1" />
                                             <span><strong>Interactive Slideshows:</strong> View your favorite designs in a presentation mode with custom transitions and background music.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
+                                            <ShoppingCart className="h-4 w-4 text-green-500 mt-1" />
+                                            <span><strong>Visual Shopping & Wish Lists:</strong> Select items in your generated designs to find real-world products. Save them to multiple wish lists and share them with your builder or family!</span>
                                         </li>
                                     </ul>
                                 </div>

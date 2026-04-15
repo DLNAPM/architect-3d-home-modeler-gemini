@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle } from 'lucide-react';
+import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle, ShoppingCart } from 'lucide-react';
 import Footer from './Footer';
 
 interface LandingPageProps {
@@ -87,7 +87,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKe
 
       {/* Feature Grid */}
       <div className="bg-gray-50 dark:bg-gray-800/50 py-16 px-6 z-10">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
               <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -115,6 +115,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKe
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Cross-Device Cloud Sync</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Your designs are saved to your account. Start on your desktop and show your clients on a tablet.
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center mb-4">
+              <ShoppingCart className="h-6 w-6 text-pink-600 dark:text-pink-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Visual Shopping & Wish Lists</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Select items in your generated designs to find real-world products. Save them to multiple wish lists and share them with your builder or family!
             </p>
           </div>
         </div>
