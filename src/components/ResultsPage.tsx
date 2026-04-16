@@ -4,7 +4,7 @@ import { Rendering, Room, SavedDesign, User } from '../types';
 import CustomizationPanel from './CustomizationPanel';
 import ImageCard from './ImageCard';
 import AddRoomModal from './AddRoomModal';
-import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move, Send } from 'lucide-react';
+import { LayoutGrid, Trash2, Play, X, Video, AlertTriangle, RefreshCw, Film, PlusCircle, Settings, Music, Type, Clock, Activity, Repeat, Pause, Share2, Lock, Move, Send, CheckSquare } from 'lucide-react';
 import JSZip from 'jszip';
 
 import ImageShoppingOverlay from './ImageShoppingOverlay';
@@ -237,6 +237,14 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ user, design, onNewRendering,
     if(selectedRenderings.length > 0) {
       onDeleteRenderings(selectedRenderings);
       setSelectedRenderings([]);
+    }
+  }
+
+  const handleSelectAll = () => {
+    if (selectedRenderings.length === renderings.length) {
+      setSelectedRenderings([]);
+    } else {
+      setSelectedRenderings(renderings.map(r => r.id));
     }
   }
 
@@ -556,6 +564,19 @@ ${shotList}
                       title="Share selected as email"
                     >
                         <Send className="h-4 w-4" /> Email ({selectedRenderings.length})
+                    </button>
+                )}
+                {renderings.length > 0 && !isViewOnly && (
+                    <button 
+                        onClick={handleSelectAll}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            selectedRenderings.length === renderings.length
+                                ? 'bg-brand-500 hover:bg-brand-600 text-white shadow-inner' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                        title={selectedRenderings.length === renderings.length ? "Deselect All" : "Select All"}
+                    >
+                        <CheckSquare className="h-4 w-4" /> {selectedRenderings.length === renderings.length ? 'Deselect All' : 'Select All'}
                     </button>
                 )}
                 {renderings.length > 1 && !isViewOnly && (
