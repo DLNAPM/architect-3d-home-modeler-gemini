@@ -357,7 +357,7 @@ function App() {
     }
   }, [saveDesignChange, handleError, getUserId, checkGuestLimit]);
   
-  const handleNewRendering = useCallback(async (prompt: string, category: string) => {
+  const handleNewRendering = useCallback(async (prompt: string, category: string, options?: Record<string, string>, customText?: string) => {
     if (!currentDesignId) return;
     if (!checkGuestLimit()) return;
 
@@ -383,7 +383,9 @@ function App() {
         imageUrl,
         prompt,
         liked: false,
-        favorited: false
+        favorited: false,
+        options,
+        customText
       };
       
       const updatedDesign = { ...design, renderings: [...design.renderings, newRendering] };

@@ -12,7 +12,7 @@ import ImageShoppingOverlay from './ImageShoppingOverlay';
 interface ResultsPageProps {
   user: User | null;
   design: SavedDesign;
-  onNewRendering: (prompt: string, category: string) => void;
+  onNewRendering: (prompt: string, category: string, options?: Record<string, string>, customText?: string) => void;
   onRefineRendering: (id: string, instructions: string) => void;
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
@@ -85,6 +85,22 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ user, design, onNewRendering,
   const canStartSlideshow = likedRenderings.length > 4;
   const hasAdvancedSlideshowFeatures = likedRenderings.length >= 10;
   
+  const activeRendering = useMemo(() => {
+    if (selectedRenderings.length === 1) {
+      return renderings.find(r => r.id === selectedRenderings[0]) || null;
+    }
+    return null;
+  }, [selectedRenderings, renderings]);
+
+  useEffect(() => {
+    if (activeRendering) {
+      const targetRoom = housePlan.rooms.find(r => r.name === activeRendering.category);
+      if (targetRoom && targetRoom.name !== selectedRoom?.name) {
+        setSelectedRoom(targetRoom);
+      }
+    }
+  }, [activeRendering, housePlan.rooms, selectedRoom?.name]);
+
   const handleRoomSelect = (room: Room) => {
     setSelectedRoom(room);
     
@@ -685,6 +701,8 @@ ${shotList}
                     isLoading={isLoading}
                     isKeyReady={isKeyReady}
                     onSelectKey={onSelectKey}
+                    activeRenderingOptions={selectedRoom.name === activeRendering?.category ? activeRendering?.options : undefined}
+                    activeRenderingCustomText={selectedRoom.name === activeRendering?.category ? activeRendering?.customText : undefined}
                     />
                 </div>
               ) : (

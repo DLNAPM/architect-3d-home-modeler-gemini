@@ -5,7 +5,9 @@ export interface Rendering {
   imageUrl: string;
   prompt: string;
   liked: boolean;
-  favorited: boolean;
+  favorited?: boolean;
+  options?: Record<string, string>;
+  customText?: string;
 }
 
 export interface CustomizationOption {

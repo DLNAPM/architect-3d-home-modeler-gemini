@@ -7,17 +7,25 @@ interface CustomizationPanelProps {
   room: Room;
   housePlan: HousePlan;
   initialPrompt: string;
-  onGenerate: (prompt: string, category: string) => void;
+  onGenerate: (prompt: string, category: string, options?: Record<string, string>, customText?: string) => void;
   isLoading: boolean;
   isKeyReady: boolean;
   onSelectKey: () => void;
+  activeRenderingOptions?: Record<string, string>;
+  activeRenderingCustomText?: string;
 }
 
-const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate, isLoading, isKeyReady, onSelectKey }) => {
+const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan, initialPrompt, onGenerate, isLoading, isKeyReady, onSelectKey, activeRenderingOptions, activeRenderingCustomText }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [customText, setCustomText] = useState('');
 
   useEffect(() => {
+    if (activeRenderingOptions) {
+      setSelections(activeRenderingOptions);
+      setCustomText(activeRenderingCustomText || '');
+      return;
+    }
+
     const initialSelections: Record<string, string> = {};
     if (room && room.options) {
       // Always initialize the primary options (e.g., 'Primary Use')
@@ -40,7 +48,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
     }
     setSelections(initialSelections);
     setCustomText('');
-  }, [room]);
+  }, [room, activeRenderingOptions, activeRenderingCustomText]);
 
   const handleSelectionChange = (optionKey: string, value: string) => {
     setSelections(prevSelections => {
@@ -115,7 +123,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = ({ room, housePlan
         }
     }
     
-    onGenerate(prompt, room.name);
+    onGenerate(prompt, room.name, selections, customText);
   };
 
   const selectedSubOptionKey = (room.subOptionKey && selections[room.subOptionKey]) || null;
