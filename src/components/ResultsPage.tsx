@@ -662,6 +662,7 @@ ${shotList}
                     onRefine={onRefineRendering}
                     onUpdate={onUpdateRendering}
                     isSelected={selectedRenderings.includes(rendering.id)}
+                    isHighlighted={selectedCategory !== undefined && rendering.category === selectedCategory}
                     onSelectToggle={handleSelectToggle}
                     onEnlarge={handleEnlarge}
                     isPremium={isPremium}

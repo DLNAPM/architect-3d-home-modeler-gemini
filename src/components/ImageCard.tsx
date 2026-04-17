@@ -11,9 +11,10 @@ interface ImageCardProps {
   onSelectToggle: (id: string) => void;
   onEnlarge: (imageUrl: string) => void;
   isPremium?: boolean;
+  isHighlighted?: boolean;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, isSelected, onSelectToggle, onEnlarge, isPremium = false }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, isSelected, onSelectToggle, onEnlarge, isPremium = false, isHighlighted = false }) => {
   const { id, category, imageUrl, liked, favorited } = rendering;
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editInstructions, setEditInstructions] = useState('');
@@ -76,7 +77,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ rendering, onRefine, onUpdate, is
   const canEdit = category === 'Front Exterior' || category === 'Back Exterior';
 
   return (
-    <div className={`group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 ${isSelected ? 'border-brand-500' : 'border-transparent'}`}>
+    <div className={`group relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-2 ${isSelected ? 'border-brand-500' : 'border-transparent'} ${isHighlighted ? 'ring-4 ring-brand-300 dark:ring-brand-500 ring-opacity-50' : ''}`}>
       <img src={imageUrl} alt={`Rendering of ${category}`} className="w-full h-64 object-cover" />
       
       <div
