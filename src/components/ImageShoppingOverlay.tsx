@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle, Heart, CheckSquare, Square } from 'lucide-react';
+import { ShoppingCart, X, Search, Loader2, Lock, HelpCircle, Heart, CheckSquare, Square, Upload } from 'lucide-react';
 import { searchShoppingForItem, ShoppingResult } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 import { authService } from '../services/authService';
@@ -12,6 +12,7 @@ interface ImageShoppingOverlayProps {
 }
 
 const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, isPremium, onClose }) => {
+  const [currentImageUrl, setCurrentImageUrl] = useState(imageUrl);
   const [isShoppingMode, setIsShoppingMode] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
@@ -225,6 +226,20 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
     return null;
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCurrentImageUrl(event.target?.result as string);
+        setSelection(null);
+        setResults([]);
+        setSavedItemIndices(new Set());
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-[80] flex flex-col md:flex-row" onClick={onClose}>
       {/* Image Area */}
@@ -232,7 +247,7 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
         <div className="relative inline-block max-w-full max-h-full">
           <img 
             ref={imageRef}
-            src={imageUrl} 
+            src={currentImageUrl} 
             alt="Enlarged rendering" 
             className={`object-contain max-w-full max-h-[80vh] md:max-h-[90vh] ${isShoppingMode ? 'cursor-crosshair touch-none' : ''}`}
             onMouseDown={handleStart}
@@ -250,23 +265,36 @@ const ImageShoppingOverlay: React.FC<ImageShoppingOverlayProps> = ({ imageUrl, i
         
         {/* Top Controls */}
         <div className="absolute top-4 left-0 right-0 flex justify-between px-4 pointer-events-none">
-          <button 
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              if (!isPremium) {
-                alert("Visual Shopping is a Premium feature. Please upgrade your subscription to use this tool.");
-                return;
-              }
-              setIsShoppingMode(!isShoppingMode); 
-              setSelection(null); 
-              setResults([]); 
-            }}
-            className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-colors ${isShoppingMode ? 'bg-brand-600 text-white' : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm'}`}
-          >
-            {isPremium ? <ShoppingCart className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-            {isShoppingMode ? 'Cancel Selection' : 'Find Items to Buy'}
-            {!isPremium && <span className="ml-1 text-[10px] uppercase font-bold bg-brand-500 text-white px-2 py-0.5 rounded-full">Premium</span>}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                if (!isPremium) {
+                  alert("Visual Shopping is a Premium feature. Please upgrade your subscription to use this tool.");
+                  return;
+                }
+                setIsShoppingMode(!isShoppingMode); 
+                setSelection(null); 
+                setResults([]); 
+              }}
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-colors ${isShoppingMode ? 'bg-brand-600 text-white' : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm'}`}
+            >
+              {isPremium ? <ShoppingCart className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+              {isShoppingMode ? 'Cancel Selection' : 'Find Items to Buy'}
+              {!isPremium && <span className="ml-1 text-[10px] uppercase font-bold bg-brand-500 text-white px-2 py-0.5 rounded-full">Premium</span>}
+            </button>
+            <label className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-colors bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm cursor-pointer">
+              <Upload className="h-5 w-5" />
+              Upload Image
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleImageUpload} 
+                onClick={(e) => e.stopPropagation()}
+              />
+            </label>
+          </div>
           
           <button 
             onClick={(e) => { e.stopPropagation(); onClose(); }} 
