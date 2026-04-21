@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
+import PrivacyPolicyModal from './PrivacyPolicyModal';
 
 const Footer: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -19,18 +21,28 @@ const Footer: React.FC = () => {
   }, []);
 
   return (
-    <footer className="w-full bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-6 mt-auto z-10 relative">
-        <div className="container mx-auto px-4 text-center">
-            <p className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
-                A C.&.S.H. Group Properties A.I. APP
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-y-1 gap-x-4 text-xs text-gray-500 dark:text-gray-400">
-                <span>&copy; {currentYear} C.&.S.H. Group Properties</span>
-                <span className="hidden sm:inline text-gray-300 dark:text-gray-700">|</span>
-                <span className="font-mono">Last Updated: {lastUpdated}</span>
-            </div>
-        </div>
-    </footer>
+    <>
+      <footer className="w-full bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-6 mt-auto z-10 relative">
+          <div className="container mx-auto px-4 text-center">
+              <p className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                  A C.&.S.H. Group Properties A.I. APP
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-y-2 gap-x-4 text-xs text-gray-500 dark:text-gray-400">
+                  <span>&copy; {currentYear} C.&.S.H. Group Properties</span>
+                  <span className="hidden sm:inline text-gray-300 dark:text-gray-700">|</span>
+                  <button 
+                    onClick={() => setIsPrivacyModalOpen(true)}
+                    className="hover:text-brand-600 dark:hover:text-brand-400 font-medium transition-colors cursor-pointer hover:underline"
+                  >
+                    Privacy Policy
+                  </button>
+                  <span className="hidden sm:inline text-gray-300 dark:text-gray-700">|</span>
+                  <span className="font-mono">Last Updated: {lastUpdated}</span>
+              </div>
+          </div>
+      </footer>
+      <PrivacyPolicyModal isOpen={isPrivacyModalOpen} onClose={() => setIsPrivacyModalOpen(false)} />
+    </>
   );
 };
 
