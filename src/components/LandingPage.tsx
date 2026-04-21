@@ -1,7 +1,8 @@
 
-import React from 'react';
-import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, LayoutTemplate, Home, ArrowRight, User, AlertCircle, ShoppingCart, HelpCircle } from 'lucide-react';
 import Footer from './Footer';
+import AboutModal from './AboutModal';
 
 interface LandingPageProps {
   onSignIn: () => void;
@@ -12,8 +13,23 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, onSignInGuest, isKeyReady, onSelectKey, error }) => {
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col">
+      {/* Top Header with Help Button */}
+      <div className="absolute top-4 right-4 z-50">
+        <button 
+          onClick={() => setIsAboutModalOpen(true)}
+          className="p-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+          aria-label="About Architect 3D"
+        >
+          <HelpCircle className="h-6 w-6" />
+        </button>
+      </div>
+
+      <AboutModal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} />
+
       {/* Hero Section */}
       <div className="flex-grow flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         {/* Background Decorative Elements */}
