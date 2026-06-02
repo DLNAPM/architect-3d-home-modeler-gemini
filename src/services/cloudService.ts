@@ -1,7 +1,54 @@
 
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { SavedDesign, AccessLevel } from "../types";
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 /**
  * Compresses a Data URI or Base64 string to a JPEG under specific dimensions and quality.
@@ -131,8 +178,9 @@ export const cloudService = {
    * Retrieves all users (Admin only).
    */
   async getAllUsers(): Promise<any[]> {
+    const path = "users";
     try {
-      const usersRef = collection(db, "users");
+      const usersRef = collection(db, path);
       const querySnapshot = await getDocs(usersRef);
       const users: any[] = [];
       querySnapshot.forEach((doc) => {
@@ -147,7 +195,10 @@ export const cloudService = {
         }
       });
       return users;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === "permission-denied" || error?.message?.includes("permission")) {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
       console.error("Error fetching all users:", error);
       throw error;
     }
@@ -157,6 +208,7 @@ export const cloudService = {
    * Updates a user's subscription level (Admin only).
    */
   async updateUserSubscription(email: string, level: 'basic' | 'premium'): Promise<void> {
+    const path = `users/${email}`;
     try {
       const userRef = doc(db, "users", email);
       await setDoc(userRef, { subscriptionLevel: level }, { merge: true });
@@ -171,7 +223,10 @@ export const cloudService = {
            await setDoc(doc(db, "users", document.id), { subscriptionLevel: level }, { merge: true });
         }
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === "permission-denied" || error?.message?.includes("permission")) {
+        handleFirestoreError(error, OperationType.WRITE, path);
+      }
       console.error("Error updating user subscription:", error);
       throw error;
     }

@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper functions ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && (
+        request.auth.uid == userId || 
+        request.auth.token.email.lower() == userId.lower()
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'dlaniger.napm.consulting@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    // --- Rules for users ---
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+      allow list: if isAdmin();
+
+      // --- Nested Designs ---
+      match /designs/{designId} {
+        allow read: if isOwner(userId) || isAdmin() || (
+          isSignedIn() && (
+            exists(/databases/$(database)/documents/shared_projects/$(request.auth.token.email.lower() + "_" + designId)) ||
+            exists(/databases/$(database)/documents/shared_projects/$(userId.lower() + "_" + designId))
+          )
+        );
+        allow create, update, delete: if isOwner(userId) || isAdmin();
+      }
+
+      // --- Nested Wishlist ---
+      match /wishlist/{wishlistId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // --- Rules for shared_projects ---
+    match /shared_projects/{shareId} {
+      allow read: if isSignedIn() && (
+        request.auth.token.email.lower() == resource.data.targetEmail.lower() || 
+        request.auth.token.email.lower() == resource.data.ownerId.lower() ||
+        request.auth.uid == resource.data.ownerId ||
+        isAdmin()
+      );
+
+      allow create: if isSignedIn() && (
+        request.auth.token.email.lower() == request.resource.data.ownerId.lower() || 
+        request.auth.uid == request.resource.data.ownerId ||
+        isAdmin()
+      );
+
+      allow delete: if isSignedIn() && (
+        request.auth.token.email.lower() == resource.data.ownerId.lower() || 
+        request.auth.uid == resource.data.ownerId || 
+        request.auth.token.email.lower() == resource.data.targetEmail.lower() ||
+        isAdmin()
+      );
+    }
+  }
+}
