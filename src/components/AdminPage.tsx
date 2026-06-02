@@ -16,7 +16,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (user.email !== 'dlaniger.napm.consulting@gmail.com') {
+    if (user.email.toLowerCase().trim() !== 'dlaniger.napm.consulting@gmail.com') {
       setError('Unauthorized access.');
       setIsLoading(false);
       return;

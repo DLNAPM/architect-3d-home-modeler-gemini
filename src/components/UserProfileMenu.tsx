@@ -24,7 +24,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ user, onSignOut, onAd
     };
   }, []);
 
-  const isAdmin = user.email === 'dlaniger.napm.consulting@gmail.com';
+  const isAdmin = user.email.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com';
 
   return (
     <div className="relative" ref={menuRef}>

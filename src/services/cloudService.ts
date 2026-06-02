@@ -65,8 +65,8 @@ export const cloudService = {
           name: user.name,
           email: user.email,
           picture: user.picture,
-          subscriptionLevel: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
-          role: user.email === 'dlaniger.napm.consulting@gmail.com' ? 'admin' : 'user',
+          subscriptionLevel: user.email?.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com' ? 'premium' : 'basic',
+          role: user.email?.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com' ? 'admin' : 'user',
           lastLogin: Date.now()
         };
 
@@ -74,7 +74,7 @@ export const cloudService = {
           await setDoc(userEmailRef, { ...userData, createdAt: Date.now() });
         } else {
           const updateData: any = { ...userData };
-          if (user.email === 'dlaniger.napm.consulting@gmail.com') {
+          if (user.email?.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com') {
             if (userEmailSnap.data()?.subscriptionLevel !== 'premium') updateData.subscriptionLevel = 'premium';
             if (userEmailSnap.data()?.role !== 'admin') updateData.role = 'admin';
           } else {
@@ -112,12 +112,12 @@ export const cloudService = {
 
       if (userSnap && userSnap.exists()) {
         const data = userSnap.data() as { subscriptionLevel: 'basic' | 'premium'; isFrozen?: boolean };
-        if (email === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
+        if (email?.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
           return { ...data, subscriptionLevel: 'premium' };
         }
         return data;
       }
-      if (email === 'dlaniger.napm.consulting@gmail.com') {
+      if (email?.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com') {
         return { subscriptionLevel: 'premium' };
       }
       return null;
@@ -140,7 +140,7 @@ export const cloudService = {
         // since we now save to both {uid} and {email}
         if (doc.id.includes('@')) {
           const data = doc.data();
-          if (doc.id === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
+          if (doc.id.toLowerCase().trim() === 'dlaniger.napm.consulting@gmail.com' && data.subscriptionLevel !== 'premium') {
             data.subscriptionLevel = 'premium';
           }
           users.push({ email: doc.id, ...data });
