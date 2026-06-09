@@ -1,7 +1,8 @@
 
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where } from "firebase/firestore";
-import { db, auth } from "./firebase";
+import { db, auth, defaultDb } from "./firebase";
 import { SavedDesign, AccessLevel } from "../types";
+import firebaseConfig from "../../firebase-applet-config.json";
 
 enum OperationType {
   CREATE = 'create',
@@ -411,6 +412,29 @@ export const cloudService = {
         // Owned designs have 'owner' access level by default
         designs.push({ ...data, ownerId: userId, accessLevel: 'owner' });
       });
+
+      // If no designs were found on the custom database, check if the user has designs
+      // on the legacy (default) database and migrate them to the new custom database.
+      if (designs.length === 0 && firebaseConfig.firestoreDatabaseId) {
+        try {
+          console.log("Checking legacy (default) database for existing saved designs...");
+          const legacyDesignsRef = collection(defaultDb, "users", userId, "designs");
+          const legacySnapshot = await getDocs(legacyDesignsRef);
+          
+          if (!legacySnapshot.empty) {
+            console.log(`Found ${legacySnapshot.size} saved designs in legacy database. Migrating to new custom database...`);
+            for (const docSnap of legacySnapshot.docs) {
+              const data = docSnap.data() as SavedDesign;
+              const newDesignRef = doc(db, "users", userId, "designs", docSnap.id);
+              await setDoc(newDesignRef, data);
+              designs.push({ ...data, ownerId: userId, accessLevel: 'owner' });
+              console.log(`Successfully migrated legacy design: ${docSnap.id}`);
+            }
+          }
+        } catch (migrationError) {
+          console.warn("Could not check or migrate from legacy (default) database:", migrationError);
+        }
+      }
       
       return designs;
     } catch (error) {

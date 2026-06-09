@@ -8,7 +8,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 // Use the custom firestoreDatabaseId if specified, otherwise default
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || "(default)");
+const defaultDb = getFirestore(app, "(default)");
 
 console.log("Firebase initialized successfully with config:", firebaseConfig.projectId);
 
-export { app, auth, db };
+export { app, auth, db, defaultDb };
