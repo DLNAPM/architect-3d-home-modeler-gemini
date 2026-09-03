@@ -368,29 +368,58 @@ export async function generateImage(prompt: string): Promise<string> {
   throw new Error("Unreachable code");
 }
 
-export async function generateImageFromImage(prompt: string, imageBase64: string, imageMimeType: string): Promise<string> {
+export interface AdditionalImageInput {
+  base64: string;
+  mimeType: string;
+}
+
+export async function generateImageFromImage(
+  prompt: string, 
+  imageBase64: string, 
+  imageMimeType: string,
+  additionalImage?: AdditionalImageInput
+): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
 
   const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image'];
   let lastError: unknown;
 
+  const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [];
+
+  if (imageBase64) {
+    parts.push({
+      inlineData: {
+        data: imageBase64,
+        mimeType: imageMimeType || 'image/jpeg',
+      },
+    });
+  }
+
+  if (additionalImage && additionalImage.base64) {
+    parts.push({
+      inlineData: {
+        data: additionalImage.base64,
+        mimeType: additionalImage.mimeType || 'image/jpeg',
+      },
+    });
+  }
+
+  parts.push({
+    text: prompt,
+  });
+
   for (const model of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
         model,
         contents: {
-          parts: [
-            {
-              inlineData: {
-                data: imageBase64,
-                mimeType: imageMimeType,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+          parts,
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: '16:9',
+          },
         },
       });
 

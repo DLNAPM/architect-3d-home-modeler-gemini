@@ -399,7 +399,11 @@ function App() {
     }
   }, [currentDesignId, savedDesigns, saveDesignChange, handleError, checkGuestLimit]);
 
-  const handleRefineRendering = useCallback(async (renderingId: string, instructions: string) => {
+  const handleRefineRendering = useCallback(async (
+    renderingId: string, 
+    instructions: string,
+    attachedImage?: { base64: string; mimeType: string; mode?: 'ai' | 'direct'; fileName?: string }
+  ) => {
     if (!currentDesignId) return;
     const design = savedDesigns.find(d => d.housePlan.id === currentDesignId);
     if (!design) return;
@@ -412,22 +416,50 @@ function App() {
     const rendering = design.renderings.find(r => r.id === renderingId);
     if (!rendering) return;
 
+    // Direct mode: instantly replace the rendering image with the uploaded image
+    if (attachedImage && attachedImage.mode === 'direct') {
+      const directDataUrl = `data:${attachedImage.mimeType};base64,${attachedImage.base64}`;
+      const updatedRendering: Rendering = {
+        ...rendering,
+        imageUrl: directDataUrl,
+        prompt: instructions.trim()
+          ? `${rendering.prompt} | Uploaded Image: ${instructions.trim()}`
+          : `${rendering.prompt} | Uploaded image: ${attachedImage.fileName || 'custom image'}`
+      };
+      const newRenderings = design.renderings.map(r => r.id === renderingId ? updatedRendering : r);
+      const updatedDesign = { ...design, renderings: newRenderings };
+      await saveDesignChange(updatedDesign);
+      return;
+    }
+
     setIsLoading(true);
-    setLoadingMessage(`Refining ${rendering.category}...`);
+    setLoadingMessage(attachedImage ? `Refining ${rendering.category} with attached image...` : `Refining ${rendering.category}...`);
     setError(null);
 
     try {
         const base64Data = rendering.imageUrl.split(',')[1];
-        const mimeType = rendering.imageUrl.split(';')[0].split(':')[1];
+        const mimeType = rendering.imageUrl.split(';')[0].split(':')[1] || 'image/jpeg';
         
-        const refinePrompt = `You are a professional architectural visualizer. Modify the provided image according to these specific instructions: "${instructions}". Keep the overall structure and style consistent with the original image, but precisely apply the requested changes (adding or removing elements as described). Ensure the output is a high-quality photorealistic architectural rendering.`;
+        let refinePrompt = `You are a professional architectural visualizer. Modify the provided image according to these specific instructions: "${instructions}". Keep the overall structure and style consistent with the original image, but precisely apply the requested changes (adding or removing elements as described). Ensure the output is a high-quality photorealistic architectural rendering.`;
 
-        const refinedImageUrl = await generateImageFromImage(refinePrompt, base64Data, mimeType);
+        if (attachedImage) {
+          const userNotes = instructions.trim() ? instructions.trim() : 'Apply the architectural design, materials, textures, and style elements from the attached reference image to the rendering.';
+          refinePrompt = `You are a professional architectural visualizer. I have provided the current architectural rendering (Image 1) and an attached reference/source image (Image 2). Modify the architectural rendering according to these specific instructions: "${userNotes}". Incorporate the design elements, textures, materials, and architectural details from the attached reference image while maintaining photorealism, perspective, and high rendering quality.`;
+        }
+
+        const refinedImageUrl = await generateImageFromImage(
+          refinePrompt, 
+          base64Data, 
+          mimeType,
+          attachedImage ? { base64: attachedImage.base64, mimeType: attachedImage.mimeType } : undefined
+        );
 
         const updatedRendering: Rendering = {
             ...rendering,
             imageUrl: refinedImageUrl,
-            prompt: `${rendering.prompt} | Refined with: ${instructions}`
+            prompt: attachedImage 
+              ? `${rendering.prompt} | Refined with attached reference image: ${instructions.trim() || 'Applied visual reference'}`
+              : `${rendering.prompt} | Refined with: ${instructions}`
         };
 
         const newRenderings = design.renderings.map(r => r.id === renderingId ? updatedRendering : r);

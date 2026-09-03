@@ -13,7 +13,11 @@ interface ResultsPageProps {
   user: User | null;
   design: SavedDesign;
   onNewRendering: (prompt: string, category: string, options?: Record<string, string>, customText?: string) => void;
-  onRefineRendering: (id: string, instructions: string) => void;
+  onRefineRendering: (
+    id: string, 
+    instructions: string, 
+    attachedImage?: { base64: string; mimeType: string; mode?: 'ai' | 'direct'; fileName?: string }
+  ) => void;
   onUpdateRendering: (id: string, updates: Partial<Rendering>) => void;
   onDeleteRenderings: (ids: string[]) => void;
   onGenerateVideoTour: (prompt: string) => void;
@@ -682,6 +686,7 @@ ${shotList}
                     onSelectToggle={handleSelectToggle}
                     onEnlarge={handleEnlarge}
                     isPremium={isPremium}
+                    canEdit={!isViewOnly}
                   />
               </div>
             ))}
