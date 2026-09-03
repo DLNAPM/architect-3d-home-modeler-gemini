@@ -250,63 +250,112 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
 export async function generateImage(prompt: string): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
+
+  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image'];
+  let lastError: unknown;
+
+  for (const model of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: {
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: '16:9',
+          },
+        },
+      });
+
+      const candidates = response.candidates;
+      if (candidates && candidates.length > 0 && candidates[0].content?.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const mimeType = part.inlineData.mimeType || 'image/png';
+            return `data:${mimeType};base64,${part.inlineData.data}`;
+          }
+        }
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Model ${model} failed for image generation, trying next:`, error);
+    }
+  }
+
+  // Fallback to imagen-3.0-generate-002 if gemini-flash-image models are not available
   try {
     const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: '16:9',
-        },
+      model: 'imagen-3.0-generate-002',
+      prompt: prompt,
+      config: {
+        numberOfImages: 1,
+        outputMimeType: 'image/jpeg',
+        aspectRatio: '16:9',
+      },
     });
 
     if (response.generatedImages && response.generatedImages.length > 0) {
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/jpeg;base64,${base64ImageBytes}`;
-    } else {
-      throw new Error("Image generation completed, but no image was returned. This may be due to safety filters.");
     }
-  } catch(error) {
-    parseAndThrowApiError(error, 'image');
+  } catch (error) {
+    console.warn("Imagen 3 fallback also failed:", error);
+    parseAndThrowApiError(lastError || error, 'image');
     throw new Error("Unreachable code");
   }
+
+  parseAndThrowApiError(lastError, 'image');
+  throw new Error("Unreachable code");
 }
 
 export async function generateImageFromImage(prompt: string, imageBase64: string, imageMimeType: string): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: imageBase64,
-              mimeType: imageMimeType,
+
+  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image'];
+  let lastError: unknown;
+
+  for (const model of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: imageBase64,
+                mimeType: imageMimeType,
+              },
             },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      },
-    });
+            {
+              text: prompt,
+            },
+          ],
+        },
+      });
 
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const base64ImageBytes: string = part.inlineData.data;
-        const mimeType = part.inlineData.mimeType;
-        return `data:${mimeType};base64,${base64ImageBytes}`;
+      const candidates = response.candidates;
+      if (candidates && candidates.length > 0 && candidates[0].content?.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const mimeType = part.inlineData.mimeType || 'image/png';
+            return `data:${mimeType};base64,${part.inlineData.data}`;
+          }
+        }
       }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Model ${model} failed for image refinement, trying next:`, error);
     }
-    throw new Error("Image generation from image succeeded, but no image was returned. This may be due to the content safety filter.");
-
-  } catch(error) {
-    parseAndThrowApiError(error, 'image');
-    throw new Error("Unreachable code");
   }
+
+  parseAndThrowApiError(lastError, 'image');
+  throw new Error("Unreachable code");
 }
 
 export async function generateVideo(prompt: string): Promise<string> {
