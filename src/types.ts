@@ -68,7 +68,32 @@ export enum AppView {
   Home,
   Results,
   Admin,
-  WishList
+  WishList,
+  RoomTransformations
+}
+
+export interface TransformationRevision {
+  id: string;
+  createdAt: number;
+  label: string;
+  prompt: string;
+  roomType: string;
+  selectedOptions: Record<string, string>;
+  customInstructions: string;
+  renderedImageUrl: string;
+}
+
+export interface RoomTransformationProject {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  userId: string;
+  title: string;
+  roomType: string;
+  originalImageUrl: string;
+  originalImageMimeType: string;
+  currentRevisionIndex: number;
+  revisions: TransformationRevision[];
 }
 
 export interface User {

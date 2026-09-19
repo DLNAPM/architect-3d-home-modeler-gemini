@@ -19,6 +19,7 @@ interface HomePageProps {
   isKeyReady: boolean;
   onSelectKey: () => void;
   user: User | null;
+  onNavigateToRoomTransformations?: () => void;
 }
 
 // Memoized component for displaying a single design card.
@@ -85,7 +86,18 @@ const DesignList = React.memo(({ designs, onSelectDesign, onDeleteDesign }: { de
     );
 });
 
-const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelectDesign, onDeleteDesign, onErrorClear, isKeyReady, onSelectKey, user }) => {
+const HomePage: React.FC<HomePageProps> = ({ 
+  onGenerate, 
+  error, 
+  designs, 
+  onSelectDesign, 
+  onDeleteDesign, 
+  onErrorClear, 
+  isKeyReady, 
+  onSelectKey, 
+  user,
+  onNavigateToRoomTransformations
+}) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
   const [backPlan, setBackPlan] = useState<File | null>(null);
@@ -239,7 +251,40 @@ const HomePage: React.FC<HomePageProps> = ({ onGenerate, error, designs, onSelec
         </p>
       </div>
 
-      <div className="mt-10 w-full max-w-3xl bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-lg">
+      {onNavigateToRoomTransformations && (
+        <div 
+          onClick={onNavigateToRoomTransformations}
+          className="mt-6 w-full max-w-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-purple-500/30 cursor-pointer hover:border-purple-400/60 hover:shadow-purple-500/10 transition-all group flex items-center justify-between gap-4"
+          id="banner-room-transformations"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center text-purple-200 shrink-0 group-hover:scale-105 transition-transform">
+              <Sparkles className="h-5 w-5 text-purple-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base text-white">
+                  Room Transformations
+                </span>
+                <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-purple-500 text-white shadow-xs">
+                  PRO
+                </span>
+              </div>
+              <p className="text-xs text-purple-200 line-clamp-1 mt-0.5">
+                Upload any room photo, tailor architectural options, compare before/after side-by-side, and iterate until satisfied.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            className="shrink-0 px-3.5 py-1.5 text-xs font-semibold bg-white/15 hover:bg-white/25 rounded-lg border border-white/20 transition-colors hidden sm:inline-block"
+          >
+            Launch →
+          </button>
+        </div>
+      )}
+
+      <div className="mt-8 w-full max-w-3xl bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-lg">
         <div className="relative">
             {isKeyReady === false && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 z-10 flex flex-col items-center justify-center p-4 rounded-2xl text-center">

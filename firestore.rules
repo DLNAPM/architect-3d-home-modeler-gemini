@@ -50,6 +50,11 @@ service cloud.firestore {
       match /wishlist/{wishlistId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      // --- Nested Room Transformations ---
+      match /room_transformations/{transformationId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
 
     // --- Rules for shared_projects ---

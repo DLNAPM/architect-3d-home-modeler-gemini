@@ -16,6 +16,8 @@ interface HeaderProps {
     isSaving?: boolean;
     hasActiveDesign: boolean;
     onAdminClick?: () => void;
+    onRoomTransformationsClick?: () => void;
+    isRoomTransformationsActive?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -28,7 +30,9 @@ const Header: React.FC<HeaderProps> = ({
     onSearchChange,
     isSaving = false,
     hasActiveDesign,
-    onAdminClick
+    onAdminClick,
+    onRoomTransformationsClick,
+    isRoomTransformationsActive = false
 }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
@@ -53,10 +57,16 @@ const Header: React.FC<HeaderProps> = ({
             <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
-                        <Home className="text-brand-600 dark:text-brand-400 h-8 w-8" />
-                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">
-                            Architect 3D
-                        </h1>
+                        <div 
+                            onClick={onNewDesign}
+                            className="flex items-center space-x-3 cursor-pointer hover:opacity-90 transition-opacity"
+                            title="Return to Home"
+                        >
+                            <Home className="text-brand-600 dark:text-brand-400 h-8 w-8" />
+                            <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">
+                                Architect 3D
+                            </h1>
+                        </div>
                         <button 
                             onClick={() => setShowHelp(true)}
                             className="p-1.5 rounded-full text-gray-500 hover:text-brand-600 hover:bg-brand-50 dark:text-gray-400 dark:hover:text-brand-400 dark:hover:bg-gray-700 transition-colors"
@@ -99,6 +109,25 @@ const Header: React.FC<HeaderProps> = ({
                             <PlusSquare className="h-5 w-5" />
                             <span className="hidden sm:inline">New Design</span>
                         </button>
+
+                        {onRoomTransformationsClick && (
+                            <button
+                                onClick={onRoomTransformationsClick}
+                                className={`flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                                    isRoomTransformationsActive
+                                        ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold ring-1 ring-purple-400'
+                                        : 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-gray-700'
+                                }`}
+                                title="Room Transformations (Paid Subscription Feature)"
+                                id="header-btn-room-transformations"
+                            >
+                                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                <span className="hidden md:inline">Room Transformations</span>
+                                <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs">
+                                    PRO
+                                </span>
+                            </button>
+                        )}
                         
                         {user && (
                             <button

@@ -6,6 +6,7 @@ import ResultsPage from './components/ResultsPage';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import AdminPage from './components/AdminPage';
+import { RoomTransformationsPage } from './components/RoomTransformationsPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
@@ -266,6 +267,24 @@ function App() {
     await authService.signOut();
     resetApp();
   }, [resetApp]);
+
+  const handleUpgradeToPremium = useCallback(async () => {
+    if (!user) return;
+    try {
+      setIsLoading(true);
+      setLoadingMessage('Upgrading your subscription to Premium...');
+      await cloudService.updateUserSubscription(user.email, 'premium');
+      const updatedUser: User = { ...user, subscriptionLevel: 'premium' };
+      setUser(updatedUser);
+      userRef.current = updatedUser;
+    } catch (err: any) {
+      console.error('Failed to upgrade subscription:', err);
+      setError(err?.message || 'Failed to upgrade subscription. Please check your network connection.');
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [user]);
 
   const checkGuestLimit = useCallback(() => {
      if (user?.name === 'Guest Architect' && totalRenderingsCount >= 2) {
@@ -765,6 +784,11 @@ function App() {
         searchQuery={searchQuery} 
         onSearchChange={setSearchQuery} 
         onAdminClick={() => setView(AppView.Admin)}
+        onRoomTransformationsClick={() => {
+          setView(AppView.RoomTransformations);
+          setError(null);
+        }}
+        isRoomTransformationsActive={view === AppView.RoomTransformations}
       />
       <main className="container mx-auto px-4 py-8 flex-grow">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
@@ -779,7 +803,20 @@ function App() {
             isKeyReady={isKeyReady}
             onSelectKey={handleSelectKey}
             user={user}
+            onNavigateToRoomTransformations={() => {
+              setView(AppView.RoomTransformations);
+              setError(null);
+            }}
         />}
+        {view === AppView.RoomTransformations && (
+          <RoomTransformationsPage
+            user={user}
+            onUpgradeToPremium={handleUpgradeToPremium}
+            onSignIn={handleSignIn}
+            isKeyReady={isKeyReady !== false}
+            onSelectKey={handleSelectKey}
+          />
+        )}
         {view === AppView.Results && currentDesign && (
           <ResultsPage
             user={user}

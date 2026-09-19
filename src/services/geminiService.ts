@@ -377,7 +377,8 @@ export async function generateImageFromImage(
   prompt: string, 
   imageBase64: string, 
   imageMimeType: string,
-  additionalImage?: AdditionalImageInput
+  additionalImage?: AdditionalImageInput,
+  aspectRatio: '1:1' | '3:4' | '4:3' | '9:16' | '16:9' = '16:9'
 ): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
@@ -418,7 +419,7 @@ export async function generateImageFromImage(
         },
         config: {
           imageConfig: {
-            aspectRatio: '16:9',
+            aspectRatio: aspectRatio,
           },
         },
       });

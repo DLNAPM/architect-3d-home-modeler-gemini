@@ -700,5 +700,79 @@ export const cloudService = {
       console.error("Error fetching wish list address:", error);
       return null;
     }
+  },
+
+  /**
+   * Saves a room transformation project to the cloud.
+   */
+  async saveRoomTransformation(userId: string, project: import('../types').RoomTransformationProject): Promise<void> {
+    if (!userId || !project?.id) return;
+    try {
+      const projectToSave = JSON.parse(JSON.stringify(project)) as import('../types').RoomTransformationProject;
+      const SIZE_THRESHOLD = 500000;
+
+      // Compress original image if large
+      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > SIZE_THRESHOLD) {
+        projectToSave.originalImageUrl = await compressImage(projectToSave.originalImageUrl, 'image/jpeg', 1280, 0.82);
+      }
+
+      // Compress revision images if large
+      if (projectToSave.revisions && projectToSave.revisions.length > 0) {
+        projectToSave.revisions = await Promise.all(
+          projectToSave.revisions.map(async (rev) => {
+            if (rev.renderedImageUrl && rev.renderedImageUrl.length > SIZE_THRESHOLD) {
+              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1280, 0.82);
+              return { ...rev, renderedImageUrl: compressed };
+            }
+            return rev;
+          })
+        );
+      }
+
+      const projectRef = doc(db, "users", userId, "room_transformations", project.id);
+      await setDoc(projectRef, {
+        ...projectToSave,
+        userId,
+        updatedAt: Date.now()
+      });
+      console.log("Room transformation saved to cloud successfully");
+    } catch (error) {
+      console.error("Error saving room transformation:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves all room transformations for a specific user.
+   */
+  async getRoomTransformations(userId: string): Promise<import('../types').RoomTransformationProject[]> {
+    if (!userId) return [];
+    try {
+      const colRef = collection(db, "users", userId, "room_transformations");
+      const snap = await getDocs(colRef);
+      const list: import('../types').RoomTransformationProject[] = [];
+      snap.forEach((d) => {
+        list.push(d.data() as import('../types').RoomTransformationProject);
+      });
+      return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    } catch (error) {
+      console.error("Error fetching room transformations:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Deletes a room transformation project from the cloud.
+   */
+  async deleteRoomTransformation(userId: string, projectId: string): Promise<void> {
+    if (!userId || !projectId) return;
+    try {
+      const projectRef = doc(db, "users", userId, "room_transformations", projectId);
+      await deleteDoc(projectRef);
+      console.log("Room transformation deleted from cloud successfully");
+    } catch (error) {
+      console.error("Error deleting room transformation:", error);
+      throw error;
+    }
   }
 };
