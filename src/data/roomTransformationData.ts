@@ -2,6 +2,7 @@ export interface RoomTypeConfig {
   id: string;
   name: string;
   description: string;
+  category?: 'main' | 'basement';
   iconName: string;
   specificSections: {
     id: string;
@@ -303,6 +304,187 @@ export const ROOM_TYPES: RoomTypeConfig[] = [
         ]
       }
     ]
+  },
+  {
+    id: 'game-room',
+    name: 'Game Room',
+    description: 'Pool table & stand-up games',
+    category: 'basement',
+    iconName: 'Gamepad2',
+    specificSections: [
+      {
+        id: 'gaming-centerpiece',
+        label: 'Pool Table & Stand-up Games Focus',
+        options: [
+          { id: 'pool-table-and-arcades', label: 'Slate Pool Table + Dual Stand-Up Arcades', promptModifier: 'championship-grade slate billiard pool table with matte black cloth centered under a brass drop fixture, flanked by two full-size retro stand-up arcade game cabinets with glowing marquees and a pinball machine against the wall' },
+          { id: 'luxury-pool-table', label: 'Luxury Custom Slate Pool Table Only', promptModifier: 'bespoke modern custom slate pool table with dark charcoal felt, precision wooden cue rack on wall, and overhead low-profile linear LED billiard lighting' },
+          { id: 'standup-arcade-row', label: 'Row of Stand-Up Arcade & Pinball Machines', promptModifier: 'dedicated arcade zone with a lineup of 4 stand-up classic retro arcade cabinets, glowing backlit marquees, and a vintage collector pinball machine' },
+          { id: 'pool-table-shuffleboard', label: 'Pool Table + Long Wood Shuffleboard', promptModifier: 'championship tournament pool table alongside a 14-foot handcrafted maple wood shuffleboard table with brass abacus scorekeepers' }
+        ]
+      },
+      {
+        id: 'spectator-seating',
+        label: 'Spectator Seating & Social Area',
+        options: [
+          { id: 'leather-spectator-chairs', label: 'Bar-Height Leather Spectator Chairs with Drink Rail', promptModifier: 'elevated bar-height cognac leather spectator armchairs with footrests and an integrated solid wood drink ledge along the perimeter wall' },
+          { id: 'plush-modular-sofa', label: 'Low Modular Gaming Lounge Sectional', promptModifier: 'plush low-profile modular velvet seating area with beverage side tables and textured accent pillows' },
+          { id: 'pub-booth-nook', label: 'Built-in Pub Booth Nook for Spectators', promptModifier: 'custom built-in upholstered banquet booth seating with a round cafe table for board games and spectator drinks' }
+        ]
+      },
+      {
+        id: 'billiard-ambiance',
+        label: 'Billiards Lighting & Wall Ambiance',
+        options: [
+          { id: 'linear-pool-light', label: 'Low-Hung Matte Black Linear Pool Table Light & Slat Wall', promptModifier: 'sleek horizontal linear pool table pendant in matte black suspended directly over the table, with vertical oak slat acoustic accent walls' },
+          { id: 'neon-brick-accent', label: 'Exposed Brick with Custom Neon Game Sign', promptModifier: 'urban exposed reclaimed brick accent wall with a custom warm-white neon game lounge sign and warm perimeter wall sconces' },
+          { id: 'dark-acoustic-led', label: 'Dark Charcoal Acoustic Walls with Dimmable LED Glow', promptModifier: 'matte charcoal sound-absorbing walls with hidden warm-white baseboard and crown cove LED lighting' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'soundproof-studio',
+    name: 'Studio / Soundproof Room',
+    description: 'Soundproof booth & acoustic studio',
+    category: 'basement',
+    iconName: 'Mic',
+    specificSections: [
+      {
+        id: 'soundproofing',
+        label: 'Soundproofing & Acoustic Treatment',
+        options: [
+          { id: 'sound-isolated-vocal-booth', label: 'Sound-Isolated Glass Vocal Booth with Heavy Acoustic Door', promptModifier: 'custom double-glazed acoustic glass soundproof isolation vocal booth with heavy-duty acoustic drop-seal door, studio condenser microphone on boom arm, and interior sound dampening panels' },
+          { id: 'diffusor-panels-slats', label: 'Floor-to-Ceiling Oak Acoustic Diffusor Slats & Fabric Bass Traps', promptModifier: 'architectural floor-to-ceiling staggered oak acoustic diffusor slats combined with high-density fabric-wrapped beveled sound absorption wall panels and corner bass traps' },
+          { id: 'hexagonal-geometric-grid', label: 'Hexagonal Charcoal Sound-Absorbing Geometric Wall System', promptModifier: 'seamless geometric hexagonal acoustic wall panels in charcoal and natural wood tones providing studio-grade soundproofing' }
+        ]
+      },
+      {
+        id: 'studio-equipment',
+        label: 'Studio Desk & Equipment Setup',
+        options: [
+          { id: 'multi-tier-producer-desk', label: 'Multi-Tier Walnut Producer Desk with Studio Monitors', promptModifier: 'ergonomic solid walnut multi-tier studio production desk with rack-mounted analog gear, dual computer displays, and Yamaha studio monitor speakers on isolation pads' },
+          { id: 'podcast-broadcast-desk', label: 'Multi-Guest Podcast Desk with Shure SM7B Broadcast Boom Arms', promptModifier: 'custom curved oak podcasting conference table with Shure SM7B microphones on articulated broadcast arms, headphone monitoring stations, and acoustic desktop isolation' },
+          { id: 'synthesizer-guitar-station', label: 'Synthesizer Keyboard & Wall-Mounted Guitars Tracking Station', promptModifier: 'dedicated instrument tracking corner with wall-mounted electric and acoustic guitars, 88-key weighted synthesizer keyboard stand, and studio guitar amplifier' }
+        ]
+      },
+      {
+        id: 'studio-lighting-ceiling',
+        label: 'Studio Mood Lighting & Ceiling Clouds',
+        options: [
+          { id: 'ceiling-acoustic-cloud', label: 'Suspended Acoustic Ceiling Cloud with Warm Recessed Spots', promptModifier: 'suspended fabric-wrapped acoustic ceiling cloud with integrated recessed warm spotlights hung directly over the console desk' },
+          { id: 'ambient-amber-indigo-cove', label: 'Dimmable Dual-Tone Amber & Indigo Ambient Backlighting', promptModifier: 'subtle dimmable dual-tone ambient LED backlighting behind acoustic panels and monitors, casting a warm focused creative glow' },
+          { id: 'directional-track-spots', label: 'Directional Matte Black Studio Track Spotlights & Edison Lamps', promptModifier: 'matte black ceiling track lighting with directional pinpoint spotlights and vintage amber Edison bulb pendants' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'basement-bar',
+    name: 'Bar with Stools & Table',
+    description: 'Wet bar, stools & high-top pub table',
+    category: 'basement',
+    iconName: 'Wine',
+    specificSections: [
+      {
+        id: 'bar-counter',
+        label: 'Bar Counter & Cabinetry',
+        options: [
+          { id: 'waterfall-quartzite', label: 'Waterfall Dark Quartzite Bar with Under-Counter LED Glow', promptModifier: 'imposing 10-foot wet bar counter with a thick waterfall-edge leathered dark quartzite stone top, integrated under-counter warm LED ribbon lighting, and undermount stainless prep sink' },
+          { id: 'fluted-walnut-brass', label: 'Rich Fluted American Walnut Bar Front with Brass Foot Rail', promptModifier: 'bespoke rich fluted American walnut curved bar front with a heavy brushed brass foot rail and polished black granite countertop' },
+          { id: 'poured-concrete-steel', label: 'Poured Concrete Industrial Counter with Steel Rivets & Sink', promptModifier: 'seamless poured cast concrete bar top with blackened steel structural rivets and reclaimed barnwood front paneling' }
+        ]
+      },
+      {
+        id: 'stools-and-table',
+        label: 'Bar Stools & Pub Table Setup',
+        options: [
+          { id: 'cognac-stools-pub-table', label: 'Cognac Swivel Leather Stools + Matching Round High-Top Pub Table', promptModifier: 'four swivel cognac saddle-leather bar stools with backrests along the bar, paired with an adjacent matching round walnut high-top pub table with two high bar chairs' },
+          { id: 'boucle-stools-marble-bistro', label: 'Modern Bouclé Bar Stools + Calacatta Marble Bistro Table', promptModifier: 'sculptural brass and cream bouclé upholstered bar stools lined up at the counter, accompanied by a round Calacatta marble pub table and matching stools' },
+          { id: 'industrial-iron-stools-timber-table', label: 'Industrial Distressed Leather Stools + Solid Timber Pub Table', promptModifier: 'vintage industrial iron-framed swivel bar stools with distressed leather seats, paired with a solid timber square pub-height table' }
+        ]
+      },
+      {
+        id: 'back-bar-display',
+        label: 'Back-Bar Display & Beverage Station',
+        options: [
+          { id: 'mirrored-floating-shelves', label: 'Antiqued Mirrored Back-Bar with Floating Illuminated Glass Shelves', promptModifier: 'dramatic antiqued mirror back-bar feature wall with floating brass-bracketed glass shelves holding premium spirits with warm concealed under-shelf lighting' },
+          { id: 'dual-wine-coolers-stemware', label: 'Dual Glass-Door Wine/Beverage Coolers & Custom Stemware Racks', promptModifier: 'dual built-in under-counter glass-door beverage and wine cooler units with overhead custom hanging stemware racks for wine and cocktail glasses' },
+          { id: 'stone-arch-bottle-racks', label: 'Masonry Stone Arch Niche with Criss-Cross Wine Bottle Racks', promptModifier: 'recessed masonry stone arch back-bar niche with custom criss-cross walnut wine bottle racks and soft accent uplighting' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'movie-room',
+    name: 'Movie Room',
+    description: 'Studio sound, screen & lounge chairs',
+    category: 'basement',
+    iconName: 'Film',
+    specificSections: [
+      {
+        id: 'theater-lounge-chairs',
+        label: 'Lounge Chairs & Cinema Seating',
+        options: [
+          { id: 'tiered-motorized-recliners', label: 'Tiered Motorized Leather Cinema Lounge Recliners with Cup Holders', promptModifier: 'two-tiered riser platform featuring rows of ultra-plush motorized top-grain black leather cinema lounge recliners with integrated cup holders, USB charging, and LED footwell lighting' },
+          { id: 'curved-cinema-pit', label: 'Deep Plush Curved Velvet & Bouclé Cinema Pit Daybed', promptModifier: 'luxurious deep multi-person curved velvet and bouclé cinema pit lounger with oversized scatter cushions and low modular ottomans' },
+          { id: 'dual-chaise-loungers', label: 'Oversized Dual Couple Chaise Loungers with Swivel Snack Trays', promptModifier: 'oversized dual couple chaise loungers upholstered in rich charcoal microfiber with swivel wooden snack tray tables' }
+        ]
+      },
+      {
+        id: 'screen-and-studio-sound',
+        label: 'Display Screen & Studio Surround Sound Setup',
+        options: [
+          { id: 'projector-150-studio-sound', label: '150-Inch 4K Laser Projector Screen + Hidden Studio Atmos Speakers', promptModifier: 'massive 150-inch ambient-light-rejecting fixed frame projector screen paired with a ceiling-mounted 4K laser projector and hidden in-wall Dolby Atmos studio surround sound speakers behind acoustically transparent fabric' },
+          { id: 'flush-oled-reference-towers', label: 'Flush-Mount 98-Inch 4K OLED with Studio Reference Tower Speakers', promptModifier: 'ultra-large 98-inch 4K OLED display mounted flush on a dark acoustic felt wall, framed by reference studio tower speakers and a powerful low-profile subwoofer' },
+          { id: 'motorized-drop-screen-soundbar', label: 'Motorized Ceiling Drop Screen with Architectural Studio Sound Array', promptModifier: 'motorized drop-down tensioned projection screen retracting invisibly into the ceiling, complemented by an architectural high-fidelity studio sound array' }
+        ]
+      },
+      {
+        id: 'cinema-ambiance',
+        label: 'Theater Ambiance & Starlight Ceiling',
+        options: [
+          { id: 'starlight-fiber-optic', label: 'Fiber-Optic Twinkling Starlight Constellation Ceiling', promptModifier: 'custom acoustic fiber-optic twinkling constellation starry night sky ceiling with dark perimeter cove LED strip lighting' },
+          { id: 'velvet-acoustic-sconces', label: 'Navy Acoustic Sound-Absorbing Velvet Walls with Dimmable Cinema Sconces', promptModifier: 'rich navy or charcoal sound-absorbing padded acoustic wall panels with vertical brass column cinema sconces set to 10% warm evening dim' },
+          { id: 'concession-bar-posters', label: 'Backlit Glass Movie Poster Marquee Frames & Concession Counter', promptModifier: 'dimly lit movie room entrance featuring illuminated glass movie poster marquee frames and a compact counter with a vintage popcorn machine' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'exercise-room',
+    name: 'Exercise Room',
+    description: 'TV, ceiling fan(s) & workout gear',
+    category: 'basement',
+    iconName: 'Dumbbell',
+    specificSections: [
+      {
+        id: 'tv-and-fans',
+        label: 'Wall-Mounted TV & Ceiling Fan(s)',
+        options: [
+          { id: 'smart-tv-dual-ceiling-fans', label: 'Large Wall-Mounted Smart TV + Dual Industrial Matte Black Ceiling Fans', promptModifier: 'large 65-inch high-definition smart fitness workout display TV mounted at eye level on the main wall, complemented by dual industrial matte-black multi-blade ceiling fans mounted symmetrically overhead for powerful airflow' },
+          { id: 'dual-screens-brushed-fans', label: 'Twin 55-Inch Workout Display Screens + Modern Brushed Nickel Ceiling Fans', promptModifier: 'twin wall-mounted 55-inch workout instruction screens paired with two modern aerodynamic brushed nickel ceiling fans with warm integrated LED center lights' },
+          { id: 'giant-screen-shop-fan', label: 'Commanding 75-Inch Streaming Fitness TV + High-Velocity Aerodynamic Fan', promptModifier: 'commanding 75-inch wall-mounted Peloton/fitness streaming screen paired with an oversized high-velocity industrial ceiling fan with aviation-style contoured blades' }
+        ]
+      },
+      {
+        id: 'gym-flooring',
+        label: 'Gym Flooring & Drop Zones',
+        options: [
+          { id: 'rubber-tiles-8mm', label: 'Heavy-Duty 8mm Speckled Black Rubber Gym Tile Flooring', promptModifier: 'durable commercial-grade 8mm black rubber gym flooring with subtle grey and white flecks throughout the entire room' },
+          { id: 'turf-rubber-hybrid', label: 'Interlocking Black Shock Rubber with Green Sled Turf Track', promptModifier: 'resilient black shock-absorbent rubber flooring featuring a 4-foot wide vibrant green sprint turf track down the center' },
+          { id: 'light-oak-rubber-zones', label: 'Luxury Light Oak Gym Vinyl with Heavy Equipment Rubber Mats', promptModifier: 'waterproof light oak luxury gym vinyl plank flooring with dedicated heavy-duty rubber lifting platform zones' }
+        ]
+      },
+      {
+        id: 'fitness-equipment',
+        label: 'Fitness & Workout Equipment',
+        options: [
+          { id: 'power-rack-barbells-dumbbells', label: 'Full Wall Mirrors with Commercial Power Rack, Barbell & Dumbbells', promptModifier: 'floor-to-ceiling mirror wall reflecting a matte-black commercial half-rack with Olympic barbell, bumper plates, and a 3-tier hex dumbbell rack with adjustable bench' },
+          { id: 'cardio-cable-trainer', label: 'Smart Stationary Bike, Commercial Treadmill & Dual Cable Trainer', promptModifier: 'premium fitness setup featuring a NordicTrack commercial treadmill, connected stationary cycling bike, and a dual-pulley functional trainer cable machine' },
+          { id: 'yoga-wellness-mobility', label: 'Mindful Yoga, Pilates & Mobility Zone with Swedish Ladder & Mats', promptModifier: 'serene wellness exercise zone with wall-mounted Swedish ladder, premium cork yoga mats, kettlebells, foam rollers, and resistance band hooks' }
+        ]
+      }
+    ]
   }
 ];
 
@@ -335,6 +517,51 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     description: 'Kitchen with standard wooden cabinets and dark countertop',
     defaultStyle: 'modern-minimalist',
     defaultPrompt: 'Upgrade to a high-end luxury modern kitchen with handleless fluted white oak cabinetry, waterfall Calacatta quartz island, and brushed champagne brass faucets'
+  },
+  {
+    id: 'sample-game-room',
+    name: 'Basement → Game Room',
+    roomType: 'game-room',
+    thumbnail: 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement space converted to a game room with pool table & stand-up games',
+    defaultStyle: 'industrial-loft',
+    defaultPrompt: 'Transform this basement space into a luxury Game Room with a championship slate pool table, dual stand-up arcade cabinets with glowing marquees, elevated bar-height leather spectator chairs with a drink rail, and vertical acoustic wood slat walls'
+  },
+  {
+    id: 'sample-soundproof-studio',
+    name: 'Basement → Soundproof Studio',
+    roomType: 'soundproof-studio',
+    thumbnail: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement studio with soundproof isolation booth and acoustic treatment',
+    defaultStyle: 'modern-minimalist',
+    defaultPrompt: 'Transform this basement into a soundproof recording studio featuring a glass-isolated vocal booth, multi-tier walnut producer desk with studio monitors, floor-to-ceiling acoustic diffusor slats, and a suspended ceiling acoustic cloud with warm spots'
+  },
+  {
+    id: 'sample-basement-bar',
+    name: 'Basement → Bar & Stools',
+    roomType: 'basement-bar',
+    thumbnail: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement wet bar with leather stools, pub table, and liquor display',
+    defaultStyle: 'mid-century',
+    defaultPrompt: 'Transform this basement area into a high-end bar featuring a waterfall dark quartzite bar counter with under-counter LED glow, swivel cognac leather bar stools, a matching round high-top pub table, and an illuminated antiqued mirror back-bar with glass bottle display'
+  },
+  {
+    id: 'sample-movie-room',
+    name: 'Basement → Movie Room',
+    roomType: 'movie-room',
+    thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement home theater with studio sound and plush lounge chairs',
+    defaultStyle: 'luxury-transitional',
+    defaultPrompt: 'Transform this basement space into a luxury movie room with tiered motorized black leather cinema lounge recliners, a 150-inch 4K laser projector screen, hidden in-wall Dolby Atmos studio surround sound speakers, and a fiber-optic twinkling starlight ceiling'
+  },
+  {
+    id: 'sample-exercise-room',
+    name: 'Basement → Exercise Room',
+    roomType: 'exercise-room',
+    thumbnail: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement fitness gym with wall-mounted TV, dual ceiling fans & weights',
+    defaultStyle: 'modern-minimalist',
+    defaultPrompt: 'Transform this basement room into an exercise gym featuring a large wall-mounted smart TV at eye level, dual industrial matte black ceiling fans overhead for maximum airflow, heavy-duty speckled rubber gym flooring, and a full-wall mirror with commercial power rack and dumbbells'
   },
   {
     id: 'sample-bedroom',

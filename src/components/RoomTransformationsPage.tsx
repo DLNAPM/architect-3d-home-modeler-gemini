@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Sparkles,
   Upload,
@@ -17,7 +17,21 @@ import {
   FolderOpen,
   Save,
   CheckCircle2,
-  Wand2
+  Wand2,
+  Gamepad2,
+  Mic,
+  Wine,
+  Film,
+  Dumbbell,
+  Sofa,
+  Utensils,
+  Bed,
+  Bath,
+  Coffee,
+  Briefcase,
+  Sun,
+  Tv,
+  Fan
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -78,6 +92,11 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [roomSpecificSelections, setRoomSpecificSelections] = useState<Record<string, string>>({});
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  // Category Filtering for Room Types and Sample Gallery
+  const [roomCategoryTab, setRoomCategoryTab] = useState<'basement' | 'all' | 'main'>('basement');
+  const [sampleCategoryTab, setSampleCategoryTab] = useState<'basement' | 'all' | 'main'>('basement');
+  const [demoShowcaseIndex, setDemoShowcaseIndex] = useState<number>(0);
 
   // Iterative Refinement State
   const [refinementPrompt, setRefinementPrompt] = useState<string>('');
@@ -515,22 +534,169 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
     }
   };
 
-  // Quick refinement suggestion chips
-  const QUICK_REFINEMENT_CHIPS = [
-    'Add lush potted indoor olive tree',
-    'Warm up lighting with ambient 2700K cove glow',
-    'Change flooring to French herringbone light oak',
-    'Make wall color Sherwin Williams Alabaster warm white',
-    'Add modern abstract minimalist canvas art on wall',
-    'Replace ceiling fixture with sculptural brass chandelier',
-    'Declutter surfaces for hyper-clean minimalist finish',
-    'Enhance natural morning sunbeam reflections',
+  // Icon helper for room types
+  const renderRoomIcon = (iconName: string, className = 'h-4 w-4') => {
+    switch (iconName) {
+      case 'Gamepad2':
+        return <Gamepad2 className={className} />;
+      case 'Mic':
+        return <Mic className={className} />;
+      case 'Wine':
+        return <Wine className={className} />;
+      case 'Film':
+        return <Film className={className} />;
+      case 'Dumbbell':
+        return <Dumbbell className={className} />;
+      case 'Sofa':
+        return <Sofa className={className} />;
+      case 'Utensils':
+        return <Utensils className={className} />;
+      case 'Bed':
+        return <Bed className={className} />;
+      case 'Bath':
+        return <Bath className={className} />;
+      case 'Coffee':
+        return <Coffee className={className} />;
+      case 'Briefcase':
+        return <Briefcase className={className} />;
+      case 'Sun':
+        return <Sun className={className} />;
+      case 'Tv':
+        return <Tv className={className} />;
+      case 'Fan':
+        return <Fan className={className} />;
+      default:
+        return <Sparkles className={className} />;
+    }
+  };
+
+  // Demo showcase items for the paywall preview
+  const DEMO_SHOWCASE_ITEMS = [
+    {
+      id: 'game-room',
+      title: 'Game Room with Pool Table & Arcades',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1541123437800-1bb1317badc2?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Unfinished Basement Space',
+      transformedLabel: 'Luxury Game Room with Pool Table & Stand-Up Arcades',
+    },
+    {
+      id: 'soundproof-studio',
+      title: 'Soundproof Studio & Acoustic Booth',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Bare Basement Nook',
+      transformedLabel: 'Acoustic Soundproof Studio & Vocal Booth',
+    },
+    {
+      id: 'basement-bar',
+      title: 'Basement Bar with Stools & High-Top Table',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Empty Corner Space',
+      transformedLabel: 'Custom Wet Bar, Stools & High-Top Pub Table',
+    },
+    {
+      id: 'movie-room',
+      title: 'Movie Room with Studio Sound & Lounge Chairs',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1595769816263-9b910be24d5f?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Dark Storage Room',
+      transformedLabel: 'Private Cinema with Starlight Ceiling & Lounge Recliners',
+    },
+    {
+      id: 'exercise-room',
+      title: 'Exercise Room with TV & Ceiling Fan(s)',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Unfinished Concrete Room',
+      transformedLabel: 'Commercial Fitness Gym with Smart TV & Dual Ceiling Fans',
+    },
+    {
+      id: 'living-room',
+      title: 'Living Room Japandi Restyle',
+      badge: 'Main Living Space',
+      original: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Dated 1990s Living Room',
+      transformedLabel: 'Modern Japandi Restyle',
+    },
   ];
+
+  // Quick refinement suggestion chips based on active room type
+  const activeRefinementChips = useMemo(() => {
+    const currentRoomId = activeProject?.roomType || selectedRoomTypeId;
+    switch (currentRoomId) {
+      case 'game-room':
+        return [
+          'Add custom neon arcade sign on brick accent wall',
+          'Switch pool table felt to tournament charcoal gray',
+          'Add stand-up retro pinball machine in corner',
+          'Add bar-height spectator rail along perimeter wall',
+          'Install low-hung matte black linear pool table pendant',
+          'Add illuminated cue rack and framed vintage sports art',
+        ];
+      case 'soundproof-studio':
+        return [
+          'Add vertical oak acoustic slat wall diffusors',
+          'Add Shure SM7B broadcast microphones on boom arms',
+          'Suspend fabric acoustic ceiling cloud with warm downlights',
+          'Add dimmable dual-tone amber & indigo LED cove backlighting',
+          'Add Yamaha HS8 studio monitors on isolation pads',
+          'Upgrade glass vocal booth with heavy acoustic seal',
+        ];
+      case 'basement-bar':
+        return [
+          'Add waterfall quartzite edge to bar counter',
+          'Add matching high-top pub table with two leather bar stools',
+          'Install hanging brushed brass stemware wine glass racks',
+          'Add antiqued mirrored back-bar with floating glass shelves',
+          'Add under-counter warm amber LED ribbon glow',
+          'Add dual glass-door wine and beverage cooler units',
+        ];
+      case 'movie-room':
+        return [
+          'Add twinkling fiber-optic starlight constellation ceiling',
+          'Add tiered motorized black leather cinema lounge recliners',
+          'Install hidden in-wall Dolby Atmos studio surround sound speakers',
+          'Add vertical brushed brass cinema wall sconces (dimmed)',
+          'Upgrade to 150-inch acoustically transparent projector screen',
+          'Add concession counter with vintage popcorn cart',
+        ];
+      case 'exercise-room':
+        return [
+          'Install dual industrial matte black multi-blade ceiling fans',
+          'Mount 65-inch smart fitness workout TV on main wall',
+          'Add commercial speckled rubber gym flooring with turf strip',
+          'Add full-wall mirror with commercial half-rack & barbell',
+          'Add connected stationary spin bike & 3-tier dumbbell rack',
+          'Add serene yoga cork mats and Swedish ladder wall',
+        ];
+      default:
+        return [
+          'Add lush potted indoor olive tree',
+          'Warm up lighting with ambient 2700K cove glow',
+          'Change flooring to French herringbone light oak',
+          'Make wall color Sherwin Williams Alabaster warm white',
+          'Add modern abstract minimalist canvas art on wall',
+          'Replace ceiling fixture with sculptural brass chandelier',
+          'Declutter surfaces for hyper-clean minimalist finish',
+          'Enhance natural morning sunbeam reflections',
+        ];
+    }
+  }, [activeProject?.roomType, selectedRoomTypeId]);
 
   // ==========================================
   // VIEW: PAID SUBSCRIPTION PAYWALL (IF NOT PREMIUM & NOT DEMO)
   // ==========================================
   if (!isPremium && !isDemoMode) {
+    const activeDemo = DEMO_SHOWCASE_ITEMS[demoShowcaseIndex] || DEMO_SHOWCASE_ITEMS[0];
+
     return (
       <div className="max-w-6xl mx-auto px-4 py-8" id="room-transformations-paywall">
         {/* Header Badge */}
@@ -543,29 +709,52 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
             Room Transformations
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
-            Upload any real photo of an existing room and watch AI re-architect it in your choice of
-            luxury styles. Compare before &amp; after side-by-side with an interactive slider, and continue refining
-            until you are 100% satisfied.
+            Upload any real photo of an existing room—including unfinished basements, entertainment dens, game rooms, studios, bars, home theaters, and gyms—and watch AI re-architect it in your choice of luxury styles. Compare before &amp; after side-by-side with an interactive slider, and continue refining until you are 100% satisfied.
           </p>
         </div>
 
         {/* Interactive Before/After Showcase */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-purple-100 dark:border-purple-900/50 mb-12">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
-              Live Demonstration Preview
-            </h2>
-            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-              Dated Living Room → Japandi Restyle
-            </span>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                Live Demonstration Preview
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs px-2 py-0.5 rounded-md font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                  {activeDemo.badge}
+                </span>
+                <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                  {activeDemo.title}
+                </span>
+              </div>
+            </div>
+
+            {/* Showcase selector tabs */}
+            <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+              {DEMO_SHOWCASE_ITEMS.map((item, idx) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setDemoShowcaseIndex(idx)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    demoShowcaseIndex === idx
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {item.title.split(' ')[0]} {item.title.split(' ')[1]}
+                </button>
+              ))}
+            </div>
           </div>
 
           <BeforeAfterSlider
-            originalImage="https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80"
-            transformedImage="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80"
-            originalLabel="Original Photo"
-            transformedLabel="Japandi Customization"
+            originalImage={activeDemo.original}
+            transformedImage={activeDemo.transformed}
+            originalLabel={activeDemo.originalLabel}
+            transformedLabel={activeDemo.transformedLabel}
           />
         </div>
 
@@ -576,10 +765,10 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               <Upload className="h-6 w-6" />
             </div>
             <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-2">
-              Upload Any Room Photo
+              Upload Any Room or Basement
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Transform kitchens, living rooms, master bedrooms, spa bathrooms, home offices, and outdoor patios with real perspective preservation.
+              Transform basement game rooms with pool tables, soundproof audio studios, custom bars with pub tables, home movie theaters, exercise rooms with ceiling fans, kitchens, and living rooms.
             </p>
           </div>
 
@@ -591,7 +780,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               Side-by-Side Comparison
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Interactive split-view slider lets you peel smoothly between the original room photo and your customized architectural rendering.
+              Interactive split-view slider lets you peel smoothly between the original room photo and your customized architectural rendering in high fidelity.
             </p>
           </div>
 
@@ -603,7 +792,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               Iterate Until Satisfied
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Not quite right? Request continuous updates—swap materials, tweak lighting, add plants, or change colors across unlimited revision cycles.
+              Request continuous updates—swap materials, add retro pinball games, tune studio soundproofing, adjust bar seating, or add ceiling fans across unlimited revision cycles.
             </p>
           </div>
         </div>
@@ -621,7 +810,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               Unlock Room Transformations
             </h2>
             <p className="text-purple-200 text-base mb-8">
-              Upgrade your subscription to gain unlimited access to Room Transformations, high-resolution downloads, side-by-side comparisons, and advanced marketing video tours.
+              Upgrade your subscription to gain unlimited access to Room Transformations, high-resolution downloads, side-by-side comparisons, and basement entertainment packages.
             </p>
 
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 mb-8 border border-white/15 max-w-md mx-auto">
@@ -632,11 +821,11 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               <ul className="text-left text-sm space-y-2.5 text-purple-100">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>Unlimited Room Photo Transformations</span>
+                  <span>Unlimited Room &amp; Basement Photo Transformations</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>Dynamic Room-Specific Style &amp; Material Options</span>
+                  <span>Basement Options (Game Room, Soundproof Studio, Bar, Theater, Gym)</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -892,10 +1081,10 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
             {/* Quick Refinement Suggestion Chips */}
             <div className="mb-4">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
-                Quick 1-Click Ideas:
+                Quick 1-Click Ideas for this Room:
               </span>
               <div className="flex flex-wrap gap-2">
-                {QUICK_REFINEMENT_CHIPS.map((chip, idx) => (
+                {activeRefinementChips.map((chip, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -1033,11 +1222,58 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
 
             {/* Quick Sample Rooms */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">
-                Or Try a Sample Room Photo:
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {SAMPLE_ROOMS.map((sample) => (
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                  Or Try a Sample Room Photo:
+                </h3>
+              </div>
+
+              {/* Sample category toggle tabs */}
+              <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-lg mb-3">
+                <button
+                  type="button"
+                  onClick={() => setSampleCategoryTab('basement')}
+                  className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                    sampleCategoryTab === 'basement'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Basement ({SAMPLE_ROOMS.filter(s => ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(s.roomType)).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSampleCategoryTab('main')}
+                  className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                    sampleCategoryTab === 'main'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Main ({SAMPLE_ROOMS.filter(s => !['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(s.roomType)).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSampleCategoryTab('all')}
+                  className={`flex-1 py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                    sampleCategoryTab === 'all'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  All ({SAMPLE_ROOMS.length})
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
+                {SAMPLE_ROOMS
+                  .filter((sample) => {
+                    const isBasement = ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(sample.roomType);
+                    if (sampleCategoryTab === 'basement') return isBasement;
+                    if (sampleCategoryTab === 'main') return !isBasement;
+                    return true;
+                  })
+                  .map((sample) => (
                   <div
                     key={sample.id}
                     onClick={() => handleSelectSampleRoom(sample)}
@@ -1050,8 +1286,13 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2">
-                        <span className="text-white text-xs font-bold leading-tight">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex flex-col justify-end p-2">
+                        {['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(sample.roomType) && (
+                          <span className="self-start px-1.5 py-0.5 mb-1 bg-amber-500/90 text-white font-bold text-[9px] rounded uppercase tracking-wider">
+                            Basement
+                          </span>
+                        )}
+                        <span className="text-white text-xs font-bold leading-tight line-clamp-1">
                           {sample.name}
                         </span>
                       </div>
@@ -1067,25 +1308,97 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
             <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-6">
               {/* Step 2: Room Type Selector */}
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  <span>Select Room Type</span>
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {ROOM_TYPES.map((room) => (
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-bold">
+                      2
+                    </span>
+                    <span>Select Room Type</span>
+                  </h2>
+
+                  {/* Category Filter Tabs */}
+                  <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setRoomCategoryTab('basement')}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                        roomCategoryTab === 'basement'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      id="tab-rooms-basement"
+                    >
+                      <span>Basement Rooms</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${roomCategoryTab === 'basement' ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                        {ROOM_TYPES.filter(r => r.category === 'basement').length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoomCategoryTab('all')}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                        roomCategoryTab === 'all'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      id="tab-rooms-all"
+                    >
+                      <span>All Rooms</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${roomCategoryTab === 'all' ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                        {ROOM_TYPES.length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoomCategoryTab('main')}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                        roomCategoryTab === 'main'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      id="tab-rooms-main"
+                    >
+                      <span>Main Living</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${roomCategoryTab === 'main' ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                        {ROOM_TYPES.filter(r => r.category !== 'basement').length}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  {ROOM_TYPES
+                    .filter((room) => {
+                      if (roomCategoryTab === 'basement') return room.category === 'basement';
+                      if (roomCategoryTab === 'main') return room.category !== 'basement';
+                      return true;
+                    })
+                    .map((room) => (
                     <button
                       key={room.id}
                       type="button"
                       onClick={() => setSelectedRoomTypeId(room.id)}
-                      className={`p-3 rounded-xl border text-left transition-all ${
+                      className={`p-3 rounded-xl border text-left transition-all relative ${
                         selectedRoomTypeId === room.id
                           ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
                       }`}
                       id={`room-type-${room.id}`}
                     >
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                          selectedRoomTypeId === room.id
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        }`}>
+                          {renderRoomIcon(room.iconName, 'h-3.5 w-3.5')}
+                        </div>
+                        {room.category === 'basement' && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 rounded">
+                            Basement
+                          </span>
+                        )}
+                      </div>
                       <div className="font-bold text-xs sm:text-sm">{room.name}</div>
                       <div className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
                         {room.description}
