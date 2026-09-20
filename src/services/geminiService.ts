@@ -373,6 +373,57 @@ export interface AdditionalImageInput {
   mimeType: string;
 }
 
+async function ensureCleanBase64(input: string, fallbackMime: string = 'image/jpeg'): Promise<{ data: string; mimeType: string } | null> {
+  if (!input) return null;
+
+  // Case 1: Data URL
+  if (input.startsWith('data:')) {
+    const commaIdx = input.indexOf(',');
+    if (commaIdx === -1) return null;
+    const header = input.substring(0, commaIdx);
+    const mimeMatch = header.match(/data:([^;]+)/);
+    const mimeType = mimeMatch ? mimeMatch[1] : fallbackMime;
+    const data = input.substring(commaIdx + 1);
+    return { data, mimeType };
+  }
+
+  // Case 2: HTTP/HTTPS/Blob URL - attempt fetch to convert to base64
+  if (input.startsWith('http://') || input.startsWith('https://') || input.startsWith('blob:')) {
+    try {
+      const res = await fetch(input, { mode: 'cors' });
+      if (res.ok) {
+        const blob = await res.blob();
+        return await new Promise<{ data: string; mimeType: string } | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const resStr = reader.result as string;
+            const commaIdx = resStr.indexOf(',');
+            if (commaIdx !== -1) {
+              resolve({
+                data: resStr.substring(commaIdx + 1),
+                mimeType: blob.type || fallbackMime,
+              });
+            } else {
+              resolve(null);
+            }
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (e) {
+      console.warn('Could not fetch external image for base64 conversion:', e);
+    }
+    return null;
+  }
+
+  // Case 3: Raw base64 string
+  return {
+    data: input,
+    mimeType: fallbackMime,
+  };
+}
+
 export async function generateImageFromImage(
   prompt: string, 
   imageBase64: string, 
@@ -383,27 +434,33 @@ export async function generateImageFromImage(
   const ai = getAiClient();
   validatePrompt(prompt);
 
-  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image'];
+  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'];
   let lastError: unknown;
 
   const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [];
 
   if (imageBase64) {
-    parts.push({
-      inlineData: {
-        data: imageBase64,
-        mimeType: imageMimeType || 'image/jpeg',
-      },
-    });
+    const cleaned = await ensureCleanBase64(imageBase64, imageMimeType || 'image/jpeg');
+    if (cleaned && cleaned.data) {
+      parts.push({
+        inlineData: {
+          data: cleaned.data,
+          mimeType: cleaned.mimeType,
+        },
+      });
+    }
   }
 
   if (additionalImage && additionalImage.base64) {
-    parts.push({
-      inlineData: {
-        data: additionalImage.base64,
-        mimeType: additionalImage.mimeType || 'image/jpeg',
-      },
-    });
+    const cleanedAdd = await ensureCleanBase64(additionalImage.base64, additionalImage.mimeType || 'image/jpeg');
+    if (cleanedAdd && cleanedAdd.data) {
+      parts.push({
+        inlineData: {
+          data: cleanedAdd.data,
+          mimeType: cleanedAdd.mimeType,
+        },
+      });
+    }
   }
 
   parts.push({
@@ -439,8 +496,15 @@ export async function generateImageFromImage(
     }
   }
 
-  parseAndThrowApiError(lastError, 'image');
-  throw new Error("Unreachable code");
+  // Fallback to text-to-image generation if multimodal image editing models were unavailable or rejected the image
+  try {
+    console.info('Falling back to direct architectural image generation...');
+    return await generateImage(prompt);
+  } catch (fallbackErr) {
+    console.error('All image generation attempts failed:', fallbackErr);
+    parseAndThrowApiError(lastError || fallbackErr, 'image');
+    throw new Error("Unreachable code");
+  }
 }
 
 export async function generateVideo(prompt: string): Promise<string> {
