@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send, Heart, ShoppingCart } from 'lucide-react';
+import { Home, Moon, Sun, PlusSquare, Search, LogIn, Save, HelpCircle, X, Sparkles, Cloud, Video, Layout, Share2, Send, Heart, ShoppingCart, Trees } from 'lucide-react';
 import { User } from '../types';
 import UserProfileMenu from './UserProfileMenu';
 import WishListModal from './WishListModal';
@@ -18,6 +18,8 @@ interface HeaderProps {
     onAdminClick?: () => void;
     onRoomTransformationsClick?: () => void;
     isRoomTransformationsActive?: boolean;
+    onLandscapingClick?: () => void;
+    isLandscapingActive?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -27,12 +29,14 @@ const Header: React.FC<HeaderProps> = ({
     onNewDesign, 
     onSaveDesign, 
     searchQuery, 
-    onSearchChange,
+    onSearchChange, 
     isSaving = false,
     hasActiveDesign,
     onAdminClick,
     onRoomTransformationsClick,
-    isRoomTransformationsActive = false
+    isRoomTransformationsActive = false,
+    onLandscapingClick,
+    isLandscapingActive = false
 }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
@@ -124,6 +128,25 @@ const Header: React.FC<HeaderProps> = ({
                                 <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                                 <span className="hidden md:inline">Room Transformations</span>
                                 <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs">
+                                    PRO
+                                </span>
+                            </button>
+                        )}
+
+                        {onLandscapingClick && (
+                            <button
+                                onClick={onLandscapingClick}
+                                className={`flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                                    isLandscapingActive
+                                        ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold ring-1 ring-emerald-500'
+                                        : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-gray-700'
+                                }`}
+                                title="Landscaping Transformations (Paid Subscription Feature)"
+                                id="header-btn-landscaping-transformations"
+                            >
+                                <Trees className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                <span className="hidden md:inline">Landscaping</span>
+                                <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs">
                                     PRO
                                 </span>
                             </button>

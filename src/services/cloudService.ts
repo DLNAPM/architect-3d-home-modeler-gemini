@@ -774,5 +774,85 @@ export const cloudService = {
       console.error("Error deleting room transformation:", error);
       throw error;
     }
+  },
+
+  /**
+   * Saves or updates a landscaping transformation project in the user's cloud library.
+   */
+  async saveLandscapingTransformation(userId: string, project: import('../types').LandscapingTransformationProject): Promise<void> {
+    if (!userId || !project) {
+      throw new Error("Cannot save landscaping transformation: missing userId or project");
+    }
+
+    try {
+      const projectToSave = { ...project };
+      const SIZE_THRESHOLD = 500 * 1024; // 500KB
+
+      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > SIZE_THRESHOLD) {
+        projectToSave.originalImageUrl = await compressImage(
+          projectToSave.originalImageUrl,
+          projectToSave.originalImageMimeType || 'image/jpeg',
+          1280,
+          0.82
+        );
+      }
+
+      if (projectToSave.revisions && projectToSave.revisions.length > 0) {
+        projectToSave.revisions = await Promise.all(
+          projectToSave.revisions.map(async (rev) => {
+            if (rev.renderedImageUrl && rev.renderedImageUrl.length > SIZE_THRESHOLD) {
+              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1280, 0.82);
+              return { ...rev, renderedImageUrl: compressed };
+            }
+            return rev;
+          })
+        );
+      }
+
+      const projectRef = doc(db, "users", userId, "landscaping_transformations", project.id);
+      await setDoc(projectRef, {
+        ...projectToSave,
+        userId,
+        updatedAt: Date.now()
+      });
+      console.log("Landscaping transformation saved to cloud successfully");
+    } catch (error) {
+      console.error("Error saving landscaping transformation:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves all landscaping transformations for a specific user.
+   */
+  async getLandscapingTransformations(userId: string): Promise<import('../types').LandscapingTransformationProject[]> {
+    if (!userId) return [];
+    try {
+      const colRef = collection(db, "users", userId, "landscaping_transformations");
+      const snap = await getDocs(colRef);
+      const list: import('../types').LandscapingTransformationProject[] = [];
+      snap.forEach((d) => {
+        list.push(d.data() as import('../types').LandscapingTransformationProject);
+      });
+      return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    } catch (error) {
+      console.error("Error fetching landscaping transformations:", error);
+      return [];
+    }
+  },
+
+  /**
+   * Deletes a landscaping transformation project from the cloud.
+   */
+  async deleteLandscapingTransformation(userId: string, projectId: string): Promise<void> {
+    if (!userId || !projectId) return;
+    try {
+      const projectRef = doc(db, "users", userId, "landscaping_transformations", projectId);
+      await deleteDoc(projectRef);
+      console.log("Landscaping transformation deleted from cloud successfully");
+    } catch (error) {
+      console.error("Error deleting landscaping transformation:", error);
+      throw error;
+    }
   }
 };

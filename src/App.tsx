@@ -7,6 +7,7 @@ import Header from './components/Header';
 import LandingPage from './components/LandingPage';
 import AdminPage from './components/AdminPage';
 import { RoomTransformationsPage } from './components/RoomTransformationsPage';
+import { LandscapingTransformationsPage } from './components/LandscapingTransformationsPage';
 import { generateHousePlanFromDescription, generateImage, generateVideo, generateImageFromImage } from './services/geminiService';
 import { authService } from './services/authService';
 import { dbService } from './services/dbService';
@@ -789,6 +790,11 @@ function App() {
           setError(null);
         }}
         isRoomTransformationsActive={view === AppView.RoomTransformations}
+        onLandscapingClick={() => {
+          setView(AppView.LandscapingTransformations);
+          setError(null);
+        }}
+        isLandscapingActive={view === AppView.LandscapingTransformations}
       />
       <main className="container mx-auto px-4 py-8 flex-grow">
         {isLoading && <LoadingOverlay message={loadingMessage} />}
@@ -807,9 +813,22 @@ function App() {
               setView(AppView.RoomTransformations);
               setError(null);
             }}
+            onNavigateToLandscaping={() => {
+              setView(AppView.LandscapingTransformations);
+              setError(null);
+            }}
         />}
         {view === AppView.RoomTransformations && (
           <RoomTransformationsPage
+            user={user}
+            onUpgradeToPremium={handleUpgradeToPremium}
+            onSignIn={handleSignIn}
+            isKeyReady={isKeyReady !== false}
+            onSelectKey={handleSelectKey}
+          />
+        )}
+        {view === AppView.LandscapingTransformations && (
+          <LandscapingTransformationsPage
             user={user}
             onUpgradeToPremium={handleUpgradeToPremium}
             onSignIn={handleSignIn}

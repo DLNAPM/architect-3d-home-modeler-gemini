@@ -69,7 +69,8 @@ export enum AppView {
   Results,
   Admin,
   WishList,
-  RoomTransformations
+  RoomTransformations,
+  LandscapingTransformations
 }
 
 export interface TransformationRevision {
@@ -94,6 +95,32 @@ export interface RoomTransformationProject {
   originalImageMimeType: string;
   currentRevisionIndex: number;
   revisions: TransformationRevision[];
+}
+
+export type HouseViewSide = 'front' | 'side' | 'back';
+
+export interface LandscapingRevision {
+  id: string;
+  createdAt: number;
+  label: string;
+  prompt: string;
+  viewSide: HouseViewSide;
+  selectedOptions: Record<string, string>;
+  customInstructions: string;
+  renderedImageUrl: string;
+}
+
+export interface LandscapingTransformationProject {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  userId: string;
+  title: string;
+  viewSide: HouseViewSide;
+  originalImageUrl: string;
+  originalImageMimeType: string;
+  currentRevisionIndex: number;
+  revisions: LandscapingRevision[];
 }
 
 export interface User {

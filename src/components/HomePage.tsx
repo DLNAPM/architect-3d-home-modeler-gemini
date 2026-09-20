@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound } from 'lucide-react';
+import { Mic, Upload, Sparkles, AlertTriangle, HelpCircle, X, Trash2, KeyRound, Trees } from 'lucide-react';
 import { SavedDesign, User } from '../types';
 
 interface UploadedFiles {
@@ -20,6 +20,7 @@ interface HomePageProps {
   onSelectKey: () => void;
   user: User | null;
   onNavigateToRoomTransformations?: () => void;
+  onNavigateToLandscaping?: () => void;
 }
 
 // Memoized component for displaying a single design card.
@@ -251,38 +252,72 @@ const HomePage: React.FC<HomePageProps> = ({
         </p>
       </div>
 
-      {onNavigateToRoomTransformations && (
-        <div 
-          onClick={onNavigateToRoomTransformations}
-          className="mt-6 w-full max-w-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-purple-500/30 cursor-pointer hover:border-purple-400/60 hover:shadow-purple-500/10 transition-all group flex items-center justify-between gap-4"
-          id="banner-room-transformations"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center text-purple-200 shrink-0 group-hover:scale-105 transition-transform">
-              <Sparkles className="h-5 w-5 text-purple-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm sm:text-base text-white">
-                  Room Transformations
-                </span>
-                <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-purple-500 text-white shadow-xs">
-                  PRO
-                </span>
+      {/* Pro Features Showcase Banners */}
+      <div className="mt-6 w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {onNavigateToRoomTransformations && (
+          <div 
+            onClick={onNavigateToRoomTransformations}
+            className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 text-white p-4 rounded-2xl shadow-md border border-purple-500/30 cursor-pointer hover:border-purple-400/60 hover:shadow-purple-500/10 transition-all group flex flex-col justify-between"
+            id="banner-room-transformations"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center text-purple-200 shrink-0 group-hover:scale-105 transition-transform">
+                <Sparkles className="h-5 w-5 text-purple-300" />
               </div>
-              <p className="text-xs text-purple-200 line-clamp-1 mt-0.5">
-                Upload any room photo, tailor architectural options, compare before/after side-by-side, and iterate until satisfied.
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-white truncate">
+                    Room Transformations
+                  </span>
+                  <span className="text-[9px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-purple-500 text-white shadow-xs">
+                    PRO
+                  </span>
+                </div>
+                <p className="text-xs text-purple-200 line-clamp-2 mt-1">
+                  Upload interior photos, customize room types, and iterate side-by-side.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-purple-800/40 flex justify-end">
+              <span className="text-[11px] font-bold text-purple-300 group-hover:text-white flex items-center gap-1">
+                Launch Interiors →
+              </span>
             </div>
           </div>
-          <button 
-            type="button"
-            className="shrink-0 px-3.5 py-1.5 text-xs font-semibold bg-white/15 hover:bg-white/25 rounded-lg border border-white/20 transition-colors hidden sm:inline-block"
+        )}
+
+        {onNavigateToLandscaping && (
+          <div 
+            onClick={onNavigateToLandscaping}
+            className="bg-gradient-to-r from-emerald-950 via-teal-950 to-emerald-900 text-white p-4 rounded-2xl shadow-md border border-emerald-500/30 cursor-pointer hover:border-emerald-400/60 hover:shadow-emerald-500/10 transition-all group flex flex-col justify-between"
+            id="banner-landscaping-transformations"
           >
-            Launch →
-          </button>
-        </div>
-      )}
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/30 border border-emerald-400/40 flex items-center justify-center text-emerald-200 shrink-0 group-hover:scale-105 transition-transform">
+                <Trees className="h-5 w-5 text-emerald-300" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-white truncate">
+                    Landscaping Transformations
+                  </span>
+                  <span className="text-[9px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500 text-white shadow-xs">
+                    PRO
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-200 line-clamp-2 mt-1">
+                  Upload front, side, or back exterior photos, customize landscaping, and compare.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-emerald-800/40 flex justify-end">
+              <span className="text-[11px] font-bold text-emerald-300 group-hover:text-white flex items-center gap-1">
+                Launch Landscaping →
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="mt-8 w-full max-w-3xl bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-lg">
         <div className="relative">

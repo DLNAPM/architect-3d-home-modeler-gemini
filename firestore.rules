@@ -55,6 +55,11 @@ service cloud.firestore {
       match /room_transformations/{transformationId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      // --- Nested Landscaping Transformations ---
+      match /landscaping_transformations/{transformationId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
 
     // --- Rules for shared_projects ---
