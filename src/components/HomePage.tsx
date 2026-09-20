@@ -97,7 +97,8 @@ const HomePage: React.FC<HomePageProps> = ({
   isKeyReady, 
   onSelectKey, 
   user,
-  onNavigateToRoomTransformations
+  onNavigateToRoomTransformations,
+  onNavigateToLandscaping
 }) => {
   const [description, setDescription] = useState('');
   const [frontPlan, setFrontPlan] = useState<File | null>(null);
