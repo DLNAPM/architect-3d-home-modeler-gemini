@@ -31,7 +31,8 @@ import {
   Briefcase,
   Sun,
   Tv,
-  Fan
+  Fan,
+  DoorOpen
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -660,6 +661,8 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         return <Tv className={className} />;
       case 'Fan':
         return <Fan className={className} />;
+      case 'DoorOpen':
+        return <DoorOpen className={className} />;
       default:
         return <Sparkles className={className} />;
     }
@@ -720,6 +723,15 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
       transformed: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1200&q=80',
       originalLabel: 'Unused Basement Alcove',
       transformedLabel: 'Luxury Wine Room with Climate Wall & Bucket Chairs',
+    },
+    {
+      id: 'hallway',
+      title: 'Hallway with Feature Wall & Picture Gallery',
+      badge: 'Main Living Space',
+      original: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Plain Residential Hallway',
+      transformedLabel: 'Luxury Gallery Hallway with Feature Wall & Accent Lighting',
     },
     {
       id: 'living-room',
@@ -790,6 +802,17 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           'Place Italian Carrara marble wine glass coasters on table',
           'Add sheer water feature wall with recirculating ripple lighting',
           'Install triple-deep black metal wine peg racking',
+        ];
+      case 'hallway':
+      case 'Hallway':
+        return [
+          'Add symmetrical grid gallery with black matted picture frames',
+          'Install vertical white oak acoustic slat feature wall with LED cove',
+          'Add flush-mounted modern linear electric fireplace',
+          'Add geometric preserved vibrant green reindeer moss wall panel',
+          'Add vintage sepia cartographic world map mural',
+          'Install floating hardwood wall hangers for acoustic guitars',
+          'Add signed sports jersey shadow box frames with LED edge glow',
         ];
       default:
         return [
@@ -1898,7 +1921,9 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               {/* Dynamic Tailored Options for Selected Room Type */}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">
-                  Tailored {activeRoomTypeConfig.name} Customizations:
+                  {activeRoomTypeConfig.id === 'hallway'
+                    ? 'Tailored Feature Wall Customizations:'
+                    : `Tailored ${activeRoomTypeConfig.name} Customizations:`}
                 </h3>
                 <div className="space-y-4">
                   {activeRoomTypeConfig.specificSections.map((sec) => (

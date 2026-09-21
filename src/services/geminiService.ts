@@ -24,9 +24,9 @@ function validatePrompt(prompt: string) {
 }
 
 const getAiClient = () => {
-    // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-    // Assume this variable is pre-configured, valid, and accessible.
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // The API key is obtained from process.env.API_KEY or process.env.GEMINI_API_KEY
+    const apiKey = process.env.API_KEY || (process.env as any).GEMINI_API_KEY || '';
+    return new GoogleGenAI({ apiKey });
 };
 
 const housePlanSchema = {
@@ -534,8 +534,9 @@ export async function generateVideo(prompt: string): Promise<string> {
       throw new Error("Video generation completed, but no video was returned. This might be due to safety filters or an internal issue.");
     }
     
-    // Use process.env.API_KEY directly for downloading the video
-    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+    // Use API key for downloading the video
+    const apiKey = process.env.API_KEY || (process.env as any).GEMINI_API_KEY || '';
+    const response = await fetch(`${downloadLink}&key=${apiKey}`);
      if (!response.ok) {
         throw new Error(`Failed to download video file: ${response.statusText}`);
     }

@@ -379,6 +379,92 @@ export const ROOM_TYPES: RoomTypeConfig[] = [
     ]
   },
   {
+    id: 'hallway',
+    name: 'Hallway',
+    description: 'Corridor, entryway, gallery wall & foyer',
+    category: 'main',
+    iconName: 'DoorOpen',
+    specificSections: [
+      {
+        id: 'feature-wall-types',
+        label: 'Feature Wall Types',
+        options: [
+          { id: 'slat-wood-accent', label: 'Vertical White Oak Acoustic Slat Wall with Recessed LED Cove', promptModifier: 'hallway feature wall finished with floor-to-ceiling vertical fluted natural white oak acoustic wood slats and integrated warm 2700K recessed vertical LED channel lighting' },
+          { id: 'board-batten-trim', label: 'Floor-to-Ceiling Board & Batten Paneling with Crown Picture Rail', promptModifier: 'architectural floor-to-ceiling crisp board and batten wainscoting paneling with integrated picture rail molding along the corridor' },
+          { id: 'exposed-brick', label: 'Authentic Distressed Reclaimed Brick Wall with Vintage Wash', promptModifier: 'exposed vintage reclaimed brick corridor accent wall with authentic distressed lime mortar wash and industrial blackened iron wall sconces' },
+          { id: 'roman-clay-limewash', label: 'Organic Hand-Troweled Roman Clay & Limewash Finish', promptModifier: 'tactile Roman clay limewash textured corridor accent wall in warm alabaster and subtle stone taupe tones with directional art gallery spotlights' },
+          { id: 'marble-slab-feature', label: 'Bookmatched Calacatta Marble Porcelain Accent Wall', promptModifier: 'luxury bookmatched Calacatta marble porcelain accent wall with sweeping grey and gold veins reflecting gentle ambient ceiling glow' }
+        ]
+      },
+      {
+        id: 'picture-frame-placements',
+        label: 'Picture Frame Placements',
+        options: [
+          { id: 'symmetrical-grid-gallery', label: 'Symmetrical Grid Gallery with Matted Thin Black Frames', promptModifier: 'hallway wall arranged with an elegant symmetrical 3x3 grid of oversized crisp white matted thin black framed architectural photography' },
+          { id: 'triptych-oversized-canvases', label: 'Linear 3-Piece Triptych Large Canvas Art with Picture Lights', promptModifier: 'three oversized museum-grade minimalist abstract canvas artworks hung side-by-side with dedicated brushed brass adjustable gallery picture lights above each frame' },
+          { id: 'staggered-salon-gallery', label: 'Staggered Salon-Style Gallery with Mixed Brass & Oak Frames', promptModifier: 'sophisticated salon-style gallery wall displaying an eclectic curated collection of botanical sketches, oil paintings, and vintage prints in mixed antique brass and natural oak frames' },
+          { id: 'dual-floating-picture-ledges', label: 'Dual Layer Floating White Oak Picture Ledges', promptModifier: 'twin wall-to-wall floating white oak shallow picture display ledges holding layered framed family photographs, architectural sketches, and small ceramic vessels' },
+          { id: 'monumental-single-statement', label: 'Single Monumental Abstract Statement Artwork Centerpiece', promptModifier: 'single dramatic 7-foot tall minimalist textured abstract canvas in monochrome and warm earth tones anchored by a dedicated ceiling pin-spot' }
+        ]
+      },
+      {
+        id: 'map-mural',
+        label: 'Map Mural',
+        options: [
+          { id: 'vintage-cartographic-map', label: 'Vintage Sepia & Antique Parchment World Map Mural', promptModifier: 'full-wall vintage sepia cartographic world map mural with intricate antique compass roses, aged parchment textures, and hand-drawn meridian lines' },
+          { id: 'modern-city-grid-blueprint', label: 'Modern High-Contrast Black & White City Grid Blueprint Mural', promptModifier: 'contemporary large-scale urban street grid blueprint map mural in crisp black and white with clean geometric topography lines' },
+          { id: 'navy-gold-topographic-relief', label: 'Midnight Navy & Brushed Gold Leaf 3D Topographic Relief Map', promptModifier: 'dramatic deep midnight navy feature wall with raised contour lines and hand-applied brushed gold leaf topographic mountain elevations' },
+          { id: 'watercolor-coastal-chart', label: 'Muted Indigo & Sage Watercolor Nautical Navigation Chart', promptModifier: 'serene artistic coastal nautical navigation chart wall mural with delicate watercolor washes of sea glass green, soft indigo, and navigational soundings' },
+          { id: 'no-map-mural', label: 'No Map Mural (Clean Solid Architectural Wall)', promptModifier: 'clean refined wall finish with no map mural, maintaining focus on architectural lines and adjacent decor' }
+        ]
+      },
+      {
+        id: 'fireplace-wall',
+        label: 'Fireplace Wall',
+        options: [
+          { id: 'linear-electric-fireplace', label: 'Flush-Mounted Modern Linear Electric Fireplace with Venetian Plaster', promptModifier: 'architectural flush-mounted 60-inch linear electric fireplace with realistic dancing amber flames and glowing river rock ember bed set into a smooth Venetian plaster bump-out wall' },
+          { id: 'dry-stacked-stone-pier', label: 'Dry-Stacked Stone Accent Pier with Integrated Ethanol Fire Ribbon', promptModifier: 'floor-to-ceiling dry-stacked split-face quartz ledge stone accent pier with a built-in ventless warm flame ethanol ribbon fireplace' },
+          { id: 'double-sided-glass-fireplace', label: 'Double-Sided Glass Fireplace Connecting to Adjacent Room', promptModifier: 'striking see-through double-sided glass fireplace tunnel integrated into the corridor dividing wall, offering a warm transparent fire view into the neighboring room' },
+          { id: 'honed-marble-mantel', label: 'Classic Low-Profile Honed Marble Mantel with Electric Embers Hearth', promptModifier: 'elegant low-profile honed French marble fireplace mantel with decorative fluted trim and an electric flickering embers hearth' },
+          { id: 'no-fireplace', label: 'No Fireplace (Sleek Flush Corridor Walking Wall)', promptModifier: 'sleek flush hallway wall without fireplace, optimizing corridor walking clearance and clean circulation space' }
+        ]
+      },
+      {
+        id: 'faux-greenery',
+        label: 'Faux Greenery',
+        options: [
+          { id: 'preserved-reindeer-moss-panel', label: 'Geometric Preserved Reindeer & Sheet Moss Botanical Wall Panel', promptModifier: 'custom preserved vibrant green reindeer moss and mood moss living wall panel set in a recessed matte black frame with integrated soft perimeter backlighting' },
+          { id: 'cascading-pothos-eucalyptus-niches', label: 'Recessed Arched Niches with Cascading Faux Eucalyptus & Pothos', promptModifier: 'pair of architectural recessed curved wall niches with warm concealed downlights, featuring lifelike cascading eucalyptus vines, variegated pothos, and sculptural terracotta pots' },
+          { id: 'twin-tall-olive-trees', label: 'Twin Slender Faux Mediterranean Olive Trees in Fluted Fiberstone Planters', promptModifier: 'pair of tall slender lifelike faux Mediterranean olive trees with delicate silvery-green leaves in matching tall fluted fiberstone planters flanking the hallway entry' },
+          { id: 'black-metal-plant-trellis', label: 'Minimalist Black Metal Architectural Trellis with Faux Ivy', promptModifier: 'geometric floor-to-ceiling matte black metal architectural wall trellis adorned with lush realistic boxwood sprigs and climbing evergreen ivy' },
+          { id: 'no-greenery', label: 'No Greenery (Strictly Clean Tailored Architectural Lines)', promptModifier: 'crisp uncluttered hallway without plant accents, emphasizing pure architectural millwork, lighting, and materials' }
+        ]
+      },
+      {
+        id: 'musical-instruments',
+        label: 'Musical Instruments',
+        options: [
+          { id: 'wall-mounted-guitars', label: 'Floating Hardwood Wall Hangers for Acoustic & Electric Guitars', promptModifier: 'artistic display wall featuring three premium acoustic and electric guitars mounted on bespoke walnut and leather wall hangers with soft directional LED accent spots' },
+          { id: 'vintage-brass-woodwinds', label: 'Curated Brass & Woodwinds Display (Saxophone, Trumpet & Clarinet)', promptModifier: 'refined wall-mounted display of vintage lacquered brass instruments including an alto saxophone and trumpet in custom shadow-box ledges' },
+          { id: 'matte-black-upright-piano', label: 'Sleek Compact Matte Black Upright Piano with Brass Sconces', promptModifier: 'compact contemporary matte black upright studio piano nestled against the corridor wall with a round bouclé piano stool and twin overhead warm brass wall sconces' },
+          { id: 'framed-manuscript-violins', label: 'Framed Antique Sheet Music Manuscripts with Wall-Mounted Violins', promptModifier: 'tasteful musical gallery with two crafted spruce violins on velvet wall mounts surrounded by framed vintage manuscript sheet music' },
+          { id: 'no-instruments', label: 'No Musical Instruments', promptModifier: 'clean hallway wall layout without musical instruments, maintaining versatile residential styling' }
+        ]
+      },
+      {
+        id: 'all-about-sports',
+        label: 'All about Sports',
+        options: [
+          { id: 'signed-jerseys-shadow-boxes', label: 'LED Backlit Acrylic Shadow Boxes with Signed Sports Jerseys', promptModifier: 'hallway sports gallery showcasing three professional museum-grade deep shadow box frames with signed autographed sports jerseys and integrated subtle white perimeter LED edge glow' },
+          { id: 'vintage-leather-sports-heritage', label: 'Vintage Heritage Sports Display (Laced Leather Balls, Gloves & Ash Wood Bats)', promptModifier: 'curated heritage athletic feature wall with vintage dark brown hand-stitched leather footballs, antique baseball mitts, crossed turned-ash wood bats, and framed black-and-white historic stadium photography' },
+          { id: 'sculptural-surf-snowboard-racks', label: 'Modern Walnut Wall Racks for Designer Surfboard or Snowboards', promptModifier: 'modern architectural horizontal walnut wall mounts holding a sleek minimalist custom surfboard or designer snowboards as sculptural corridor wall art' },
+          { id: 'championship-trophies-niches', label: 'Recessed Illuminated Smoked Glass Shelves for Trophies & Medals', promptModifier: 'custom recessed hallway alcove with floating smoked glass shelves displaying championship trophies, engraved plaques, and framed collector sports memorabilia' },
+          { id: 'no-sports-memorabilia', label: 'No Sports Memorabilia', promptModifier: 'refined non-sports styling focusing on standard luxury interior finishes, lighting, and architectural materials' }
+        ]
+      }
+    ]
+  },
+  {
     id: 'game-room',
     name: 'Game Room',
     description: 'Pool table & stand-up games',
@@ -711,5 +797,14 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     description: 'Standard builder-grade bathroom space with dated fixtures',
     defaultStyle: 'luxury-transitional',
     defaultPrompt: 'Remodel into a 5-star spa bathroom with a freestanding oval soaking tub, frameless glass wet room shower with rainfall head, and floating fluted oak double vanity'
+  },
+  {
+    id: 'sample-hallway',
+    name: 'Blank Hallway Corridor',
+    roomType: 'hallway',
+    thumbnail: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80',
+    description: 'Empty residential hallway corridor ready for tailored feature wall, gallery display & lighting',
+    defaultStyle: 'luxury-transitional',
+    defaultPrompt: 'Transform this empty hallway corridor with vertical white oak acoustic slat wall paneling, a curated symmetrical grid gallery of black matted architectural photography with brass picture lights, subtle warm 2700K ambient cove ceiling lighting, and a modern linear electric fireplace'
   }
 ];
