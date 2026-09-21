@@ -32,7 +32,8 @@ import {
   Sun,
   Tv,
   Fan,
-  DoorOpen
+  DoorOpen,
+  Info
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -122,6 +123,10 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
 
   // Get active room type config
   const activeRoomTypeConfig = ROOM_TYPES.find((r) => r.id === selectedRoomTypeId) || ROOM_TYPES[0];
+
+  // When Room Type is Hallway and Water Feature is selected for Feature Wall,
+  // disable all Tailored Feature Wall Customizations while keeping Written Customization enabled
+  const isHallwayWaterFeature = activeRoomTypeConfig.id === 'hallway' && selectedFeatureWallCategory === 'water-feature';
 
   // Initialize room specific selections when room type changes
   useEffect(() => {
@@ -244,13 +249,13 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
       }
     }
 
-    const specificModifiersList = activeRoomTypeConfig.specificSections
+    const specificModifiersList = (isHallwayWaterFeature ? [] : activeRoomTypeConfig.specificSections
       .map((sec) => {
         const selectedOptId = roomSpecificSelections[sec.id];
         const opt = sec.options.find((o) => o.id === selectedOptId);
         return opt ? `${sec.label}: ${opt.promptModifier}` : null;
       })
-      .filter(Boolean);
+      .filter(Boolean)) as string[];
 
     if (featureWallModifier) {
       specificModifiersList.unshift(featureWallModifier);
@@ -1920,12 +1925,37 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
 
               {/* Dynamic Tailored Options for Selected Room Type */}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">
-                  {activeRoomTypeConfig.id === 'hallway'
-                    ? 'Tailored Feature Wall Customizations:'
-                    : `Tailored ${activeRoomTypeConfig.name} Customizations:`}
-                </h3>
-                <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                    {activeRoomTypeConfig.id === 'hallway'
+                      ? 'Tailored Feature Wall Customizations:'
+                      : `Tailored ${activeRoomTypeConfig.name} Customizations:`}
+                  </h3>
+                  {isHallwayWaterFeature && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                      Disabled (Water Feature Active)
+                    </span>
+                  )}
+                </div>
+
+                {isHallwayWaterFeature && (
+                  <div className="mb-3.5 p-3 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-sky-900 dark:text-sky-200 text-xs flex items-start gap-2.5">
+                    <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sky-800 dark:text-sky-300">
+                        Tailored Feature Wall Customizations are Disabled
+                      </p>
+                      <p className="text-[11px] text-sky-700 dark:text-sky-300/80 leading-relaxed">
+                        Because <strong>Water Feature</strong> is selected for the Feature Wall, the tailored feature wall customizations below are disabled so the indoor water cascade remains the primary architectural focal point.
+                      </p>
+                      <p className="text-[11px] text-sky-800 dark:text-sky-300 font-medium">
+                        ✨ <strong>Written Custom Instructions below remain fully enabled</strong> for any specific requests or accents.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`space-y-4 transition-opacity ${isHallwayWaterFeature ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                   {activeRoomTypeConfig.specificSections.map((sec) => (
                     <div key={sec.id}>
                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -1936,6 +1966,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                           <button
                             key={opt.id}
                             type="button"
+                            disabled={isHallwayWaterFeature}
                             onClick={() =>
                               setRoomSpecificSelections((prev) => ({
                                 ...prev,
@@ -1943,7 +1974,9 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                               }))
                             }
                             className={`px-3 py-2 text-xs text-left rounded-lg border transition-all ${
-                              roomSpecificSelections[sec.id] === opt.id
+                              isHallwayWaterFeature
+                                ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                : roomSpecificSelections[sec.id] === opt.id
                                 ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-semibold ring-1 ring-purple-500'
                                 : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                             }`}
@@ -1959,13 +1992,24 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
 
               {/* Written Description / Custom Instructions */}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">
-                  Written Custom Instructions (Optional):
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    Written Custom Instructions (Optional):
+                  </label>
+                  {isHallwayWaterFeature && (
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Enabled
+                    </span>
+                  )}
+                </div>
                 <textarea
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
-                  placeholder={`Describe any specific changes for this ${activeRoomTypeConfig.name.toLowerCase()} (e.g., "Remove the ceiling fan and install a brass pendant, paint walls Benjamin Moore Swiss Coffee, add an olive tree in ceramic pot...")`}
+                  placeholder={
+                    isHallwayWaterFeature
+                      ? `Describe any custom details for your Hallway & Water Feature (e.g., "Add river pebble basin with soft amber uplighting, narrow floating oak bench on opposite wall, soft warm white walls...")`
+                      : `Describe any specific changes for this ${activeRoomTypeConfig.name.toLowerCase()} (e.g., "Remove the ceiling fan and install a brass pendant, paint walls Benjamin Moore Swiss Coffee, add an olive tree in ceramic pot...")`
+                  }
                   rows={3}
                   className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
                   id="input-custom-transformation-instructions"
