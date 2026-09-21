@@ -113,6 +113,10 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   // Enlarge modal
   const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
 
+  // Revisions management state
+  const [revisionToDelete, setRevisionToDelete] = useState<{ index: number; revision: TransformationRevision } | null>(null);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get active room type config
@@ -442,6 +446,74 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Delete revision handlers
+  const handleDeleteRevision = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!activeProject || !activeProject.revisions[idx]) return;
+    setRevisionToDelete({
+      index: idx,
+      revision: activeProject.revisions[idx],
+    });
+  };
+
+  const confirmDeleteRevision = async () => {
+    if (!activeProject || !revisionToDelete) return;
+    const { index: delIdx, revision } = revisionToDelete;
+    setRevisionToDelete(null);
+
+    // If this is the only revision in the project
+    if (activeProject.revisions.length <= 1) {
+      if (user?.uid) {
+        try {
+          await cloudService.deleteRoomTransformation(user.uid, activeProject.id);
+          setSavedProjects((prev) => prev.filter((p) => p.id !== activeProject.id));
+        } catch (err) {
+          console.warn('Failed to delete empty project from cloud:', err);
+        }
+      }
+      setActiveProject(null);
+      setUploadedImageUri(null);
+      setDeleteSuccessMessage('Revision deleted. Project cleared.');
+      setTimeout(() => setDeleteSuccessMessage(null), 3500);
+      return;
+    }
+
+    // Multiple revisions exist: remove the target revision
+    const updatedRevisions = activeProject.revisions.filter((_, i) => i !== delIdx);
+    let nextCurrentIndex = activeProject.currentRevisionIndex;
+
+    if (nextCurrentIndex === delIdx) {
+      // If we deleted the revision currently being viewed, step back or stay at boundary
+      nextCurrentIndex = Math.max(0, delIdx - 1);
+    } else if (nextCurrentIndex > delIdx) {
+      // Shift active index back by 1 because an item preceding it was removed
+      nextCurrentIndex = nextCurrentIndex - 1;
+    }
+
+    const updatedProject: RoomTransformationProject = {
+      ...activeProject,
+      revisions: updatedRevisions,
+      currentRevisionIndex: nextCurrentIndex,
+      updatedAt: Date.now(),
+    };
+
+    setActiveProject(updatedProject);
+
+    if (user?.uid) {
+      try {
+        await cloudService.saveRoomTransformation(user.uid, updatedProject);
+        setSavedProjects((prev) =>
+          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+        );
+      } catch (saveErr) {
+        console.warn('Failed to save updated revisions to cloud:', saveErr);
+      }
+    }
+
+    setDeleteSuccessMessage(`Deleted ${revision.label.split(':')[0] || 'revision'}.`);
+    setTimeout(() => setDeleteSuccessMessage(null), 3500);
   };
 
   // Download transformed image
@@ -1002,6 +1074,27 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         </div>
       )}
 
+      {/* Success Notification Banner */}
+      {deleteSuccessMessage && (
+        <div
+          className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{deleteSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteSuccessMessage(null)}
+            className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {isGenerating && <LoadingOverlay message={generationStepMessage} />}
 
@@ -1010,7 +1103,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           ========================================== */}
       {activeProject ? (
         <div className="space-y-8" id="active-transformation-results">
-          {/* Top Bar with Revisions Navigation */}
+          {/* Top Bar with Revisions Navigation & Delete Controls */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -1021,34 +1114,84 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               </p>
             </div>
 
-            {/* Revisions Pills */}
+            {/* Revisions Pills with Integrated Delete Buttons */}
             <div className="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1 shrink-0">
                 <History className="h-3.5 w-3.5" />
                 <span>Revisions:</span>
               </span>
               {activeProject.revisions.map((rev, idx) => (
-                <button
+                <div
                   key={rev.id}
-                  type="button"
-                  onClick={() =>
-                    setActiveProject({
-                      ...activeProject,
-                      currentRevisionIndex: idx,
-                    })
-                  }
-                  className={`px-3 py-1 text-xs font-medium rounded-full transition-all shrink-0 ${
+                  className={`inline-flex items-center rounded-full transition-all shrink-0 pl-3 pr-1 py-1 text-xs font-medium border ${
                     activeProject.currentRevisionIndex === idx
-                      ? 'bg-purple-600 text-white shadow-xs font-bold'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                      ? 'bg-purple-600 border-purple-700 text-white shadow-xs font-bold'
+                      : 'bg-gray-100 dark:bg-gray-700/80 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
-                  id={`btn-revision-${idx}`}
+                  id={`revision-pill-container-${idx}`}
                 >
-                  {rev.label.split(':')[0]}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveProject({
+                        ...activeProject,
+                        currentRevisionIndex: idx,
+                      })
+                    }
+                    className="cursor-pointer pr-1 text-left focus:outline-hidden"
+                    id={`btn-revision-${idx}`}
+                    title={`Compare ${rev.label}`}
+                  >
+                    {rev.label.split(':')[0]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteRevision(idx, e)}
+                    className={`p-1 rounded-full transition-colors cursor-pointer ml-1 ${
+                      activeProject.currentRevisionIndex === idx
+                        ? 'text-purple-200 hover:text-white hover:bg-purple-700'
+                        : 'text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-500'
+                    }`}
+                    title={`Delete ${rev.label.split(':')[0]}`}
+                    aria-label={`Delete ${rev.label.split(':')[0]}`}
+                    id={`btn-delete-revision-pill-${idx}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
+
+          {/* Active Revision Header & Quick Action Bar */}
+          {activeProject.revisions[activeProject.currentRevisionIndex] && (
+            <div className="bg-purple-50/80 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 px-4 py-3 rounded-xl flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-purple-600 text-white font-bold text-xs rounded-md">
+                  Revision {activeProject.currentRevisionIndex + 1} of {activeProject.revisions.length}
+                </span>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1 max-w-md">
+                  {activeProject.revisions[activeProject.currentRevisionIndex].label}
+                </span>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 hidden sm:inline">
+                  • {new Date(activeProject.revisions[activeProject.currentRevisionIndex].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteRevision(activeProject.currentRevisionIndex, e)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs transition-colors cursor-pointer"
+                  title="Delete this active revision"
+                  id="btn-delete-active-revision"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete This Revision</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Interactive Before/After Comparison Component */}
           {activeProject.revisions[activeProject.currentRevisionIndex]?.renderedImageUrl && (
@@ -1068,6 +1211,115 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               />
             </div>
           )}
+
+          {/* ==========================================
+              ALL REVISIONS GALLERY & COMPARISON STRIP
+              ========================================== */}
+          <div className="bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
+                  <History className="h-4 w-4 text-purple-600" />
+                  <span>All Transformation Revisions ({activeProject.revisions.length})</span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Select any revision to compare against the original photo, or delete revisions you no longer need.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+              {activeProject.revisions.map((rev, idx) => {
+                const isCurrent = activeProject.currentRevisionIndex === idx;
+                return (
+                  <div
+                    key={rev.id}
+                    onClick={() =>
+                      setActiveProject({
+                        ...activeProject,
+                        currentRevisionIndex: idx,
+                      })
+                    }
+                    className={`group relative rounded-xl border p-2.5 transition-all cursor-pointer flex flex-col justify-between ${
+                      isCurrent
+                        ? 'border-purple-600 ring-2 ring-purple-500/30 bg-purple-50/40 dark:bg-purple-950/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 bg-gray-50/50 dark:bg-gray-900/40'
+                    }`}
+                    id={`revision-card-${idx}`}
+                  >
+                    <div>
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-950 mb-2">
+                        <img
+                          src={rev.renderedImageUrl}
+                          alt={rev.label}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider ${
+                            isCurrent
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-black/70 text-white'
+                          }`}>
+                            Rev {idx + 1}
+                          </span>
+                          {isCurrent && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500 text-white rounded">
+                              Comparing
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1">
+                          {rev.label}
+                        </div>
+                        {rev.customInstructions && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 italic">
+                            "{rev.customInstructions}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(rev.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      <div className="flex items-center gap-1">
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveProject({
+                                ...activeProject,
+                                currentRevisionIndex: idx,
+                              });
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded transition-colors"
+                          >
+                            Compare
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteRevision(idx, e)}
+                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors cursor-pointer"
+                          title={`Delete Revision ${idx + 1}`}
+                          id={`btn-delete-card-rev-${idx}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* ==========================================
               CONTINUE MAKING UPDATES UNTIL SATISFIED (ITERATIVE REFINEMENT)
@@ -1788,6 +2040,49 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Revision Confirmation Modal */}
+      {revisionToDelete && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2.5 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Delete {revisionToDelete.revision.label.split(':')[0] || 'Revision'}?
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {activeProject && activeProject.revisions.length <= 1
+                    ? 'This is the only revision in this room transformation. Deleting it will clear the transformation and return you to the room setup.'
+                    : `Are you sure you want to permanently delete this revision (${revisionToDelete.revision.label})? It will be removed from your comparison history.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setRevisionToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
+                id="btn-cancel-delete-revision"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteRevision}
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                id="btn-confirm-delete-revision"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Revision</span>
+              </button>
             </div>
           </div>
         </div>

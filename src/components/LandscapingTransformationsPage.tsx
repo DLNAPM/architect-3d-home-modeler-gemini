@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   Flame,
   Waves,
-  Maximize2
+  Maximize2,
+  Trash2
 } from 'lucide-react';
 import {
   HOUSE_VIEW_SIDES,
@@ -101,6 +102,10 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
   // Enlarge modal
   const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
+
+  // Revisions management state
+  const [revisionToDelete, setRevisionToDelete] = useState<{ index: number; revision: LandscapingRevision } | null>(null);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -424,6 +429,72 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     });
   };
 
+  // Delete revision handlers
+  const handleDeleteRevision = (idx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!activeProject || !activeProject.revisions[idx]) return;
+    setRevisionToDelete({
+      index: idx,
+      revision: activeProject.revisions[idx],
+    });
+  };
+
+  const confirmDeleteRevision = async () => {
+    if (!activeProject || !revisionToDelete) return;
+    const { index: delIdx, revision } = revisionToDelete;
+    setRevisionToDelete(null);
+
+    // If this is the only revision in the project
+    if (activeProject.revisions.length <= 1) {
+      if (user?.uid) {
+        try {
+          await cloudService.deleteLandscapingTransformation(user.uid, activeProject.id);
+          setSavedProjects((prev) => prev.filter((p) => p.id !== activeProject.id));
+        } catch (err) {
+          console.warn('Failed to delete empty landscaping project from cloud:', err);
+        }
+      }
+      setActiveProject(null);
+      setUploadedImageUri(null);
+      setDeleteSuccessMessage('Revision deleted. Project cleared.');
+      setTimeout(() => setDeleteSuccessMessage(null), 3500);
+      return;
+    }
+
+    // Multiple revisions exist: remove the target revision
+    const updatedRevisions = activeProject.revisions.filter((_, i) => i !== delIdx);
+    let nextCurrentIndex = activeProject.currentRevisionIndex;
+
+    if (nextCurrentIndex === delIdx) {
+      nextCurrentIndex = Math.max(0, delIdx - 1);
+    } else if (nextCurrentIndex > delIdx) {
+      nextCurrentIndex = nextCurrentIndex - 1;
+    }
+
+    const updatedProject: LandscapingTransformationProject = {
+      ...activeProject,
+      revisions: updatedRevisions,
+      currentRevisionIndex: nextCurrentIndex,
+      updatedAt: Date.now(),
+    };
+
+    setActiveProject(updatedProject);
+
+    if (user?.uid) {
+      try {
+        await cloudService.saveLandscapingTransformation(user.uid, updatedProject);
+        setSavedProjects((prev) =>
+          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+        );
+      } catch (saveErr) {
+        console.warn('Failed to save updated landscaping revisions to cloud:', saveErr);
+      }
+    }
+
+    setDeleteSuccessMessage(`Deleted ${revision.label || 'revision'}.`);
+    setTimeout(() => setDeleteSuccessMessage(null), 3500);
+  };
+
   // Reset to start a new transformation
   const handleStartNewTransformation = () => {
     setActiveProject(null);
@@ -678,6 +749,23 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         </div>
       </div>
 
+      {/* Success Notification Banner */}
+      {deleteSuccessMessage && (
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{deleteSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteSuccessMessage(null)}
+            className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Error Banner */}
       {errorMessage && (
         <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-sm flex items-center justify-between gap-3">
@@ -724,26 +812,65 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
             {/* Revision Navigation Timeline */}
             <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-              <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 pr-1">
+              <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 pr-1 shrink-0">
                 <History className="h-3.5 w-3.5" />
                 <span>Revisions:</span>
               </span>
               {activeProject.revisions.map((rev, idx) => (
-                <button
+                <div
                   key={rev.id}
-                  type="button"
-                  onClick={() => handleSelectRevision(idx)}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  className={`inline-flex items-center rounded-lg transition-all pl-2.5 pr-1 py-1 text-xs font-bold shrink-0 border ${
                     activeProject.currentRevisionIndex === idx
-                      ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                      ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs ring-2 ring-emerald-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200'
                   }`}
-                  title={rev.label}
                 >
-                  #{idx + 1}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRevision(idx)}
+                    title={rev.label}
+                    className="cursor-pointer pr-1"
+                  >
+                    #{idx + 1}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteRevision(idx, e)}
+                    className={`p-0.5 rounded-sm transition-colors cursor-pointer ${
+                      activeProject.currentRevisionIndex === idx
+                        ? 'text-emerald-200 hover:text-white hover:bg-emerald-700'
+                        : 'text-gray-400 hover:text-red-500 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                    title={`Delete Revision #${idx + 1}`}
+                    aria-label={`Delete Revision #${idx + 1}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
               ))}
             </div>
+          </div>
+
+          {/* Active Revision Banner & Quick Action */}
+          <div className="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 px-4 py-3 rounded-xl flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-emerald-600 text-white font-bold text-xs rounded-md">
+                Revision {activeProject.currentRevisionIndex + 1} of {activeProject.revisions.length}
+              </span>
+              <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1 max-w-md">
+                {currentRevision.label}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => handleDeleteRevision(activeProject.currentRevisionIndex, e)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs transition-colors cursor-pointer"
+              title="Delete this revision"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete This Revision</span>
+            </button>
           </div>
 
           {/* Core Interactive Comparison Slider */}
@@ -1307,6 +1434,49 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Revision Confirmation Modal */}
+      {revisionToDelete && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2.5 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Delete Revision {revisionToDelete.index + 1}?
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {activeProject && activeProject.revisions.length <= 1
+                    ? 'This is the only revision in this landscaping transformation. Deleting it will clear the transformation and return you to the exterior upload screen.'
+                    : `Are you sure you want to permanently delete this revision (${revisionToDelete.revision.label})? It will be removed from your revisions history.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setRevisionToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
+                id="btn-cancel-delete-landscape-revision"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteRevision}
+                className="px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                id="btn-confirm-delete-landscape-revision"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Revision</span>
+              </button>
             </div>
           </div>
         </div>
