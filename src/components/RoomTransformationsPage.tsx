@@ -41,6 +41,7 @@ import {
   COLOR_PALETTES,
   FLOORING_OPTIONS,
   LIGHTING_OPTIONS,
+  FEATURE_WALL_CATEGORIES,
   TRANSFORMATION_MODES,
   SAMPLE_ROOMS,
   SampleRoom
@@ -88,6 +89,8 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [selectedColorId, setSelectedColorId] = useState<string>('warm-cream');
   const [selectedFlooringId, setSelectedFlooringId] = useState<string>('herringbone-oak');
   const [selectedLightingId, setSelectedLightingId] = useState<string>('sunlit-daylight');
+  const [selectedFeatureWallCategory, setSelectedFeatureWallCategory] = useState<string>('none');
+  const [selectedFeatureWallOptionId, setSelectedFeatureWallOptionId] = useState<string>('standard-matching');
   const [selectedModeId, setSelectedModeId] = useState<string>('restyle');
   const [roomSpecificSelections, setRoomSpecificSelections] = useState<Record<string, string>>({});
   const [customInstructions, setCustomInstructions] = useState<string>('');
@@ -224,21 +227,39 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
     const lightObj = LIGHTING_OPTIONS.find((l) => l.id === selectedLightingId);
     const modeObj = TRANSFORMATION_MODES.find((m) => m.id === selectedModeId);
 
-    const specificModifiers = activeRoomTypeConfig.specificSections
+    // Feature wall modifier
+    let featureWallModifier = '';
+    if (selectedFeatureWallCategory && selectedFeatureWallCategory !== 'none') {
+      const featCat = FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory);
+      if (featCat) {
+        const featOpt = featCat.options.find((o) => o.id === selectedFeatureWallOptionId) || featCat.options[0];
+        if (featOpt) {
+          featureWallModifier = `Feature Wall (${featCat.label}): ${featOpt.promptModifier}`;
+        }
+      }
+    }
+
+    const specificModifiersList = activeRoomTypeConfig.specificSections
       .map((sec) => {
         const selectedOptId = roomSpecificSelections[sec.id];
         const opt = sec.options.find((o) => o.id === selectedOptId);
         return opt ? `${sec.label}: ${opt.promptModifier}` : null;
       })
-      .filter(Boolean)
-      .join(', ');
+      .filter(Boolean);
+
+    if (featureWallModifier) {
+      specificModifiersList.unshift(featureWallModifier);
+    }
+
+    const specificModifiers = specificModifiersList.join(', ');
 
     if (isIterative && extraInstructions.trim()) {
       return `Photorealistic interior architectural rendering revision of this ${activeRoomTypeConfig.name}.
 Crucial iterative customization: ${extraInstructions.trim()}.
 Maintain high architectural integrity, photographic clarity, accurate materials, and seamless lighting.
 ${styleObj ? `Aesthetic style: ${styleObj.prompt}.` : ''}
-${colorObj ? `Color palette: ${colorObj.prompt}.` : ''}`;
+${colorObj ? `Color palette: ${colorObj.prompt}.` : ''}
+${featureWallModifier ? `Feature Wall specification: ${featureWallModifier}.` : ''}`;
     }
 
     return `${modeObj?.promptPrefix || 'Execute a photo-to-rendering transformation of this room.'}
@@ -295,6 +316,8 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           color: selectedColorId,
           flooring: selectedFlooringId,
           lighting: selectedLightingId,
+          featureWallCategory: selectedFeatureWallCategory,
+          featureWallOption: selectedFeatureWallOptionId,
           mode: selectedModeId,
           ...roomSpecificSelections,
         },
@@ -618,6 +641,15 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
       transformedLabel: 'Commercial Fitness Gym with Smart TV & Dual Ceiling Fans',
     },
     {
+      id: 'wine-room',
+      title: 'Wine Room with Wine Wall, Bucket Chairs & Coffee Table',
+      badge: 'Basement Transformation',
+      original: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Unused Basement Alcove',
+      transformedLabel: 'Luxury Wine Room with Climate Wall & Bucket Chairs',
+    },
+    {
       id: 'living-room',
       title: 'Living Room Japandi Restyle',
       badge: 'Main Living Space',
@@ -676,6 +708,16 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           'Add full-wall mirror with commercial half-rack & barbell',
           'Add connected stationary spin bike & 3-tier dumbbell rack',
           'Add serene yoga cork mats and Swedish ladder wall',
+        ];
+      case 'wine-room':
+      case 'Wine Room':
+        return [
+          'Add backlit acrylic rods to climate wine wall display',
+          'Upgrade to deep curved bouclé swivel bucket chairs',
+          'Add fluted travertine low plinth coffee table',
+          'Place Italian Carrara marble wine glass coasters on table',
+          'Add sheer water feature wall with recirculating ripple lighting',
+          'Install triple-deep black metal wine peg racking',
         ];
       default:
         return [
@@ -1268,7 +1310,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
                 {SAMPLE_ROOMS
                   .filter((sample) => {
-                    const isBasement = ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(sample.roomType);
+                    const isBasement = ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room', 'wine-room'].includes(sample.roomType);
                     if (sampleCategoryTab === 'basement') return isBasement;
                     if (sampleCategoryTab === 'main') return !isBasement;
                     return true;
@@ -1287,7 +1329,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         referrerPolicy="no-referrer"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex flex-col justify-end p-2">
-                        {['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(sample.roomType) && (
+                        {['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room', 'wine-room'].includes(sample.roomType) && (
                           <span className="self-start px-1.5 py-0.5 mb-1 bg-amber-500/90 text-white font-bold text-[9px] rounded uppercase tracking-wider">
                             Basement
                           </span>
@@ -1515,6 +1557,90 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Feature Wall Section */}
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    Feature Wall (Optional Accent):
+                  </label>
+                  {selectedFeatureWallCategory !== 'none' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFeatureWallCategory('none');
+                        setSelectedFeatureWallOptionId('standard-matching');
+                      }}
+                      className="text-[11px] text-purple-600 hover:text-purple-700 dark:text-purple-400 font-medium"
+                    >
+                      Clear Feature Wall
+                    </button>
+                  )}
+                </div>
+
+                {/* Feature Wall Category Selector */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFeatureWallCategory('none');
+                      setSelectedFeatureWallOptionId('standard-matching');
+                    }}
+                    className={`px-3 py-2 text-xs rounded-lg border text-left transition-all ${
+                      selectedFeatureWallCategory === 'none'
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <div className="font-semibold">Standard / No Accent Wall</div>
+                    <div className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">Uniform room walls</div>
+                  </button>
+
+                  {FEATURE_WALL_CATEGORIES.map((featCat) => (
+                    <button
+                      key={featCat.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFeatureWallCategory(featCat.id);
+                        setSelectedFeatureWallOptionId(featCat.options[0].id);
+                      }}
+                      className={`px-3 py-2 text-xs rounded-lg border text-left transition-all ${
+                        selectedFeatureWallCategory === featCat.id
+                          ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold">{featCat.label}</div>
+                      <div className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{featCat.description}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Feature Wall Specific Style Options (when a category is selected) */}
+                {selectedFeatureWallCategory !== 'none' && (
+                  <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 mb-2">
+                      Choose {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.label} Style:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.options.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setSelectedFeatureWallOptionId(opt.id)}
+                          className={`p-2.5 text-xs text-left rounded-lg border transition-all ${
+                            selectedFeatureWallOptionId === opt.id
+                              ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-semibold ring-1 ring-purple-500'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <div className="font-medium text-gray-900 dark:text-white">{opt.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Tailored Options for Selected Room Type */}

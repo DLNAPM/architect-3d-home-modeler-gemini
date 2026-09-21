@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+    },
     define: {
       // Expose env variables to the client-side code via process.env
       // This allows accessing process.env.VITE_FIREBASE_API_KEY in the browser

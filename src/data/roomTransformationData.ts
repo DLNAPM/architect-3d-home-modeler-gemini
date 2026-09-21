@@ -49,6 +49,79 @@ export const LIGHTING_OPTIONS = [
   { id: 'mood-evening', label: 'Intimate Evening Mood Lighting', prompt: 'intimate evening architectural mood lighting with pinpoint recessed spots and accent glow' }
 ];
 
+export interface FeatureWallCategory {
+  id: string;
+  label: string;
+  description: string;
+  options: { id: string; label: string; promptModifier: string }[];
+}
+
+export const FEATURE_WALL_CATEGORIES: FeatureWallCategory[] = [
+  {
+    id: 'none',
+    label: 'No Feature Wall',
+    description: 'Standard cohesive wall finish matching the selected room color palette',
+    options: [
+      { id: 'standard-matching', label: 'Seamless Standard Walls', promptModifier: 'walls uniformly finished in the selected clean architectural paint color with no special accent wall' }
+    ]
+  },
+  {
+    id: 'water-feature',
+    label: 'Water Feature',
+    description: 'Indoor water wall fountains, glass rain cascades & slate trickles',
+    options: [
+      { id: 'recessed-slate-waterfall', label: 'Recessed Natural Slate Indoor Waterfall', promptModifier: 'architectural recessed dark natural slate indoor water wall with a gentle continuous sheet of water cascading down into a river pebble basin with soft waterproof uplighting' },
+      { id: 'glass-rain-curtain', label: 'Illuminated Glass Rain-Curtain Water Wall', promptModifier: 'sleek floor-to-ceiling tempered glass indoor rain water curtain with warm LED edge illumination and an integrated concealed recirculating reservoir' },
+      { id: 'fluted-marble-fountain', label: 'Fluted Travertine Water Wall with Copper Spouts', promptModifier: 'luxury honed travertine stone wall with gently trickling minimalist architectural copper water spouts splashing softly into a low-profile basin' },
+      { id: 'mirror-water-panel', label: 'Bronze Mirror Architectural Water Panel', promptModifier: 'contemporary bronze-tinted mirror water cascade wall with subtle ambient backlighting creating shimmering reflections' }
+    ]
+  },
+  {
+    id: 'painted-and-finished',
+    label: 'Painted and Finished',
+    description: 'Roman clay, limewash, board & batten, Venetian plaster & millwork',
+    options: [
+      { id: 'roman-clay-limewash', label: 'Hand-Troweled Roman Clay / Limewash Finish', promptModifier: 'feature wall with organic hand-troweled textured Roman clay and matte limewash finish in subtle earthy taupe tones' },
+      { id: 'board-and-batten-millwork', label: 'Custom Floor-to-Ceiling Board & Batten Paneling', promptModifier: 'architectural floor-to-ceiling custom board and batten wall paneling painted in a sophisticated deep satin finish' },
+      { id: 'venetian-polished-plaster', label: 'Polished High-Gloss Venetian Plaster', promptModifier: 'luxury polished Venetian plaster accent wall with subtle marble-like depth and burnished light-reflecting sheen' },
+      { id: 'geometric-wood-molding', label: 'Contemporary Geometric Box Picture Molding', promptModifier: 'elegant transitional box-molding wainscoting and geometric architectural wall trim with refined proportions' }
+    ]
+  },
+  {
+    id: 'stone-brick-tile',
+    label: 'Stone, Brick, and Tile',
+    description: 'Stacked ledge stone, exposed brick, zellige & porcelain slabs',
+    options: [
+      { id: 'stacked-ledgestone', label: 'Dry-Stacked Natural Ledge Stone Feature Wall', promptModifier: 'commanding dry-stacked natural grey and warm sandstone ledge rock feature wall with deep tactile texture and perimeter graze downlighting' },
+      { id: 'exposed-reclaimed-brick', label: 'Authentic Distressed Reclaimed Brick Wall', promptModifier: 'warm textured exposed reclaimed red brick feature wall with vintage mortar wash and industrial architectural charm' },
+      { id: 'bookmatched-porcelain-slab', label: 'Bookmatched Calacatta Gold Porcelain Slab', promptModifier: 'grand continuous bookmatched Calacatta marble porcelain slab feature wall with sweeping dramatic gold and charcoal veining' },
+      { id: 'fluted-zellige-tile', label: 'Vertical Fluted Glazed Zellige Ceramic Tile Wall', promptModifier: 'floor-to-ceiling vertical fluted glazed artisan zellige tile accent wall with soft pearlescent luster' }
+    ]
+  },
+  {
+    id: 'wallpaper-and-murals',
+    label: 'Wallpaper and Murals',
+    description: 'Textured grasscloth, scenic landscape murals & botanical botanics',
+    options: [
+      { id: 'natural-woven-grasscloth', label: 'Textured Hand-Woven Sisal Grasscloth Wallpaper', promptModifier: 'luxury natural hand-woven Japanese sisal grasscloth wallpaper with organic textural grain and warm earthy richness' },
+      { id: 'scenic-botanical-mural', label: 'Subtle Chinoiserie / Misty Forest Scenic Landscape Mural', promptModifier: 'large-scale panoramic misty forest landscape wall mural in monochrome charcoal and soft sage tones' },
+      { id: 'modern-geometric-wallpaper', label: 'Art Deco Metallic & Matte Geometric Wallpaper', promptModifier: 'sophisticated modern geometric designer wallpaper with subtle brushed metallic gold accents on dark matte background' },
+      { id: 'abstract-watercolor-mural', label: 'Large-Scale Abstract Mineral Watercolor Accent Mural', promptModifier: 'custom full-wall abstract fluid watercolor mural with soft washes of warm taupe, sand, and charcoal' }
+    ]
+  },
+  {
+    id: 'functional-and-display',
+    label: 'Functional and Display',
+    description: 'Built-in library shelves, wood slat media consoles & backlit niches',
+    options: [
+      { id: 'backlit-display-niches', label: 'Custom Arch Display Niches with Warm LED Backlighting', promptModifier: 'custom architectural plaster display wall featuring recessed illuminated curved arched niches displaying curated sculptures and ceramics' },
+      { id: 'acoustic-wood-slat-system', label: 'Vertical White Oak Acoustic Wood Slat Feature Wall', promptModifier: 'floor-to-ceiling vertical fluted natural white oak acoustic wood slat wall with integrated concealed warm vertical LED channel lighting' },
+      { id: 'built-in-library-bookcase', label: 'Floor-to-Ceiling Built-In Library & Cabinetry', promptModifier: 'bespoke floor-to-ceiling built-in architectural bookcase unit with ladder rail, integrated warm shelf lighting, and closed lower cabinet storage' },
+      { id: 'floating-media-console-panel', label: 'Floating Marble Media Console with Slatted Backdrop', promptModifier: 'integrated entertainment feature wall with a floating honed marble console, textured backdrop, and hidden wire conduits' }
+    ]
+  }
+];
+
 export const TRANSFORMATION_MODES = [
   { 
     id: 'restyle', 
@@ -485,6 +558,55 @@ export const ROOM_TYPES: RoomTypeConfig[] = [
         ]
       }
     ]
+  },
+  {
+    id: 'wine-room',
+    name: 'Wine Room',
+    description: 'Wine wall, bucket chairs, coffee table & coasters',
+    category: 'basement',
+    iconName: 'Wine',
+    specificSections: [
+      {
+        id: 'wine-wall-type',
+        label: 'Wine Wall Type',
+        options: [
+          { id: 'frameless-glass-climate-wall', label: 'Frameless Glass Climate-Controlled Wine Wall with Backlit Acrylic Rods', promptModifier: 'floor-to-ceiling frameless tempered glass climate-controlled wine display wall with horizontal floating black aluminum and backlit acrylic bottle cradles displaying rare vintage bottles with warm 2700K perimeter LED edge glow' },
+          { id: 'custom-black-steel-pegs', label: 'Matte Black Triple-Deep Metal Peg System on Dark Walnut Backing', promptModifier: 'striking architectural modern wine display wall utilizing precision matte black triple-deep metal bottle pegs mounted against rich quarter-sawn dark walnut acoustic paneling with discrete recessed accent downlights' },
+          { id: 'stone-masonry-arch-cellar-wall', label: 'Dry-Stacked Stone Arch Wall with Diagonal Oak Lattice Racking', promptModifier: 'custom stone masonry cellar feature wall with a vaulted barrel arch, integrated rustic white oak diamond cross bottle bins, and illuminated presentation shelves' },
+          { id: 'minimalist-cable-suspended-wall', label: 'Floor-to-Ceiling Cable Suspended Tension Wine Racking System', promptModifier: 'ultra-modern minimalist floor-to-ceiling stainless steel tension wire suspension racking holding wine bottles floating in mid-air against a textured dark charcoal Roman clay backdrop' }
+        ]
+      },
+      {
+        id: 'bucket-chairs',
+        label: 'Bucket Chairs',
+        options: [
+          { id: 'curved-boucle-swivel-bucket', label: 'Deep Curved Cream Bouclé Swivel Bucket Lounge Chairs', promptModifier: 'pair of sculptural deep-seated curved cream bouclé swivel bucket barrel chairs with ergonomic wrap-around backrests and brushed bronze plinth bases' },
+          { id: 'cognac-saddle-leather-bucket', label: 'Tailored Cognac Saddle-Leather Low Bucket Armchairs', promptModifier: 'two luxury cognac aniline saddle-leather low-profile bucket lounge chairs with bespoke baseball stitching and blackened steel splayed swivel frames' },
+          { id: 'emerald-velvet-tub-chairs', label: 'Plush Emerald Green Velvet Tub Bucket Chairs', promptModifier: 'plush deep jewel-tone emerald green velvet curved bucket armchairs with channel-tufted interior backs and satin brass accents' },
+          { id: 'charcoal-cashmere-barrel-bucket', label: 'Charcoal Wool & Cashmere Wrap-Around Barrel Bucket Chairs', promptModifier: 'modern tailored charcoal grey wool-cashmere upholstered curved barrel bucket chairs designed for relaxed wine tasting sessions' }
+        ]
+      },
+      {
+        id: 'coffee-table',
+        label: 'Coffee Table',
+        options: [
+          { id: 'fluted-travertine-plinth', label: 'Honed Fluted Travertine Monolithic Low Plinth Coffee Table', promptModifier: 'low-profile monolithic honed beige travertine coffee table with fluted cylindrical base and rich natural porous veining' },
+          { id: 'smoked-glass-brass-table', label: 'Smoked Tempered Glass Round Table with Brushed Brass Drum Base', promptModifier: 'sculptural round coffee table with thick smoked tempered glass top and a brushed antique brass slatted drum pedestal' },
+          { id: 'solid-smoked-oak-block', label: 'Chamfered Solid Smoked Walnut / Oak Block Coffee Table', promptModifier: 'organic minimalist solid smoked dark walnut block coffee table with smooth chamfered edges and matte satin oil finish' },
+          { id: 'nero-marquina-marble', label: 'Nero Marquina Black Marble Low Coffee Table with White Veins', promptModifier: 'striking low-slung Nero Marquina black marble circular coffee table with stark dramatic white calcite veins' }
+        ]
+      },
+      {
+        id: 'wine-glass-coasters',
+        label: 'Wine Glass Coasters & Tasting Accents',
+        options: [
+          { id: 'brass-rimmed-white-marble-coasters', label: 'Heavy White Carrara Marble Coasters with Brushed Brass Rims', promptModifier: 'curated tasting setup on coffee table with a set of four heavy white Carrara marble wine glass coasters with brushed brass rims, paired with crystal Riedel Bordeaux wine glasses and a crystal decanter' },
+          { id: 'raw-travertine-stone-coasters', label: 'Hand-Cut Chiseled Raw Travertine Stone Coasters', promptModifier: 'bespoke hand-chiseled raw porous travertine stone coasters resting on the table alongside fine stemmed crystal Burgundy glasses and sommelier corkscrew accessories' },
+          { id: 'stitched-saddle-leather-coasters', label: 'Hand-Stitched Tan Saddle Leather Coasters in Matching Holder', promptModifier: 'artisan hand-stitched thick saddle-tan leather round coasters with debossed monogram in a matching leather brass-accented holder, supporting delicate sparkling wine flutes' },
+          { id: 'matte-black-slate-copper-coasters', label: 'Matte Black Slate & Brushed Copper Hexagonal Coasters', promptModifier: 'modern geometric matte black natural slate coasters with brushed warm copper inlay borders, paired with stemless crystal wine tumblers and an aerator' }
+        ]
+      }
+    ]
   }
 ];
 
@@ -562,6 +684,15 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     description: 'Basement fitness gym with wall-mounted TV, dual ceiling fans & weights',
     defaultStyle: 'modern-minimalist',
     defaultPrompt: 'Transform this basement room into an exercise gym featuring a large wall-mounted smart TV at eye level, dual industrial matte black ceiling fans overhead for maximum airflow, heavy-duty speckled rubber gym flooring, and a full-wall mirror with commercial power rack and dumbbells'
+  },
+  {
+    id: 'sample-wine-room',
+    name: 'Basement → Wine Room',
+    roomType: 'wine-room',
+    thumbnail: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1000&q=80',
+    description: 'Basement tasting room with frameless glass wine wall, bucket chairs & coffee table',
+    defaultStyle: 'luxury-transitional',
+    defaultPrompt: 'Transform this basement space into a luxury Wine Room featuring a frameless glass climate-controlled wine wall with backlit acrylic bottle rods, two deep curved cream bouclé swivel bucket lounge chairs, a low fluted travertine plinth coffee table with white Carrara marble wine glass coasters, crystal stemware, and ambient warm cove lighting'
   },
   {
     id: 'sample-bedroom',
