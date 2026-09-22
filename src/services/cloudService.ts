@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where, updateDoc } from "firebase/firestore";
 import { db, auth, defaultDb } from "./firebase";
 import { SavedDesign, AccessLevel } from "../types";
 import firebaseConfig from "../../firebase-applet-config.json";
@@ -777,6 +777,24 @@ export const cloudService = {
   },
 
   /**
+   * Renames a room transformation project.
+   */
+  async renameRoomTransformation(userId: string, projectId: string, newTitle: string): Promise<void> {
+    if (!userId || !projectId || !newTitle?.trim()) return;
+    try {
+      const projectRef = doc(db, "users", userId, "room_transformations", projectId);
+      await updateDoc(projectRef, {
+        title: newTitle.trim(),
+        updatedAt: Date.now()
+      });
+      console.log("Room transformation renamed in cloud successfully");
+    } catch (error) {
+      console.error("Error renaming room transformation:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Saves or updates a landscaping transformation project in the user's cloud library.
    */
   async saveLandscapingTransformation(userId: string, project: import('../types').LandscapingTransformationProject): Promise<void> {
@@ -852,6 +870,24 @@ export const cloudService = {
       console.log("Landscaping transformation deleted from cloud successfully");
     } catch (error) {
       console.error("Error deleting landscaping transformation:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Renames a landscaping transformation project.
+   */
+  async renameLandscapingTransformation(userId: string, projectId: string, newTitle: string): Promise<void> {
+    if (!userId || !projectId || !newTitle?.trim()) return;
+    try {
+      const projectRef = doc(db, "users", userId, "landscaping_transformations", projectId);
+      await updateDoc(projectRef, {
+        title: newTitle.trim(),
+        updatedAt: Date.now()
+      });
+      console.log("Landscaping transformation renamed in cloud successfully");
+    } catch (error) {
+      console.error("Error renaming landscaping transformation:", error);
       throw error;
     }
   }

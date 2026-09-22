@@ -33,7 +33,8 @@ import {
   Tv,
   Fan,
   DoorOpen,
-  Info
+  Info,
+  Pencil
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -118,6 +119,12 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   // Revisions management state
   const [revisionToDelete, setRevisionToDelete] = useState<{ index: number; revision: TransformationRevision } | null>(null);
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+
+  // Project Rename State
+  const [projectToRename, setProjectToRename] = useState<{ id: string; currentTitle: string } | null>(null);
+  const [newProjectTitle, setNewProjectTitle] = useState<string>('');
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
+  const [renameSuccessMessage, setRenameSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -520,6 +527,43 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
 
     setDeleteSuccessMessage(`Deleted ${revision.label.split(':')[0] || 'revision'}.`);
     setTimeout(() => setDeleteSuccessMessage(null), 3500);
+  };
+
+  // Open rename modal
+  const handleOpenRenameModal = (id: string, currentTitle: string) => {
+    setProjectToRename({ id, currentTitle });
+    setNewProjectTitle(currentTitle);
+  };
+
+  // Save renamed project
+  const handleSaveRename = async () => {
+    if (!projectToRename || !newProjectTitle.trim()) return;
+    const trimmedTitle = newProjectTitle.trim();
+    const targetId = projectToRename.id;
+    setIsRenamingProject(true);
+
+    try {
+      if (user?.uid) {
+        await cloudService.renameRoomTransformation(user.uid, targetId, trimmedTitle);
+      }
+
+      setSavedProjects((prev) =>
+        prev.map((p) => (p.id === targetId ? { ...p, title: trimmedTitle, updatedAt: Date.now() } : p))
+      );
+
+      if (activeProject?.id === targetId) {
+        setActiveProject((prev) => (prev ? { ...prev, title: trimmedTitle, updatedAt: Date.now() } : null));
+      }
+
+      setRenameSuccessMessage(`Transformation renamed to "${trimmedTitle}"`);
+      setTimeout(() => setRenameSuccessMessage(null), 3500);
+      setProjectToRename(null);
+    } catch (err) {
+      console.error('Failed to rename room transformation:', err);
+      alert('Failed to rename room transformation. Please try again.');
+    } finally {
+      setIsRenamingProject(false);
+    }
   };
 
   // Download transformed image
@@ -1102,7 +1146,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         </div>
       )}
 
-      {/* Success Notification Banner */}
+      {/* Success Notification Banners */}
       {deleteSuccessMessage && (
         <div
           className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
@@ -1123,6 +1167,26 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         </div>
       )}
 
+      {renameSuccessMessage && (
+        <div
+          className="mb-6 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-purple-600 shrink-0" />
+            <span>{renameSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRenameSuccessMessage(null)}
+            className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-200"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {isGenerating && <LoadingOverlay message={generationStepMessage} />}
 
@@ -1134,9 +1198,21 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           {/* Top Bar with Revisions Navigation & Delete Controls */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {activeProject.title}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {activeProject.title}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => handleOpenRenameModal(activeProject.id, activeProject.title)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
+                  title="Rename room transformation"
+                  aria-label="Rename room transformation"
+                  id="btn-rename-active-room-transformation"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Created {new Date(activeProject.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {activeProject.revisions.length} revision{activeProject.revisions.length === 1 ? '' : 's'}
               </p>
@@ -2087,29 +2163,137 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Delete this saved room transformation?')) {
-                          if (user?.uid) {
-                            await cloudService.deleteRoomTransformation(user.uid, proj.id);
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenRenameModal(proj.id, proj.title);
+                        }}
+                        className="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Rename transformation"
+                        aria-label="Rename transformation"
+                        id={`btn-rename-saved-project-${proj.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Delete this saved room transformation?')) {
+                            if (user?.uid) {
+                              await cloudService.deleteRoomTransformation(user.uid, proj.id);
+                            }
+                            setSavedProjects((prev) => prev.filter((p) => p.id !== proj.id));
+                            if (activeProject?.id === proj.id) {
+                              setActiveProject(null);
+                            }
                           }
-                          setSavedProjects((prev) => prev.filter((p) => p.id !== proj.id));
-                          if (activeProject?.id === proj.id) {
-                            setActiveProject(null);
-                          }
-                        }
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Delete project"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Delete project"
+                        aria-label="Delete project"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Transformation Modal */}
+      {projectToRename && (
+        <div
+          className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isRenamingProject && setProjectToRename(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-room-modal-title"
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-xl">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 id="rename-room-modal-title" className="text-base font-bold text-gray-900 dark:text-white">
+                    Rename Transformation
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Give this room transformation a descriptive title.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isRenamingProject}
+                onClick={() => setProjectToRename(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveRename();
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label
+                  htmlFor="rename-room-input"
+                  className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5"
+                >
+                  Project Title
+                </label>
+                <input
+                  id="rename-room-input"
+                  type="text"
+                  value={newProjectTitle}
+                  onChange={(e) => setNewProjectTitle(e.target.value)}
+                  placeholder="e.g. Modern Japandi Living Room"
+                  autoFocus
+                  maxLength={80}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:outline-hidden transition-all shadow-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                <button
+                  type="button"
+                  disabled={isRenamingProject}
+                  onClick={() => setProjectToRename(null)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isRenamingProject ||
+                    !newProjectTitle.trim() ||
+                    newProjectTitle.trim() === projectToRename.currentTitle
+                  }
+                  className="px-4 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  id="btn-save-room-rename"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>{isRenamingProject ? 'Saving...' : 'Save Name'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

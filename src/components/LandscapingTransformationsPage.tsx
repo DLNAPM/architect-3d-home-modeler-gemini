@@ -24,7 +24,9 @@ import {
   Flame,
   Waves,
   Maximize2,
-  Trash2
+  Trash2,
+  Pencil,
+  Check
 } from 'lucide-react';
 import {
   HOUSE_VIEW_SIDES,
@@ -106,6 +108,12 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   // Revisions management state
   const [revisionToDelete, setRevisionToDelete] = useState<{ index: number; revision: LandscapingRevision } | null>(null);
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+
+  // Project Rename State
+  const [projectToRename, setProjectToRename] = useState<{ id: string; currentTitle: string } | null>(null);
+  const [newProjectTitle, setNewProjectTitle] = useState<string>('');
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
+  const [renameSuccessMessage, setRenameSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -495,6 +503,62 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     setTimeout(() => setDeleteSuccessMessage(null), 3500);
   };
 
+  // Open rename modal
+  const handleOpenRenameModal = (id: string, currentTitle: string) => {
+    setProjectToRename({ id, currentTitle });
+    setNewProjectTitle(currentTitle);
+  };
+
+  // Save renamed landscaping project
+  const handleSaveRename = async () => {
+    if (!projectToRename || !newProjectTitle.trim()) return;
+    const trimmedTitle = newProjectTitle.trim();
+    const targetId = projectToRename.id;
+    setIsRenamingProject(true);
+
+    try {
+      if (user?.uid) {
+        await cloudService.renameLandscapingTransformation(user.uid, targetId, trimmedTitle);
+      }
+
+      setSavedProjects((prev) =>
+        prev.map((p) => (p.id === targetId ? { ...p, title: trimmedTitle, updatedAt: Date.now() } : p))
+      );
+
+      if (activeProject?.id === targetId) {
+        setActiveProject((prev) => (prev ? { ...prev, title: trimmedTitle, updatedAt: Date.now() } : null));
+      }
+
+      setRenameSuccessMessage(`Transformation renamed to "${trimmedTitle}"`);
+      setTimeout(() => setRenameSuccessMessage(null), 3500);
+      setProjectToRename(null);
+    } catch (err) {
+      console.error('Failed to rename landscaping transformation:', err);
+      alert('Failed to rename landscaping transformation. Please try again.');
+    } finally {
+      setIsRenamingProject(false);
+    }
+  };
+
+  // Delete saved landscaping project
+  const handleDeleteProject = async (projectId: string) => {
+    if (window.confirm('Delete this saved landscaping transformation?')) {
+      if (user?.uid) {
+        try {
+          await cloudService.deleteLandscapingTransformation(user.uid, projectId);
+        } catch (err) {
+          console.warn('Failed to delete landscaping transformation from cloud:', err);
+        }
+      }
+      setSavedProjects((prev) => prev.filter((p) => p.id !== projectId));
+      if (activeProject?.id === projectId) {
+        setActiveProject(null);
+      }
+      setDeleteSuccessMessage('Landscaping transformation deleted.');
+      setTimeout(() => setDeleteSuccessMessage(null), 3500);
+    }
+  };
+
   // Reset to start a new transformation
   const handleStartNewTransformation = () => {
     setActiveProject(null);
@@ -749,7 +813,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         </div>
       </div>
 
-      {/* Success Notification Banner */}
+      {/* Success Notification Banners */}
       {deleteSuccessMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
@@ -759,6 +823,22 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
           <button
             type="button"
             onClick={() => setDeleteSuccessMessage(null)}
+            className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {renameSuccessMessage && (
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{renameSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRenameSuccessMessage(null)}
             className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
           >
             <X className="h-4 w-4" />
@@ -799,6 +879,16 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                     {activeProject.title}
                   </h2>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRenameModal(activeProject.id, activeProject.title)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                    title="Rename landscaping transformation"
+                    aria-label="Rename landscaping transformation"
+                    id="btn-rename-active-landscaping-transformation"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 uppercase">
                     {activeProject.viewSide} view
                   </span>
@@ -1431,10 +1521,131 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                         {new Date(p.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
+
+                    <div className="flex items-center gap-1 shrink-0 self-center">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenRenameModal(p.id, p.title);
+                        }}
+                        className="p-2 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Rename transformation"
+                        aria-label="Rename transformation"
+                        id={`btn-rename-saved-landscaping-${p.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(p.id);
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Delete transformation"
+                        aria-label="Delete transformation"
+                        id={`btn-delete-saved-landscaping-${p.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Landscaping Transformation Modal */}
+      {projectToRename && (
+        <div
+          className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isRenamingProject && setProjectToRename(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-landscaping-modal-title"
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 id="rename-landscaping-modal-title" className="text-base font-bold text-gray-900 dark:text-white">
+                    Rename Transformation
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Give this landscaping transformation a descriptive title.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isRenamingProject}
+                onClick={() => setProjectToRename(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveRename();
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label
+                  htmlFor="rename-landscaping-input"
+                  className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5"
+                >
+                  Project Title
+                </label>
+                <input
+                  id="rename-landscaping-input"
+                  type="text"
+                  value={newProjectTitle}
+                  onChange={(e) => setNewProjectTitle(e.target.value)}
+                  placeholder="e.g. Mediterranean Front Yard Oasis"
+                  autoFocus
+                  maxLength={80}
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden transition-all shadow-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                <button
+                  type="button"
+                  disabled={isRenamingProject}
+                  onClick={() => setProjectToRename(null)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isRenamingProject ||
+                    !newProjectTitle.trim() ||
+                    newProjectTitle.trim() === projectToRename.currentTitle
+                  }
+                  className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  id="btn-save-landscaping-rename"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>{isRenamingProject ? 'Saving...' : 'Save Name'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
