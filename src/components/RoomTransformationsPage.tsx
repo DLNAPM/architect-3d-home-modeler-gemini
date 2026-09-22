@@ -34,7 +34,8 @@ import {
   Fan,
   DoorOpen,
   Info,
-  Pencil
+  Pencil,
+  GitMerge
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -52,6 +53,7 @@ import {
 import { generateImageFromImage } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 import LoadingOverlay from './LoadingOverlay';
+import { MergeRoomRevisionsModal } from './MergeRoomRevisionsModal';
 
 interface RoomTransformationsPageProps {
   user: User | null;
@@ -125,6 +127,12 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [newProjectTitle, setNewProjectTitle] = useState<string>('');
   const [isRenamingProject, setIsRenamingProject] = useState(false);
   const [renameSuccessMessage, setRenameSuccessMessage] = useState<string | null>(null);
+
+  // Revisions Merge State
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeRevAIndex, setMergeRevAIndex] = useState<number>(0);
+  const [mergeRevBIndex, setMergeRevBIndex] = useState<number>(1);
+  const [mergeSuccessMessage, setMergeSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -564,6 +572,32 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
     } finally {
       setIsRenamingProject(false);
     }
+  };
+
+  // Open Merge Modal
+  const handleOpenMergeModal = (revAIdx?: number, revBIdx?: number) => {
+    if (!activeProject || activeProject.revisions.length < 2) return;
+    const defaultA = typeof revAIdx === 'number' ? revAIdx : Math.max(0, activeProject.currentRevisionIndex - 1);
+    let defaultB = typeof revBIdx === 'number' ? revBIdx : activeProject.currentRevisionIndex;
+    if (defaultA === defaultB) {
+      defaultB = defaultA === 0 ? 1 : 0;
+    }
+    setMergeRevAIndex(defaultA);
+    setMergeRevBIndex(defaultB);
+    setShowMergeModal(true);
+  };
+
+  // Handle successful merge
+  const handleMergeSuccess = (newRevision: TransformationRevision, updatedProject: RoomTransformationProject) => {
+    setActiveProject(updatedProject);
+    setSavedProjects((prev) => [
+      updatedProject,
+      ...prev.filter((p) => p.id !== updatedProject.id)
+    ]);
+    setMergeSuccessMessage(`Successfully created ${newRevision.label.split(':')[0]} by merging two revisions!`);
+    setTimeout(() => {
+      setMergeSuccessMessage(null);
+    }, 5000);
   };
 
   // Download transformed image
@@ -1187,6 +1221,26 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         </div>
       )}
 
+      {mergeSuccessMessage && (
+        <div
+          className="mb-6 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-purple-600 shrink-0" />
+            <span>{mergeSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMergeSuccessMessage(null)}
+            className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-200"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {isGenerating && <LoadingOverlay message={generationStepMessage} />}
 
@@ -1264,6 +1318,20 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </button>
                 </div>
               ))}
+
+              {/* Merge Revisions Button in Timeline */}
+              {activeProject.revisions.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenMergeModal()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-200 dark:hover:bg-purple-900/80 rounded-full transition-all cursor-pointer shrink-0 border border-purple-200 dark:border-purple-800 shadow-2xs ml-1"
+                  title="Merge any 2 revisions into an updated revision"
+                  id="btn-merge-revisions-timeline"
+                >
+                  <GitMerge className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>Merge 2 Revisions</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1283,6 +1351,18 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               </div>
 
               <div className="flex items-center gap-2">
+                {activeProject.revisions.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMergeModal(undefined, activeProject.currentRevisionIndex)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:text-purple-800 dark:text-purple-300 bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg border border-purple-200 dark:border-purple-900/60 shadow-2xs transition-colors cursor-pointer"
+                    title="Merge this revision with another revision"
+                    id="btn-merge-active-revision"
+                  >
+                    <GitMerge className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>Merge Revisions</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => handleDeleteRevision(activeProject.currentRevisionIndex, e)}
@@ -1320,16 +1400,28 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               ALL REVISIONS GALLERY & COMPARISON STRIP
               ========================================== */}
           <div className="bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
                   <History className="h-4 w-4 text-purple-600" />
                   <span>All Transformation Revisions ({activeProject.revisions.length})</span>
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Select any revision to compare against the original photo, or delete revisions you no longer need.
+                  Select any revision to compare against the original photo, or merge any two revisions to synthesize your favorite design details.
                 </p>
               </div>
+
+              {activeProject.revisions.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenMergeModal()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-200 dark:hover:bg-purple-900/80 rounded-xl transition-all cursor-pointer border border-purple-200 dark:border-purple-800 shadow-2xs"
+                  id="btn-open-merge-from-gallery"
+                >
+                  <GitMerge className="h-3.5 w-3.5" />
+                  <span>Merge Any 2 Revisions</span>
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
@@ -1393,6 +1485,27 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       </span>
 
                       <div className="flex items-center gap-1">
+                        {activeProject.revisions.length >= 2 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenMergeModal(
+                                idx,
+                                activeProject.currentRevisionIndex !== idx
+                                  ? activeProject.currentRevisionIndex
+                                  : idx === 0
+                                  ? 1
+                                  : 0
+                              );
+                            }}
+                            className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded transition-colors cursor-pointer"
+                            title={`Merge Rev ${idx + 1} with another revision`}
+                            id={`btn-merge-card-rev-${idx}`}
+                          >
+                            <GitMerge className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         {!isCurrent && (
                           <button
                             type="button"
@@ -2339,6 +2452,21 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
             </div>
           </div>
         </div>
+      )}
+
+      {/* Merge Room Revisions Modal */}
+      {showMergeModal && activeProject && (
+        <MergeRoomRevisionsModal
+          isOpen={showMergeModal}
+          onClose={() => setShowMergeModal(false)}
+          project={activeProject}
+          user={user}
+          initialRevAIndex={mergeRevAIndex}
+          initialRevBIndex={mergeRevBIndex}
+          onMergeSuccess={handleMergeSuccess}
+          isKeyReady={isKeyReady}
+          onSelectKey={() => {}}
+        />
       )}
 
       {/* Enlarge Image Modal */}

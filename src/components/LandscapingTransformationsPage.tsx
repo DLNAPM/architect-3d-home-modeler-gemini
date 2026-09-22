@@ -26,7 +26,8 @@ import {
   Maximize2,
   Trash2,
   Pencil,
-  Check
+  Check,
+  GitMerge
 } from 'lucide-react';
 import {
   HOUSE_VIEW_SIDES,
@@ -46,6 +47,7 @@ import {
 import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { generateImageFromImage } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
+import { MergeLandscapingRevisionsModal } from './MergeLandscapingRevisionsModal';
 
 interface LandscapingTransformationsPageProps {
   user: User | null;
@@ -114,6 +116,12 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [newProjectTitle, setNewProjectTitle] = useState<string>('');
   const [isRenamingProject, setIsRenamingProject] = useState(false);
   const [renameSuccessMessage, setRenameSuccessMessage] = useState<string | null>(null);
+
+  // Revisions Merge State
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeRevAIndex, setMergeRevAIndex] = useState<number>(0);
+  const [mergeRevBIndex, setMergeRevBIndex] = useState<number>(1);
+  const [mergeSuccessMessage, setMergeSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -540,6 +548,32 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     }
   };
 
+  // Open Merge Landscaping Revisions Modal
+  const handleOpenMergeModal = (revAIdx?: number, revBIdx?: number) => {
+    if (!activeProject || activeProject.revisions.length < 2) return;
+    const defaultA = typeof revAIdx === 'number' ? revAIdx : Math.max(0, activeProject.currentRevisionIndex - 1);
+    let defaultB = typeof revBIdx === 'number' ? revBIdx : activeProject.currentRevisionIndex;
+    if (defaultA === defaultB) {
+      defaultB = defaultA === 0 ? 1 : 0;
+    }
+    setMergeRevAIndex(defaultA);
+    setMergeRevBIndex(defaultB);
+    setShowMergeModal(true);
+  };
+
+  // Handle successful landscaping merge
+  const handleMergeSuccess = (newRevision: LandscapingRevision, updatedProject: LandscapingTransformationProject) => {
+    setActiveProject(updatedProject);
+    setSavedProjects((prev) => [
+      updatedProject,
+      ...prev.filter((p) => p.id !== updatedProject.id)
+    ]);
+    setMergeSuccessMessage(`Successfully created ${newRevision.label.split(':')[0]} by merging two revisions!`);
+    setTimeout(() => {
+      setMergeSuccessMessage(null);
+    }, 5000);
+  };
+
   // Delete saved landscaping project
   const handleDeleteProject = async (projectId: string) => {
     if (window.confirm('Delete this saved landscaping transformation?')) {
@@ -846,6 +880,27 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         </div>
       )}
 
+      {/* Merge Success Banner */}
+      {mergeSuccessMessage && (
+        <div
+          className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{mergeSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMergeSuccessMessage(null)}
+            className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Error Banner */}
       {errorMessage && (
         <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-sm flex items-center justify-between gap-3">
@@ -938,6 +993,19 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   </button>
                 </div>
               ))}
+              {/* Merge Revisions Button in Timeline */}
+              {activeProject.revisions.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenMergeModal()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg transition-all cursor-pointer shrink-0 border border-emerald-200 dark:border-emerald-800 shadow-2xs ml-1"
+                  title="Merge any 2 revisions into an updated revision"
+                  id="btn-merge-landscaping-timeline"
+                >
+                  <GitMerge className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Merge 2 Revisions</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -952,15 +1020,29 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={(e) => handleDeleteRevision(activeProject.currentRevisionIndex, e)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs transition-colors cursor-pointer"
-              title="Delete this revision"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete This Revision</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {activeProject.revisions.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenMergeModal(undefined, activeProject.currentRevisionIndex)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg border border-emerald-200 dark:border-emerald-900/60 shadow-2xs transition-colors cursor-pointer"
+                  title="Merge this revision with another revision"
+                  id="btn-merge-active-landscaping-revision"
+                >
+                  <GitMerge className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Merge Revisions</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => handleDeleteRevision(activeProject.currentRevisionIndex, e)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs transition-colors cursor-pointer"
+                title="Delete this revision"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete This Revision</span>
+              </button>
+            </div>
           </div>
 
           {/* Core Interactive Comparison Slider */}
@@ -1084,6 +1166,138 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* All Landscaping Revisions Gallery & Comparison Strip */}
+          <div className="bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-2">
+                  <History className="h-4 w-4 text-emerald-600" />
+                  <span>All Landscaping Revisions ({activeProject.revisions.length})</span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Select any revision to compare against the original photo, or merge any two revisions to synthesize your favorite exterior details.
+                </p>
+              </div>
+
+              {activeProject.revisions.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenMergeModal()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-xl transition-all cursor-pointer border border-emerald-200 dark:border-emerald-800 shadow-2xs"
+                  id="btn-open-merge-landscaping-gallery"
+                >
+                  <GitMerge className="h-3.5 w-3.5" />
+                  <span>Merge Any 2 Revisions</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+              {activeProject.revisions.map((rev, idx) => {
+                const isCurrent = activeProject.currentRevisionIndex === idx;
+                return (
+                  <div
+                    key={rev.id}
+                    onClick={() => handleSelectRevision(idx)}
+                    className={`group relative rounded-xl border p-2.5 transition-all cursor-pointer flex flex-col justify-between ${
+                      isCurrent
+                        ? 'border-emerald-600 ring-2 ring-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-gray-50/50 dark:bg-gray-900/40'
+                    }`}
+                    id={`landscaping-revision-card-${idx}`}
+                  >
+                    <div>
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-950 mb-2">
+                        <img
+                          src={rev.renderedImageUrl}
+                          alt={rev.label}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider ${
+                              isCurrent ? 'bg-emerald-600 text-white' : 'bg-black/70 text-white'
+                            }`}
+                          >
+                            Rev {idx + 1}
+                          </span>
+                          {isCurrent && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500 text-white rounded">
+                              Comparing
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1">
+                          {rev.label}
+                        </div>
+                        {rev.customInstructions && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 italic">
+                            "{rev.customInstructions}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(rev.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      <div className="flex items-center gap-1">
+                        {activeProject.revisions.length >= 2 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenMergeModal(
+                                idx,
+                                activeProject.currentRevisionIndex !== idx
+                                  ? activeProject.currentRevisionIndex
+                                  : idx === 0
+                                  ? 1
+                                  : 0
+                              );
+                            }}
+                            className="p-1 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded transition-colors cursor-pointer"
+                            title={`Merge Rev ${idx + 1} with another revision`}
+                            id={`btn-merge-landscaping-card-rev-${idx}`}
+                          >
+                            <GitMerge className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectRevision(idx);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded transition-colors"
+                          >
+                            Compare
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteRevision(idx, e)}
+                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors cursor-pointer"
+                          title={`Delete Revision ${idx + 1}`}
+                          id={`btn-delete-landscaping-card-rev-${idx}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1691,6 +1905,21 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
             </div>
           </div>
         </div>
+      )}
+
+      {/* Merge Landscaping Revisions Modal */}
+      {showMergeModal && activeProject && (
+        <MergeLandscapingRevisionsModal
+          isOpen={showMergeModal}
+          onClose={() => setShowMergeModal(false)}
+          project={activeProject}
+          user={user}
+          initialRevAIndex={mergeRevAIndex}
+          initialRevBIndex={mergeRevBIndex}
+          onMergeSuccess={handleMergeSuccess}
+          isKeyReady={isKeyReady || false}
+          onSelectKey={onSelectKey || (() => {})}
+        />
       )}
 
       {/* =========================================================================
