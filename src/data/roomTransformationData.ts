@@ -465,6 +465,127 @@ export const ROOM_TYPES: RoomTypeConfig[] = [
     ]
   },
   {
+    id: 'foyer',
+    name: 'Foyer',
+    description: 'Grand entrance hall, console styling & statement chandelier',
+    category: 'main',
+    iconName: 'DoorOpen',
+    specificSections: [
+      {
+        id: 'entry-console',
+        label: 'Console Table & Vignette',
+        options: [
+          { id: 'floating-oak-console', label: 'Floating Fluted White Oak Console with Ceramic Sculptural Urn', promptModifier: 'honed natural white oak floating console table styled with an artisanal sculptural ceramic vase, dried branches, and a brushed brass catchall tray' },
+          { id: 'travertine-monolith-console', label: 'Monolithic Honed Travertine Stone Console Table', promptModifier: 'sculptural monolithic honed travertine stone console table anchored by a large round brass-framed mirror and stone bowls' },
+          { id: 'smoked-walnut-waterfall', label: 'Smoked Walnut Waterfall Console with Bronze Accents', promptModifier: 'rich smoked walnut waterfall-edge console table with brushed bronze accents, curated art books, and minimalist table lamp' },
+          { id: 'matte-steel-marble-console', label: 'Slender Matte Black Steel & Nero Marquina Marble Table', promptModifier: 'slender architectural matte black steel console with Nero Marquina black marble top and minimalist brass candlestick holders' },
+          { id: 'no-console-open-flow', label: 'No Console (Clean Open Architectural Flow)', promptModifier: 'open unobstructed foyer space with no console table, accentuating pure architectural volume and sightlines' }
+        ]
+      },
+      {
+        id: 'foyer-seating',
+        label: 'Foyer Seating & Bench',
+        options: [
+          { id: 'curved-boucle-bench', label: 'Curved Cream Bouclé Upholstered Accent Bench', promptModifier: 'low-profile curved cream bouclé upholstered entry bench with rounded bleached oak legs positioned along the wall' },
+          { id: 'saddle-leather-bench', label: 'Tailored Cognac Saddle-Leather Bench with Bolsters', promptModifier: 'tailored cognac saddle-leather entryway bench with cylindrical brass-strapped bolster cushions' },
+          { id: 'sculptural-stone-plinths', label: 'Pair of Monolithic Limestone Accent Stools / Plinths', promptModifier: 'pair of sculptural monolithic cast limestone cube stools serving as organic accent seating' },
+          { id: 'built-in-wood-nook', label: 'Built-In Architectural Millwork Nook with Upholstered Cushion', promptModifier: 'custom built-in architectural white oak millwork nook with a recessed upholstered bench seat and brass coat hooks' },
+          { id: 'no-foyer-seating', label: 'No Bench (Maximized Circulation Space)', promptModifier: 'crisp open foyer perimeter without seating furniture, maximizing entryway circulation clearance' }
+        ]
+      },
+      {
+        id: 'statement-chandelier',
+        label: 'Statement Chandelier & Lighting',
+        options: [
+          { id: 'sculptural-mobile-chandelier', label: 'Multi-Tier Sculptural Brass & Frosted Globe Chandelier', promptModifier: 'dramatic multi-tier architectural mobile chandelier with hand-blown frosted glass globes and satin brass arms centered overhead' },
+          { id: 'oversized-paper-lantern', label: 'Oversized Sculptural Noguchi-Style Paper Lantern Pendant', promptModifier: 'monumental sculptural washi paper lantern pendant casting soft diffused ambient warmth across the foyer ceiling' },
+          { id: 'minimalist-brass-halo', label: 'Double-Ring Suspended Satin Brass Halo Pendant', promptModifier: 'sleek contemporary dual concentric suspended satin brass halo rings with integrated continuous warm LED edge light' },
+          { id: 'recessed-cove-coffered', label: 'Recessed Coffered Ceiling with Warm 2700K Perimeter LED Cove', promptModifier: 'architectural shallow coffered ceiling with concealed warm 2700K cove strip lighting and pinpoint recessed architectural spots' }
+        ]
+      },
+      {
+        id: 'foyer-flooring-inlay',
+        label: 'Flooring Inlay & Medallion',
+        options: [
+          { id: 'checkerboard-marble-inlay', label: 'Calacatta Gold & Nero Marquina Checkerboard Marble Inlay', promptModifier: 'foyer floor enhanced with a grand diagonal checkerboard marble inlay featuring honed Calacatta gold and Nero Marquina black marble tiles' },
+          { id: 'herringbone-oak-brass-border', label: 'French Herringbone White Oak Parquet with Brass Perimeter Border', promptModifier: 'French herringbone European white oak parquet flooring bordered by a delicate 1-inch brushed brass inlay transition frame' },
+          { id: 'large-format-travertine', label: 'Seamless 36x36 Honed Beige Travertine Stone Slabs', promptModifier: 'monumental 36-inch honed neutral beige travertine stone floor tiles with micro-grout lines and matte sealer' },
+          { id: 'artisanal-venetian-terrazzo', label: 'Artisanal Light Venetian Terrazzo with Brass Joint Strips', promptModifier: 'custom poured light Venetian terrazzo flooring embedded with marble aggregates and geometric satin brass divider strips' }
+        ]
+      },
+      {
+        id: 'foyer-accent-mirror',
+        label: 'Statement Mirror & Accent Wall',
+        options: [
+          { id: 'massive-arched-floor-mirror', label: '7-Foot Tall Arched Black Iron Floor Leaner Mirror', promptModifier: 'commanding 7-foot tall arched minimalist black metal framed leaner mirror reflecting generous natural daylight into the hall' },
+          { id: 'circular-backlit-floating-mirror', label: 'Oversized 48-Inch Circular Mirror with 360° Halo Backlighting', promptModifier: 'oversized 48-inch frameless circular mirror floating off the wall with an ethereal halo of warm 360-degree LED backlighting' },
+          { id: 'fluted-oak-mirror-wall', label: 'Floor-to-Ceiling Fluted Oak Slat Wall with Integrated Oval Mirror', promptModifier: 'floor-to-ceiling vertical fluted white oak slat accent wall with a seamless inset full-length capsule oval mirror' },
+          { id: 'antique-gilded-baroque', label: 'Ornate French Antique Gilded Gold Leaf Accent Mirror', promptModifier: 'curated antique carved French giltwood mirror providing striking classical contrast against clean architectural walls' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'front-door-entrance',
+    name: 'Front Door Entrance',
+    description: 'Front entrance door, sidelights, transom, threshold & vestibule',
+    category: 'main',
+    iconName: 'DoorClosed',
+    specificSections: [
+      {
+        id: 'entrance-door-type',
+        label: 'Front Entrance Door Style',
+        options: [
+          { id: 'oversized-oak-pivot-door', label: '9-Foot Modern White Oak Pivot Door with Vertical Bar Pull', promptModifier: 'commanding 9-foot tall oversized natural European white oak modern pivot front entrance door with seamless vertical grain and full-height matte black exterior pull bar' },
+          { id: 'steel-crittall-french-doors', label: 'Industrial Black Steel Crittall-Style Multi-Pane Glass Double Doors', promptModifier: 'dramatic industrial modern black steel-framed Crittall grid multi-pane glass double front entrance doors with matching overhead transom' },
+          { id: 'matte-black-solid-pivot', label: 'Contemporary Matte Charcoal Solid Flush Pivot Door', promptModifier: 'ultra-modern flush matte charcoal pivot front door with seamless flush frame and integrated keyless smart touchpad' },
+          { id: 'mahogany-horizontal-lite-door', label: 'Rich Mahogany Solid Door with Horizontal Satin Glass Lites', promptModifier: 'warm solid mahogany entry door featuring four horizontal satin-etched privacy glass lite inserts and satin nickel hardware' },
+          { id: 'classic-lacquered-double-doors', label: 'High-Gloss Deep Navy / Charcoal Double Doors with Raised Moldings', promptModifier: 'classic luxury double entrance doors finished in high-gloss deep midnight navy with traditional raised architectural molding panels and heavy polished brass hardware' }
+        ]
+      },
+      {
+        id: 'door-hardware-and-pulls',
+        label: 'Door Hardware & Pull Handles',
+        options: [
+          { id: 'full-height-black-bar-pull', label: 'Full-Height 72-Inch Matte Black Linear Bar Pull', promptModifier: 'full-height 72-inch architectural matte black rectangular bar pull with integrated smart deadbolt' },
+          { id: 'brushed-champagne-brass-grip', label: 'Heavy Solid Brushed Champagne Brass Tubular Grip Handleset', promptModifier: 'heavy solid brushed champagne brass exterior grip handleset with matching mortise lock and designer thumb latch' },
+          { id: 'sculptural-cast-bronze-pull', label: 'Artisan Hand-Cast Patinated Bronze Organic Branch Pull', promptModifier: 'bespoke hand-cast patinated bronze sculptural branch-form front door pull with rich tactile texture' },
+          { id: 'minimalist-recessed-smart-pull', label: 'Minimalist Recessed Flush Edge Pull with Biometric Access', promptModifier: 'minimalist flush-recessed edge pull with seamlessly integrated concealed smart biometric fingerprint lock' }
+        ]
+      },
+      {
+        id: 'transom-and-sidelights',
+        label: 'Transom & Sidelight Windows',
+        options: [
+          { id: 'symmetrical-frosted-sidelights', label: 'Dual Symmetrical Floor-to-Ceiling Frosted Privacy Glass Sidelights', promptModifier: 'symmetrical full-height frosted privacy glass sidelights on both sides of the front door diffusing abundant soft daylight into the entryway' },
+          { id: 'clear-glass-timber-louvers', label: 'Clear Glass Sidelights with Exterior Vertical Architectural Timber Louvers', promptModifier: 'crystal clear architectural sidelights shaded by vertical natural white oak exterior louvers for filtered sun and privacy' },
+          { id: 'arched-fanlight-transom', label: 'Grand Semicircular Arched Fanlight Transom Window Over Door', promptModifier: 'grand architectural semicircular arched glass transom window above the entrance door flooding the entryway with high daylight' },
+          { id: 'solid-paneled-surrounds', label: 'Solid Architectural Molded Surrounds (Maximum Privacy & Security)', promptModifier: 'solid architectural wall surrounds with crisp interior casing trim for maximum privacy and thermal efficiency' }
+        ]
+      },
+      {
+        id: 'vestibule-drop-zone',
+        label: 'Entry Drop Zone & Storage',
+        options: [
+          { id: 'concealed-push-cabinets', label: 'Concealed Push-to-Open Flush White Oak Wardrobe Cabinets', promptModifier: 'floor-to-ceiling seamless push-to-open flat-panel white oak entryway wardrobe cabinetry concealing coats, footwear, and umbrellas' },
+          { id: 'open-entry-bench-hooks', label: 'Open Entryway Bench with Slatted Backing & Brass Hooks', promptModifier: 'built-in open entryway mudroom station with a natural oak storage bench, vertical wood slat wall, and heavy satin brass coat hooks' },
+          { id: 'floating-threshold-shelf', label: 'Floating Honed Limestone Threshold Ledge with Sconces', promptModifier: 'floating honed limestone catchall key ledge flanked by two architectural fluted alabaster wall sconces' },
+          { id: 'planter-and-umbrella-stand', label: 'Freestanding Modern Concrete Umbrella Stand & Potted Olive Tree', promptModifier: 'minimalist cast concrete cylindrical umbrella stand paired with a tall potted Mediterranean olive tree in an aged stone planter' }
+        ]
+      },
+      {
+        id: 'entrance-mat-threshold',
+        label: 'Threshold & Entryway Mat / Runner',
+        options: [
+          { id: 'recessed-flush-coir-mat', label: 'Natural Coconut Coir Mat Set Flush in Recessed Brass Frame', promptModifier: 'heavy-duty natural coconut coir entrance mat recessed perfectly flush into the hardwood flooring inside a slim brushed brass frame' },
+          { id: 'vintage-turkish-runner', label: 'Vintage Muted Oushak / Turkish Wool Runner Rug', promptModifier: 'authentic vintage hand-knotted Turkish wool runner rug with muted terracotta, olive green, and sand geometric motifs' },
+          { id: 'flatweave-jute-mat', label: 'Heavy Flatweave Natural Jute & Charcoal Border Entrance Rug', promptModifier: 'durable heavy-textured organic jute entry rug bordered by a crisp charcoal canvas binding' },
+          { id: 'honed-granite-threshold', label: 'Monolithic Honed Dark Granite Stone Door Threshold', promptModifier: 'substantial monolithic honed dark granite exterior-to-interior door threshold stone offering a seamless transition' }
+        ]
+      }
+    ]
+  },
+  {
     id: 'game-room',
     name: 'Game Room',
     description: 'Pool table & stand-up games',
@@ -806,5 +927,23 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     description: 'Empty residential hallway corridor ready for tailored feature wall, gallery display & lighting',
     defaultStyle: 'luxury-transitional',
     defaultPrompt: 'Transform this empty hallway corridor with vertical white oak acoustic slat wall paneling, a curated symmetrical grid gallery of black matted architectural photography with brass picture lights, subtle warm 2700K ambient cove ceiling lighting, and a modern linear electric fireplace'
+  },
+  {
+    id: 'sample-foyer',
+    name: 'Grand Foyer Entry',
+    roomType: 'foyer',
+    thumbnail: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80',
+    description: 'Blank grand entry hall ready for statement chandelier, console styling & marble floor inlay',
+    defaultStyle: 'luxury-transitional',
+    defaultPrompt: 'Transform into a luxury transitional foyer with a floating white oak console table, circular backlit mirror, multi-tier brass mobile chandelier, and Calacatta gold marble inlay flooring'
+  },
+  {
+    id: 'sample-front-door-entrance',
+    name: 'Front Door Entrance',
+    roomType: 'front-door-entrance',
+    thumbnail: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1000&q=80',
+    description: 'Interior view of front entrance door, sidelights, threshold, and entryway drop zone',
+    defaultStyle: 'modern-minimalist',
+    defaultPrompt: 'Transform into a high-end front entrance featuring an oversized white oak pivot door with full-height matte black pull bar, symmetrical frosted sidelights, flush recessed coir mat, and concealed floor-to-ceiling wardrobe cabinetry'
   }
 ];

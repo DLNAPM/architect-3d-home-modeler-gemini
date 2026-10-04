@@ -33,6 +33,7 @@ import {
   Tv,
   Fan,
   DoorOpen,
+  DoorClosed,
   Info,
   Pencil,
   GitMerge
@@ -746,6 +747,8 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         return <Fan className={className} />;
       case 'DoorOpen':
         return <DoorOpen className={className} />;
+      case 'DoorClosed':
+        return <DoorClosed className={className} />;
       default:
         return <Sparkles className={className} />;
     }
@@ -815,6 +818,24 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
       transformed: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
       originalLabel: 'Plain Residential Hallway',
       transformedLabel: 'Luxury Gallery Hallway with Feature Wall & Accent Lighting',
+    },
+    {
+      id: 'foyer',
+      title: 'Grand Foyer with Statement Chandelier & Console',
+      badge: 'Main Living Space',
+      original: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Plain Entryway Alcove',
+      transformedLabel: 'Luxury Foyer with Chandelier & Travertine Console',
+    },
+    {
+      id: 'front-door-entrance',
+      title: 'Front Door Entrance with Pivot Door & Sidelights',
+      badge: 'Main Living Space',
+      original: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+      transformed: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1200&q=80',
+      originalLabel: 'Builder-Grade Front Entrance',
+      transformedLabel: 'Architectural Pivot Door with Sidelights & Inset Mat',
     },
     {
       id: 'living-room',
@@ -896,6 +917,28 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           'Add vintage sepia cartographic world map mural',
           'Install floating hardwood wall hangers for acoustic guitars',
           'Add signed sports jersey shadow box frames with LED edge glow',
+        ];
+      case 'foyer':
+      case 'Foyer':
+        return [
+          'Add floating white oak console with sculptural ceramic urn',
+          'Install oversized circular backlit mirror with warm halo glow',
+          'Add multi-tier modern sculptural brass mobile chandelier',
+          'Upgrade flooring to Calacatta & Nero Marquina checkerboard marble',
+          'Add curved cream bouclé entry bench with oak legs',
+          'Add vertical acoustic white oak slat feature wall',
+          'Add 7-foot arched thin black iron floor leaner mirror',
+        ];
+      case 'front-door-entrance':
+      case 'Front Door Entrance':
+        return [
+          'Upgrade to 9-foot oversized white oak pivot door with black bar pull',
+          'Add floor-to-ceiling frosted privacy glass sidelights',
+          'Install recessed coconut coir mat flush with hardwood flooring',
+          'Add seamless concealed push-to-open oak coat cabinetry',
+          'Add black steel-framed Crittall multi-pane glass double doors',
+          'Add vintage muted Turkish wool entry runner rug',
+          'Add high arch fanlight transom window over entrance door',
         ];
       default:
         return [
@@ -1750,7 +1793,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  Basement ({SAMPLE_ROOMS.filter(s => ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(s.roomType)).length})
+                  Basement ({SAMPLE_ROOMS.filter(s => ROOM_TYPES.find(r => r.id === s.roomType)?.category === 'basement').length})
                 </button>
                 <button
                   type="button"
@@ -1761,7 +1804,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  Main ({SAMPLE_ROOMS.filter(s => !['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room'].includes(s.roomType)).length})
+                  Main ({SAMPLE_ROOMS.filter(s => ROOM_TYPES.find(r => r.id === s.roomType)?.category !== 'basement').length})
                 </button>
                 <button
                   type="button"
@@ -1779,7 +1822,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
                 {SAMPLE_ROOMS
                   .filter((sample) => {
-                    const isBasement = ['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room', 'wine-room'].includes(sample.roomType);
+                    const isBasement = ROOM_TYPES.find(r => r.id === sample.roomType)?.category === 'basement';
                     if (sampleCategoryTab === 'basement') return isBasement;
                     if (sampleCategoryTab === 'main') return !isBasement;
                     return true;
@@ -1798,7 +1841,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         referrerPolicy="no-referrer"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex flex-col justify-end p-2">
-                        {['game-room', 'soundproof-studio', 'basement-bar', 'movie-room', 'exercise-room', 'wine-room'].includes(sample.roomType) && (
+                        {ROOM_TYPES.find(r => r.id === sample.roomType)?.category === 'basement' && (
                           <span className="self-start px-1.5 py-0.5 mb-1 bg-amber-500/90 text-white font-bold text-[9px] rounded uppercase tracking-wider">
                             Basement
                           </span>
