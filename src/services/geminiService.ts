@@ -306,7 +306,7 @@ export async function generateImage(prompt: string): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
 
-  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image'];
+  const modelsToTry = ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'];
   let lastError: unknown;
 
   for (const model of modelsToTry) {
@@ -434,7 +434,7 @@ export async function generateImageFromImage(
   const ai = getAiClient();
   validatePrompt(prompt);
 
-  const modelsToTry = ['gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'];
+  const modelsToTry = ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'];
   let lastError: unknown;
 
   const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [];

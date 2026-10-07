@@ -83,6 +83,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 
   // Action configuration state
   const [actionType, setActionType] = useState<RegionActionType>('replace');
+  const [currentItemDescription, setCurrentItemDescription] = useState<string>('');
   const [removeFillDescription, setRemoveFillDescription] = useState<string>('');
   const [replaceWithDescription, setReplaceWithDescription] = useState<string>('');
   const [editModificationsDescription, setEditModificationsDescription] = useState<string>('');
@@ -107,6 +108,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     setLassoPoints([]);
     setCircleStart(null);
     setCircleCurrent(null);
+    setCurrentItemDescription('');
     setErrorMessage(null);
 
     const img = new Image();
@@ -489,7 +491,11 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 
     try {
       const locDesc = getRegionLocationDescription(region);
-      const annotatedUri = createAnnotatedImageUri();
+      const minXPercent = Math.round(region.minX * 100);
+      const maxXPercent = Math.round(region.maxX * 100);
+      const minYPercent = Math.round(region.minY * 100);
+      const maxYPercent = Math.round(region.maxY * 100);
+      const currentItemText = currentItemDescription.trim() || 'the existing element / furniture';
 
       let actionPromptDirective = '';
       let revisionLabelSummary = '';
@@ -497,46 +503,50 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 
       if (actionType === 'remove') {
         const fillText = removeFillDescription.trim() || 'seamless matching surrounding flooring, walls, and natural background textures';
-        customDirectiveText = `Remove circled item and fill with: ${fillText}`;
-        revisionLabelSummary = `Circled Area: Removed Item`;
-        actionPromptDirective = `ACTION DIRECTIVE: REMOVE / INPAINT
-- The user has circled a specific area in the ${locDesc}.
-- COMPLETELY ERASE AND REMOVE the furniture, fixture, object, or feature located within this circled zone.
+        customDirectiveText = `Remove ${currentItemText} and fill with: ${fillText}`;
+        revisionLabelSummary = `Removed ${currentItemText}`;
+        actionPromptDirective = `PRIMARY TASK - REMOVE ELEMENT & INPAINT BACKGROUND:
+- Target area location: ${locDesc} (bounding box coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame).
+- Targeted item to erase: ${currentItemText}.
+- MANDATORY INSTRUCTION: Completely REMOVE AND ERASE the ${currentItemText} from this specified target zone.
 - Seamlessly inpaint and extend the surrounding background into the emptied area using: ${fillText}.
-- Match the existing floorboards, wall paint, lighting shadows, and perspective without leaving any artifacts or blank patches.`;
+- Do NOT leave any trace, outline, ghosting, or artifact of the removed item. Blend the flooring, walls, ambient light, and shadows naturally.`;
       } else if (actionType === 'replace') {
         const replaceText = replaceWithDescription.trim() || 'contemporary architectural centerpiece';
-        customDirectiveText = `Replace circled item with: ${replaceText}`;
-        revisionLabelSummary = `Circled Area: Replaced with ${replaceText.slice(0, 30)}${replaceText.length > 30 ? '...' : ''}`;
-        actionPromptDirective = `ACTION DIRECTIVE: REPLACE / SWAP
-- The user has circled a specific area in the ${locDesc}.
-- Remove the existing element currently in that circled area and REPLACE IT with: ${replaceText}.
-- Scale the replacement item realistically to the perspective and scale of the ${roomOrViewLabel}.
-- Ensure the new replacement casts accurate natural shadows, interacts realistically with ambient room lighting, and matches the overall design style.`;
+        customDirectiveText = `Replace ${currentItemText} with: ${replaceText}`;
+        revisionLabelSummary = `Replaced with ${replaceText.slice(0, 30)}${replaceText.length > 30 ? '...' : ''}`;
+        actionPromptDirective = `PRIMARY TASK - REPLACE ITEM IN TARGET ZONE:
+- Target area location: ${locDesc} (bounding box coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame).
+- Existing item to remove: ${currentItemText}.
+- New item to render: ${replaceText}.
+- MANDATORY INSTRUCTION: Completely remove and erase the ${currentItemText} from the specified target zone, and IN ITS PLACE RENDER: ${replaceText}.
+- The replacement ${replaceText} MUST BE BOLDLY VISIBLE, PROMINENT, and CLEARLY DIFFERENT from the original image. Do NOT output the old item.
+- Render the new ${replaceText} with realistic tactile materials, appropriate perspective scaling for this ${roomOrViewLabel}, and accurate cast lighting shadows.`;
       } else {
         const editText = editModificationsDescription.trim() || 'restyle to luxury contemporary finish';
-        customDirectiveText = `Edit circled area: ${editText}`;
-        revisionLabelSummary = `Circled Area: Edited Details`;
-        actionPromptDirective = `ACTION DIRECTIVE: EDIT / RESTYLE
-- The user has circled a specific area in the ${locDesc}.
-- Keep the foundational element in the circled zone, but EDIT and RESTYLE it according to: ${editText}.
-- Update its material finish, color, surface texture, or lighting as requested, while keeping it harmonious with the surrounding space.`;
+        customDirectiveText = `Edit ${currentItemText}: ${editText}`;
+        revisionLabelSummary = `Edited: ${editText.slice(0, 30)}${editText.length > 30 ? '...' : ''}`;
+        actionPromptDirective = `PRIMARY TASK - EDIT & RESTYLE ITEM:
+- Target area location: ${locDesc} (bounding box coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame).
+- Targeted item: ${currentItemText}.
+- MANDATORY INSTRUCTION: Boldly modify and restyle the ${currentItemText} according to: ${editText}.
+- The change in color, material finish, texture, or styling must be prominently and visibly transformed, clearly noticeable compared to the original.`;
       }
 
-      const preservationDirective = strictPreservation
-        ? `STRICT PRESERVATION DIRECTIVE:
-- MANDATORY REQUIREMENT: Everything OUTSIDE of the circled region must remain 100% strictly IDENTICAL to the source rendering.
-- Do not alter the room structure, untouched walls, ceiling, exterior facade, flooring outside the circled area, window placements, or overall camera angle.
-- Only synthesize changes strictly within the user's circled boundary.`
-        : `PRESERVATION GUIDELINE: Blend the modifications naturally into the space while preserving the overall architectural perspective and surrounding elements.`;
+      const preservationDirective = `CONTEXT INTEGRATION:
+- Maintain the overall room perspective, surrounding walls, ceiling, and architectural aesthetic of the space so it is recognized as the same room, but ensure the requested transformation in the target zone is boldly applied and distinctly visible.`;
+
+      const annotatedUri = createAnnotatedImageUri();
 
       const fullPrompt = [
-        `Photorealistic architectural rendering revision of this ${roomOrViewLabel}.`,
-        `TARGETED REGIONAL MODIFICATION TASK:`,
-        `The user has circled a specific area of interest at: ${locDesc}.`,
+        `Photorealistic architectural rendering modification of this ${roomOrViewLabel}.`,
+        `INPUT REFERENCE:`,
+        annotatedUri
+          ? `Image 1 is the clean original rendering to be modified.\nImage 2 is a visual guide highlighting the target zone with a high-visibility outline.`
+          : `Modify the provided rendering in the designated target zone: ${locDesc} (${minXPercent}%-${maxXPercent}% width, ${minYPercent}%-${maxYPercent}% height).`,
         actionPromptDirective,
         preservationDirective,
-        `Quality specification: 8k resolution, ultra-photorealistic architectural visualization, seamless perimeter blending, accurate ambient lighting and tactile textures.`
+        `CRITICAL OUTPUT SPECIFICATION: Return a clean, ultra-photorealistic architectural rendering without any circles, lines, or markup from Image 2. 8k clarity, seamless natural lighting, tactile physical materials.`
       ].join('\n\n');
 
       setGenerationStep('Synthesizing targeted edit with Gemini image engine...');
@@ -811,12 +821,77 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 </div>
               </div>
 
-              {/* Step 2: Action Specific Details */}
+              {/* Step 2: What is in the circled area? (Optional) */}
+              <div className="space-y-2 p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                    2. What is in the circled area? (Optional)
+                  </label>
+                  <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                    Helps AI pinpoint exact item
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={currentItemDescription}
+                  onChange={(e) => setCurrentItemDescription(e.target.value)}
+                  placeholder={
+                    contextType === 'room'
+                      ? 'e.g. Coffee table, Sofa, Chandelier, Rug, Fireplace...'
+                      : 'e.g. Patio, Lawn, Swimming pool, Trees, Walkway...'
+                  }
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                  id="input-current-item-description"
+                />
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                  {(contextType === 'room'
+                    ? [
+                        'Coffee table',
+                        'Sofa / Couch',
+                        'Chandelier / Light',
+                        'Fireplace',
+                        'Accent chair',
+                        'Area rug',
+                        'Wall art',
+                        'Accent wall',
+                        'Dining table',
+                        'Flooring',
+                      ]
+                    : [
+                        'Patio / Pavers',
+                        'Lawn / Grass',
+                        'Swimming pool',
+                        'Tree / Shrub',
+                        'Walkway / Path',
+                        'Garden bed',
+                        'Fence / Wall',
+                        'Outdoor furniture',
+                        'Pergola / Deck',
+                        'Fire pit',
+                      ]
+                  ).map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setCurrentItemDescription(item)}
+                      className={`px-2 py-0.5 text-[11px] font-medium rounded-md border transition-colors cursor-pointer ${
+                        currentItemDescription.toLowerCase() === item.toLowerCase()
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                          : 'bg-white dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 3: Action Specific Details */}
               {actionType === 'replace' && (
                 <div className="space-y-3 p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                      Replace Circled Item With:
+                      3. Replace Circled Item With:
                     </label>
                     <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
                       Custom item or feature
@@ -939,13 +1014,13 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 </div>
               )}
 
-              {/* Strict Preservation Toggle */}
+              {/* Perimeter Preservation Toggle */}
               <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/50 flex items-start gap-3">
                 <ShieldCheck className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900 dark:text-white">
-                      Strict Perimeter Preservation
+                      Preserve Surrounding Architecture
                     </span>
                     <input
                       type="checkbox"
@@ -956,7 +1031,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                     />
                   </div>
                   <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
-                    Locks and preserves everything outside the circled area 100% identical (walls, ceiling, lighting, camera angle, and other furniture).
+                    Maintains the room's surrounding walls, flooring, layout perspective, and lighting, while applying your circled changes clearly and prominently.
                   </p>
                 </div>
               </div>
