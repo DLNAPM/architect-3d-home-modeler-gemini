@@ -36,7 +36,8 @@ import {
   DoorClosed,
   Info,
   Pencil,
-  GitMerge
+  GitMerge,
+  CircleDot
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -55,6 +56,7 @@ import { generateImageFromImage } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 import LoadingOverlay from './LoadingOverlay';
 import { MergeRoomRevisionsModal } from './MergeRoomRevisionsModal';
+import { CircleRegionEditModal, RegionActionType } from './CircleRegionEditModal';
 
 interface RoomTransformationsPageProps {
   user: User | null;
@@ -135,6 +137,13 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [mergeRevBIndex, setMergeRevBIndex] = useState<number>(1);
   const [mergeSuccessMessage, setMergeSuccessMessage] = useState<string | null>(null);
 
+  // Circle Region Inpainting State
+  const [showCircleEditModal, setShowCircleEditModal] = useState(false);
+  const [circleEditTargetRevisionIndex, setCircleEditTargetRevisionIndex] = useState<number | null>(null);
+  const [circleEditSuccessMessage, setCircleEditSuccessMessage] = useState<string | null>(null);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [isSavingRevisions, setIsSavingRevisions] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get active room type config
@@ -155,13 +164,30 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
     setRoomSpecificSelections(initialSelections);
   }, [selectedRoomTypeId, activeRoomTypeConfig]);
 
-  // Load saved projects on mount
+  // Load saved projects on mount and when user logs in/out
   useEffect(() => {
     const loadProjects = async () => {
-      if (!user?.uid) return;
+      const targetUserId = user?.uid || 'guest-user';
       try {
-        const list = await cloudService.getRoomTransformations(user.uid);
+        const list = await cloudService.getRoomTransformations(targetUserId);
         setSavedProjects(list);
+
+        // If user logged in and there are guest projects created earlier, migrate them seamlessly
+        if (user?.uid) {
+          try {
+            const guestProjects = await cloudService.getRoomTransformations('guest-user');
+            if (guestProjects.length > 0) {
+              for (const gp of guestProjects) {
+                await cloudService.saveRoomTransformation(user.uid, { ...gp, userId: user.uid });
+                await cloudService.deleteRoomTransformation('guest-user', gp.id);
+              }
+              const refreshed = await cloudService.getRoomTransformations(user.uid);
+              setSavedProjects(refreshed);
+            }
+          } catch (migrateErr) {
+            console.warn('Guest projects migration check finished:', migrateErr);
+          }
+        }
       } catch (err) {
         console.warn('Could not load saved room transformations:', err);
       }
@@ -588,13 +614,106 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
     setShowMergeModal(true);
   };
 
-  // Handle successful merge
-  const handleMergeSuccess = (newRevision: TransformationRevision, updatedProject: RoomTransformationProject) => {
+  // Open Circle Region Edit Modal
+  const handleOpenCircleEditModal = (targetIndex?: number) => {
+    if (!activeProject || activeProject.revisions.length === 0) return;
+    const idx = typeof targetIndex === 'number' ? targetIndex : activeProject.currentRevisionIndex;
+    setCircleEditTargetRevisionIndex(idx);
+    setShowCircleEditModal(true);
+  };
+
+  // Handle successful circle region modification
+  const handleApplyCircleRegionSuccess = async (
+    newRenderedImageUrl: string,
+    promptUsed: string,
+    newLabel: string,
+    actionType: RegionActionType,
+    customDirective: string
+  ) => {
+    if (!activeProject) return;
+
+    const sourceRev =
+      activeProject.revisions[
+        circleEditTargetRevisionIndex !== null
+          ? circleEditTargetRevisionIndex
+          : activeProject.currentRevisionIndex
+      ] || activeProject.revisions[activeProject.currentRevisionIndex];
+
+    const newRevision: TransformationRevision = {
+      id: `rev-${Date.now()}`,
+      createdAt: Date.now(),
+      label: newLabel,
+      prompt: promptUsed,
+      roomType: activeProject.roomType,
+      selectedOptions: {
+        ...(sourceRev?.selectedOptions || {}),
+        regionAction: actionType,
+        regionDirective: customDirective,
+      },
+      customInstructions: customDirective,
+      renderedImageUrl: newRenderedImageUrl,
+    };
+
+    const updatedRevisions = [...activeProject.revisions, newRevision];
+    const newRevisionIndex = updatedRevisions.length - 1;
+
+    const updatedProject: RoomTransformationProject = {
+      ...activeProject,
+      updatedAt: Date.now(),
+      currentRevisionIndex: newRevisionIndex,
+      revisions: updatedRevisions,
+    };
+
     setActiveProject(updatedProject);
     setSavedProjects((prev) => [
       updatedProject,
       ...prev.filter((p) => p.id !== updatedProject.id)
     ]);
+
+    try {
+      await cloudService.saveRoomTransformation(user?.uid || 'guest-user', updatedProject);
+    } catch (err) {
+      console.error('Failed to save updated project with circled region revision:', err);
+    }
+
+    setCircleEditSuccessMessage(`Created ${newRevision.label.split(':')[0]} with your circled region ${actionType} changes.`);
+    setTimeout(() => {
+      setCircleEditSuccessMessage(null);
+    }, 6000);
+  };
+
+  // Explicit Save active project & all revisions to cloud / local account
+  const handleSaveActiveProject = async () => {
+    if (!activeProject) return;
+    setIsSavingRevisions(true);
+    try {
+      await cloudService.saveRoomTransformation(user?.uid || 'guest-user', activeProject);
+      setSavedProjects((prev) => [
+        activeProject,
+        ...prev.filter((p) => p.id !== activeProject.id)
+      ]);
+      setSaveSuccessMessage(`All ${activeProject.revisions.length} revisions saved to your account!`);
+      setTimeout(() => setSaveSuccessMessage(null), 3500);
+    } catch (err) {
+      console.error('Failed to save room transformation revisions:', err);
+      alert('Failed to save project revisions. Please try again.');
+    } finally {
+      setIsSavingRevisions(false);
+    }
+  };
+
+  // Handle successful merge
+  const handleMergeSuccess = async (newRevision: TransformationRevision, updatedProject: RoomTransformationProject) => {
+    setActiveProject(updatedProject);
+    setSavedProjects((prev) => [
+      updatedProject,
+      ...prev.filter((p) => p.id !== updatedProject.id)
+    ]);
+    try {
+      await cloudService.saveRoomTransformation(user?.uid || 'guest-user', updatedProject);
+    } catch (err) {
+      console.error('Failed to save merged project revisions:', err);
+    }
     setMergeSuccessMessage(`Successfully created ${newRevision.label.split(':')[0]} by merging two revisions!`);
     setTimeout(() => {
       setMergeSuccessMessage(null);
@@ -1284,6 +1403,46 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         </div>
       )}
 
+      {circleEditSuccessMessage && (
+        <div
+          className="mb-6 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-purple-600 shrink-0" />
+            <span>{circleEditSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCircleEditSuccessMessage(null)}
+            className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-200"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {saveSuccessMessage && (
+        <div
+          className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-sm flex items-center justify-between shadow-xs animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{saveSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveSuccessMessage(null)}
+            className="text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {isGenerating && <LoadingOverlay message={generationStepMessage} />}
 
@@ -1394,6 +1553,29 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveActiveProject}
+                  disabled={isSavingRevisions}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                  title="Save this project and all its revisions to your account so they are preserved across login/logout"
+                  id="btn-save-room-revisions-header"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span>{isSavingRevisions ? 'Saving...' : 'Save Revisions'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 hover:text-purple-800 dark:text-purple-300 bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg border border-purple-200 dark:border-purple-900/60 shadow-2xs transition-colors cursor-pointer"
+                  title="Circle an area in this rendering to remove, edit, or replace it"
+                  id="btn-circle-edit-active-header"
+                >
+                  <CircleDot className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>Circle &amp; Edit Area</span>
+                </button>
+
                 {activeProject.revisions.length >= 2 && (
                   <button
                     type="button"
@@ -1435,6 +1617,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                 onEnlarge={(url) => setEnlargedImageUrl(url)}
                 onDownloadTransformed={handleDownloadTransformed}
                 onDownloadSideBySide={handleDownloadSideBySide}
+                onCircleEdit={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
               />
             </div>
           )}
@@ -1454,17 +1637,29 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                 </p>
               </div>
 
-              {activeProject.revisions.length >= 2 && (
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleOpenMergeModal()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-200 dark:hover:bg-purple-900/80 rounded-xl transition-all cursor-pointer border border-purple-200 dark:border-purple-800 shadow-2xs"
-                  id="btn-open-merge-from-gallery"
+                  onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-50 dark:bg-purple-900/40 hover:bg-purple-100 dark:hover:bg-purple-900/70 rounded-xl transition-all cursor-pointer border border-purple-200 dark:border-purple-800 shadow-2xs"
+                  id="btn-open-circle-edit-from-gallery"
                 >
-                  <GitMerge className="h-3.5 w-3.5" />
-                  <span>Merge Any 2 Revisions</span>
+                  <CircleDot className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>Circle &amp; Edit Area</span>
                 </button>
-              )}
+
+                {activeProject.revisions.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMergeModal()}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-200 dark:hover:bg-purple-900/80 rounded-xl transition-all cursor-pointer border border-purple-200 dark:border-purple-800 shadow-2xs"
+                    id="btn-open-merge-from-gallery"
+                  >
+                    <GitMerge className="h-3.5 w-3.5" />
+                    <span>Merge Any 2 Revisions</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
@@ -1528,6 +1723,18 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       </span>
 
                       <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCircleEditModal(idx);
+                          }}
+                          className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded transition-colors cursor-pointer"
+                          title={`Circle area in Rev ${idx + 1} to remove, edit, or replace`}
+                          id={`btn-circle-edit-card-rev-${idx}`}
+                        >
+                          <CircleDot className="h-3.5 w-3.5" />
+                        </button>
                         {activeProject.revisions.length >= 2 && (
                           <button
                             type="button"
@@ -1630,6 +1837,32 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   Apply to Original Photo
                 </button>
               </div>
+            </div>
+
+            {/* Targeted Region Inpainting Callout Banner */}
+            <div className="mb-4 p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/40 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <CircleDot className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                    Need to modify or swap a specific item or spot?
+                  </h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Circle any area directly on this rendering to erase it, swap it with another item, or change its style.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                className="px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-white dark:bg-gray-800 hover:bg-purple-100 dark:hover:bg-purple-900/60 rounded-lg border border-purple-300 dark:border-purple-700 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                id="btn-launch-circle-edit-from-refine"
+              >
+                <CircleDot className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Circle Area to Edit</span>
+              </button>
             </div>
 
             {/* Quick Refinement Suggestion Chips */}
@@ -2509,6 +2742,35 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           onMergeSuccess={handleMergeSuccess}
           isKeyReady={isKeyReady}
           onSelectKey={() => {}}
+        />
+      )}
+
+      {/* Circle Region Edit Modal */}
+      {showCircleEditModal && activeProject && activeProject.revisions.length > 0 && (
+        <CircleRegionEditModal
+          isOpen={showCircleEditModal}
+          onClose={() => setShowCircleEditModal(false)}
+          sourceImageUrl={
+            activeProject.revisions[
+              circleEditTargetRevisionIndex !== null
+                ? circleEditTargetRevisionIndex
+                : activeProject.currentRevisionIndex
+            ]?.renderedImageUrl || activeProject.originalImageUrl
+          }
+          projectTitle={activeProject.title}
+          contextType="room"
+          roomOrViewLabel={activeProject.roomType}
+          revisionLabel={
+            activeProject.revisions[
+              circleEditTargetRevisionIndex !== null
+                ? circleEditTargetRevisionIndex
+                : activeProject.currentRevisionIndex
+            ]?.label || `Revision ${activeProject.currentRevisionIndex + 1}`
+          }
+          nextRevisionNumber={activeProject.revisions.length + 1}
+          onApplySuccess={handleApplyCircleRegionSuccess}
+          isKeyReady={isKeyReady}
+          onSelectKey={onSelectKey}
         />
       )}
 

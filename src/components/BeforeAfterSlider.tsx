@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Columns, SplitSquareHorizontal, ZoomIn, Download, Sparkles } from 'lucide-react';
+import { Columns, SplitSquareHorizontal, ZoomIn, Download, Sparkles, CircleDot } from 'lucide-react';
 
 interface BeforeAfterSliderProps {
   originalImage: string;
@@ -9,6 +9,7 @@ interface BeforeAfterSliderProps {
   onEnlarge?: (imageUrl: string) => void;
   onDownloadTransformed?: () => void;
   onDownloadSideBySide?: () => void;
+  onCircleEdit?: () => void;
 }
 
 export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
@@ -19,6 +20,7 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
   onEnlarge,
   onDownloadTransformed,
   onDownloadSideBySide,
+  onCircleEdit,
 }) => {
   const [sliderPosition, setSliderPosition] = useState(50); // percentage from left
   const [isDragging, setIsDragging] = useState(false);
@@ -99,6 +101,19 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          {onCircleEdit && (
+            <button
+              type="button"
+              onClick={onCircleEdit}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-200 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:hover:bg-purple-900/80 border border-purple-300 dark:border-purple-700 rounded-md shadow-xs transition-colors cursor-pointer"
+              title="Circle an area in this rendering to remove, edit, or replace it"
+              id="btn-circle-edit-rendering"
+            >
+              <CircleDot className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Circle &amp; Edit Area</span>
+            </button>
+          )}
+
           {onDownloadSideBySide && (
             <button
               type="button"

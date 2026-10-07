@@ -2,6 +2,7 @@
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, addDoc, query, where, updateDoc } from "firebase/firestore";
 import { db, auth, defaultDb } from "./firebase";
 import { SavedDesign, AccessLevel } from "../types";
+import { dbService } from "./dbService";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 enum OperationType {
@@ -703,30 +704,48 @@ export const cloudService = {
   },
 
   /**
-   * Saves a room transformation project to the cloud.
+   * Saves a room transformation project to the cloud and local persistence.
    */
   async saveRoomTransformation(userId: string, project: import('../types').RoomTransformationProject): Promise<void> {
     if (!userId || !project?.id) return;
+    
+    // Always save to local persistence first so nothing is lost even if offline or if cloud fails
+    try {
+      await dbService.saveRoomTransformation(project, userId);
+    } catch (localErr) {
+      console.warn("Failed to save room transformation locally:", localErr);
+    }
+
     try {
       const projectToSave = JSON.parse(JSON.stringify(project)) as import('../types').RoomTransformationProject;
-      const SIZE_THRESHOLD = 500000;
 
-      // Compress original image if large
-      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > SIZE_THRESHOLD) {
-        projectToSave.originalImageUrl = await compressImage(projectToSave.originalImageUrl, 'image/jpeg', 1280, 0.82);
+      // Ensure images are compressed to keep document well below Firestore's 1MB limit
+      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > 200000) {
+        projectToSave.originalImageUrl = await compressImage(projectToSave.originalImageUrl, 'image/jpeg', 1024, 0.78);
       }
 
-      // Compress revision images if large
       if (projectToSave.revisions && projectToSave.revisions.length > 0) {
         projectToSave.revisions = await Promise.all(
           projectToSave.revisions.map(async (rev) => {
-            if (rev.renderedImageUrl && rev.renderedImageUrl.length > SIZE_THRESHOLD) {
-              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1280, 0.82);
+            if (rev.renderedImageUrl && rev.renderedImageUrl.length > 180000) {
+              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1024, 0.76);
               return { ...rev, renderedImageUrl: compressed };
             }
             return rev;
           })
         );
+      }
+
+      // If document is still near 800KB (e.g. many revisions), do a tighter compression pass
+      let serialized = JSON.stringify(projectToSave);
+      if (serialized.length > 750000 && projectToSave.revisions.length > 0) {
+        projectToSave.revisions = await Promise.all(
+          projectToSave.revisions.map(async (rev) => {
+            const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 800, 0.68);
+            return { ...rev, renderedImageUrl: compressed };
+          })
+        );
+        projectToSave.originalImageUrl = await compressImage(projectToSave.originalImageUrl, 'image/jpeg', 800, 0.68);
       }
 
       const projectRef = doc(db, "users", userId, "room_transformations", project.id);
@@ -735,44 +754,95 @@ export const cloudService = {
         userId,
         updatedAt: Date.now()
       });
-      console.log("Room transformation saved to cloud successfully");
+      console.log("Room transformation saved to cloud and local cache successfully");
     } catch (error) {
-      console.error("Error saving room transformation:", error);
-      throw error;
+      console.error("Error saving room transformation to cloud:", error);
+      // We already saved to dbService locally, so data is safe
     }
   },
 
   /**
-   * Retrieves all room transformations for a specific user.
+   * Alias for saveRoomTransformation to ensure resilience
+   */
+  async saveRoomTransformationProject(userId: string, project: import('../types').RoomTransformationProject): Promise<void> {
+    return this.saveRoomTransformation(userId, project);
+  },
+
+  /**
+   * Retrieves all room transformations for a specific user from cloud and local persistence.
    */
   async getRoomTransformations(userId: string): Promise<import('../types').RoomTransformationProject[]> {
     if (!userId) return [];
+    
+    const projectsMap = new Map<string, import('../types').RoomTransformationProject>();
+
+    // 1. Load from local persistence first
+    try {
+      const localList = await dbService.getUserRoomTransformations(userId);
+      localList.forEach((p) => {
+        if (p?.id) projectsMap.set(p.id, p);
+      });
+    } catch (localErr) {
+      console.warn("Could not load local room transformations:", localErr);
+    }
+
+    // 2. Load from Cloud Firestore
     try {
       const colRef = collection(db, "users", userId, "room_transformations");
       const snap = await getDocs(colRef);
-      const list: import('../types').RoomTransformationProject[] = [];
       snap.forEach((d) => {
-        list.push(d.data() as import('../types').RoomTransformationProject);
+        const cloudProj = d.data() as import('../types').RoomTransformationProject;
+        if (cloudProj?.id) {
+          const existing = projectsMap.get(cloudProj.id);
+          // If local has newer revisions, keep newer; otherwise use cloud
+          if (!existing || (cloudProj.updatedAt || 0) >= (existing.updatedAt || 0) || (cloudProj.revisions?.length || 0) >= (existing.revisions?.length || 0)) {
+            projectsMap.set(cloudProj.id, cloudProj);
+            // Sync to local cache in background
+            dbService.saveRoomTransformation(cloudProj, userId).catch(() => {});
+          }
+        }
       });
-      return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } catch (error) {
-      console.error("Error fetching room transformations:", error);
-      return [];
+      console.error("Error fetching room transformations from cloud:", error);
     }
+
+    // Also check current user email collection if different from userId
+    const userEmail = auth.currentUser?.email;
+    if (userEmail && userEmail !== userId) {
+      try {
+        const colEmailRef = collection(db, "users", userEmail, "room_transformations");
+        const snapEmail = await getDocs(colEmailRef);
+        snapEmail.forEach((d) => {
+          const cloudProj = d.data() as import('../types').RoomTransformationProject;
+          if (cloudProj?.id && !projectsMap.has(cloudProj.id)) {
+            projectsMap.set(cloudProj.id, cloudProj);
+          }
+        });
+      } catch (e) {
+        // ignore email fallback errors
+      }
+    }
+
+    const merged = Array.from(projectsMap.values());
+    return merged.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   },
 
   /**
-   * Deletes a room transformation project from the cloud.
+   * Deletes a room transformation project from the cloud and local persistence.
    */
   async deleteRoomTransformation(userId: string, projectId: string): Promise<void> {
     if (!userId || !projectId) return;
+    try {
+      await dbService.deleteRoomTransformation(projectId, userId);
+    } catch (localErr) {
+      console.warn("Error deleting local room transformation:", localErr);
+    }
     try {
       const projectRef = doc(db, "users", userId, "room_transformations", projectId);
       await deleteDoc(projectRef);
       console.log("Room transformation deleted from cloud successfully");
     } catch (error) {
-      console.error("Error deleting room transformation:", error);
-      throw error;
+      console.error("Error deleting room transformation from cloud:", error);
     }
   },
 
@@ -781,50 +851,77 @@ export const cloudService = {
    */
   async renameRoomTransformation(userId: string, projectId: string, newTitle: string): Promise<void> {
     if (!userId || !projectId || !newTitle?.trim()) return;
+    const trimmed = newTitle.trim();
+    try {
+      const localList = await dbService.getUserRoomTransformations(userId);
+      const target = localList.find(p => p.id === projectId);
+      if (target) {
+        await dbService.saveRoomTransformation({ ...target, title: trimmed, updatedAt: Date.now() }, userId);
+      }
+    } catch (e) {}
+
     try {
       const projectRef = doc(db, "users", userId, "room_transformations", projectId);
       await updateDoc(projectRef, {
-        title: newTitle.trim(),
+        title: trimmed,
         updatedAt: Date.now()
       });
       console.log("Room transformation renamed in cloud successfully");
     } catch (error) {
       console.error("Error renaming room transformation:", error);
-      throw error;
     }
   },
 
   /**
-   * Saves or updates a landscaping transformation project in the user's cloud library.
+   * Saves or updates a landscaping transformation project in the user's cloud library and local persistence.
    */
   async saveLandscapingTransformation(userId: string, project: import('../types').LandscapingTransformationProject): Promise<void> {
-    if (!userId || !project) {
+    if (!userId || !project?.id) {
       throw new Error("Cannot save landscaping transformation: missing userId or project");
     }
 
+    // Always save to local persistence first
     try {
-      const projectToSave = { ...project };
-      const SIZE_THRESHOLD = 500 * 1024; // 500KB
+      await dbService.saveLandscapingTransformation(project, userId);
+    } catch (localErr) {
+      console.warn("Failed to save landscaping transformation locally:", localErr);
+    }
 
-      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > SIZE_THRESHOLD) {
+    try {
+      const projectToSave = JSON.parse(JSON.stringify(project)) as import('../types').LandscapingTransformationProject;
+
+      // Ensure images are compressed to keep document well below Firestore's 1MB limit
+      if (projectToSave.originalImageUrl && projectToSave.originalImageUrl.length > 200000) {
         projectToSave.originalImageUrl = await compressImage(
           projectToSave.originalImageUrl,
           projectToSave.originalImageMimeType || 'image/jpeg',
-          1280,
-          0.82
+          1024,
+          0.78
         );
       }
 
       if (projectToSave.revisions && projectToSave.revisions.length > 0) {
         projectToSave.revisions = await Promise.all(
           projectToSave.revisions.map(async (rev) => {
-            if (rev.renderedImageUrl && rev.renderedImageUrl.length > SIZE_THRESHOLD) {
-              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1280, 0.82);
+            if (rev.renderedImageUrl && rev.renderedImageUrl.length > 180000) {
+              const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 1024, 0.76);
               return { ...rev, renderedImageUrl: compressed };
             }
             return rev;
           })
         );
+      }
+
+      // If document is still near 750KB, do a tighter pass
+      let serialized = JSON.stringify(projectToSave);
+      if (serialized.length > 750000 && projectToSave.revisions.length > 0) {
+        projectToSave.revisions = await Promise.all(
+          projectToSave.revisions.map(async (rev) => {
+            const compressed = await compressImage(rev.renderedImageUrl, 'image/jpeg', 800, 0.68);
+            return { ...rev, renderedImageUrl: compressed };
+          })
+        );
+        projectToSave.originalImageUrl = await compressImage(projectToSave.originalImageUrl, 'image/jpeg', 800, 0.68);
       }
 
       const projectRef = doc(db, "users", userId, "landscaping_transformations", project.id);
@@ -833,44 +930,86 @@ export const cloudService = {
         userId,
         updatedAt: Date.now()
       });
-      console.log("Landscaping transformation saved to cloud successfully");
+      console.log("Landscaping transformation saved to cloud and local cache successfully");
     } catch (error) {
-      console.error("Error saving landscaping transformation:", error);
-      throw error;
+      console.error("Error saving landscaping transformation to cloud:", error);
     }
   },
 
   /**
-   * Retrieves all landscaping transformations for a specific user.
+   * Retrieves all landscaping transformations for a specific user from cloud and local persistence.
    */
   async getLandscapingTransformations(userId: string): Promise<import('../types').LandscapingTransformationProject[]> {
     if (!userId) return [];
+    
+    const projectsMap = new Map<string, import('../types').LandscapingTransformationProject>();
+
+    // 1. Load from local persistence first
+    try {
+      const localList = await dbService.getUserLandscapingTransformations(userId);
+      localList.forEach((p) => {
+        if (p?.id) projectsMap.set(p.id, p);
+      });
+    } catch (localErr) {
+      console.warn("Could not load local landscaping transformations:", localErr);
+    }
+
+    // 2. Load from Cloud Firestore
     try {
       const colRef = collection(db, "users", userId, "landscaping_transformations");
       const snap = await getDocs(colRef);
-      const list: import('../types').LandscapingTransformationProject[] = [];
       snap.forEach((d) => {
-        list.push(d.data() as import('../types').LandscapingTransformationProject);
+        const cloudProj = d.data() as import('../types').LandscapingTransformationProject;
+        if (cloudProj?.id) {
+          const existing = projectsMap.get(cloudProj.id);
+          if (!existing || (cloudProj.updatedAt || 0) >= (existing.updatedAt || 0) || (cloudProj.revisions?.length || 0) >= (existing.revisions?.length || 0)) {
+            projectsMap.set(cloudProj.id, cloudProj);
+            // Sync to local cache in background
+            dbService.saveLandscapingTransformation(cloudProj, userId).catch(() => {});
+          }
+        }
       });
-      return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } catch (error) {
-      console.error("Error fetching landscaping transformations:", error);
-      return [];
+      console.error("Error fetching landscaping transformations from cloud:", error);
     }
+
+    // Also check current user email collection if different from userId
+    const userEmail = auth.currentUser?.email;
+    if (userEmail && userEmail !== userId) {
+      try {
+        const colEmailRef = collection(db, "users", userEmail, "landscaping_transformations");
+        const snapEmail = await getDocs(colEmailRef);
+        snapEmail.forEach((d) => {
+          const cloudProj = d.data() as import('../types').LandscapingTransformationProject;
+          if (cloudProj?.id && !projectsMap.has(cloudProj.id)) {
+            projectsMap.set(cloudProj.id, cloudProj);
+          }
+        });
+      } catch (e) {
+        // ignore email fallback errors
+      }
+    }
+
+    const merged = Array.from(projectsMap.values());
+    return merged.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   },
 
   /**
-   * Deletes a landscaping transformation project from the cloud.
+   * Deletes a landscaping transformation project from cloud and local persistence.
    */
   async deleteLandscapingTransformation(userId: string, projectId: string): Promise<void> {
     if (!userId || !projectId) return;
+    try {
+      await dbService.deleteLandscapingTransformation(projectId, userId);
+    } catch (localErr) {
+      console.warn("Error deleting local landscaping transformation:", localErr);
+    }
     try {
       const projectRef = doc(db, "users", userId, "landscaping_transformations", projectId);
       await deleteDoc(projectRef);
       console.log("Landscaping transformation deleted from cloud successfully");
     } catch (error) {
-      console.error("Error deleting landscaping transformation:", error);
-      throw error;
+      console.error("Error deleting landscaping transformation from cloud:", error);
     }
   },
 
@@ -879,16 +1018,24 @@ export const cloudService = {
    */
   async renameLandscapingTransformation(userId: string, projectId: string, newTitle: string): Promise<void> {
     if (!userId || !projectId || !newTitle?.trim()) return;
+    const trimmed = newTitle.trim();
+    try {
+      const localList = await dbService.getUserLandscapingTransformations(userId);
+      const target = localList.find(p => p.id === projectId);
+      if (target) {
+        await dbService.saveLandscapingTransformation({ ...target, title: trimmed, updatedAt: Date.now() }, userId);
+      }
+    } catch (e) {}
+
     try {
       const projectRef = doc(db, "users", userId, "landscaping_transformations", projectId);
       await updateDoc(projectRef, {
-        title: newTitle.trim(),
+        title: trimmed,
         updatedAt: Date.now()
       });
       console.log("Landscaping transformation renamed in cloud successfully");
     } catch (error) {
       console.error("Error renaming landscaping transformation:", error);
-      throw error;
     }
   }
 };

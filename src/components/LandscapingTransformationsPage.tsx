@@ -27,7 +27,9 @@ import {
   Trash2,
   Pencil,
   Check,
-  GitMerge
+  GitMerge,
+  CircleDot,
+  Save
 } from 'lucide-react';
 import {
   HOUSE_VIEW_SIDES,
@@ -48,6 +50,7 @@ import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { generateImageFromImage } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 import { MergeLandscapingRevisionsModal } from './MergeLandscapingRevisionsModal';
+import { CircleRegionEditModal, RegionActionType } from './CircleRegionEditModal';
 
 interface LandscapingTransformationsPageProps {
   user: User | null;
@@ -123,6 +126,15 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [mergeRevBIndex, setMergeRevBIndex] = useState<number>(1);
   const [mergeSuccessMessage, setMergeSuccessMessage] = useState<string | null>(null);
 
+  // Circle Region Inpainting State
+  const [showCircleEditModal, setShowCircleEditModal] = useState(false);
+  const [circleEditTargetRevisionIndex, setCircleEditTargetRevisionIndex] = useState<number | null>(null);
+  const [circleEditSuccessMessage, setCircleEditSuccessMessage] = useState<string | null>(null);
+
+  // Revisions save state
+  const [isSavingRevisions, setIsSavingRevisions] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Active house view side config
@@ -141,13 +153,30 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     setViewSpecificSelections(initialSelections);
   }, [selectedViewSide, activeViewConfig]);
 
-  // Load saved projects on mount
+  // Load saved projects on mount and when user logs in/out
   useEffect(() => {
     const loadProjects = async () => {
-      if (!user?.uid) return;
+      const targetUserId = user?.uid || 'guest-user';
       try {
-        const list = await cloudService.getLandscapingTransformations(user.uid);
+        const list = await cloudService.getLandscapingTransformations(targetUserId);
         setSavedProjects(list);
+
+        // If user logged in and there are guest projects created earlier, migrate them seamlessly
+        if (user?.uid) {
+          try {
+            const guestProjects = await cloudService.getLandscapingTransformations('guest-user');
+            if (guestProjects.length > 0) {
+              for (const gp of guestProjects) {
+                await cloudService.saveLandscapingTransformation(user.uid, { ...gp, userId: user.uid });
+                await cloudService.deleteLandscapingTransformation('guest-user', gp.id);
+              }
+              const refreshed = await cloudService.getLandscapingTransformations(user.uid);
+              setSavedProjects(refreshed);
+            }
+          } catch (migrateErr) {
+            console.warn('Guest landscaping projects migration check finished:', migrateErr);
+          }
+        }
       } catch (err) {
         console.warn('Could not load saved landscaping transformations:', err);
       }
@@ -336,14 +365,13 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
       setActiveProject(newProject);
 
-      // Save to cloud if user is signed in
-      if (user?.uid) {
-        try {
-          await cloudService.saveLandscapingTransformation(user.uid, newProject);
-          setSavedProjects((prev) => [newProject, ...prev]);
-        } catch (saveErr) {
-          console.warn('Could not auto-save to cloud:', saveErr);
-        }
+      // Save to cloud / local persistence
+      const targetUserId = user?.uid || 'guest-user';
+      try {
+        await cloudService.saveLandscapingTransformation(targetUserId, newProject);
+        setSavedProjects((prev) => [newProject, ...prev.filter((p) => p.id !== newProject.id)]);
+      } catch (saveErr) {
+        console.warn('Could not auto-save to cloud/local:', saveErr);
       }
     } catch (err: any) {
       console.error('Landscaping generation error:', err);
@@ -413,16 +441,16 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       setActiveProject(updatedProject);
       setRefinementPrompt('');
 
-      // Save to cloud if user is signed in
-      if (user?.uid) {
-        try {
-          await cloudService.saveLandscapingTransformation(user.uid, updatedProject);
-          setSavedProjects((prev) =>
-            prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
-          );
-        } catch (saveErr) {
-          console.warn('Could not auto-save revision to cloud:', saveErr);
-        }
+      // Save to cloud / local persistence
+      const targetUserId = user?.uid || 'guest-user';
+      try {
+        await cloudService.saveLandscapingTransformation(targetUserId, updatedProject);
+        setSavedProjects((prev) => [
+          updatedProject,
+          ...prev.filter((p) => p.id !== updatedProject.id)
+        ]);
+      } catch (saveErr) {
+        console.warn('Could not auto-save revision to cloud/local:', saveErr);
       }
     } catch (err: any) {
       console.error('Refinement generation error:', err);
@@ -461,14 +489,13 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     setRevisionToDelete(null);
 
     // If this is the only revision in the project
+    const targetUserId = user?.uid || 'guest-user';
     if (activeProject.revisions.length <= 1) {
-      if (user?.uid) {
-        try {
-          await cloudService.deleteLandscapingTransformation(user.uid, activeProject.id);
-          setSavedProjects((prev) => prev.filter((p) => p.id !== activeProject.id));
-        } catch (err) {
-          console.warn('Failed to delete empty landscaping project from cloud:', err);
-        }
+      try {
+        await cloudService.deleteLandscapingTransformation(targetUserId, activeProject.id);
+        setSavedProjects((prev) => prev.filter((p) => p.id !== activeProject.id));
+      } catch (err) {
+        console.warn('Failed to delete empty landscaping project from cloud/local:', err);
       }
       setActiveProject(null);
       setUploadedImageUri(null);
@@ -496,15 +523,13 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
     setActiveProject(updatedProject);
 
-    if (user?.uid) {
-      try {
-        await cloudService.saveLandscapingTransformation(user.uid, updatedProject);
-        setSavedProjects((prev) =>
-          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
-        );
-      } catch (saveErr) {
-        console.warn('Failed to save updated landscaping revisions to cloud:', saveErr);
-      }
+    try {
+      await cloudService.saveLandscapingTransformation(targetUserId, updatedProject);
+      setSavedProjects((prev) =>
+        prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+      );
+    } catch (saveErr) {
+      console.warn('Failed to save updated landscaping revisions to cloud/local:', saveErr);
     }
 
     setDeleteSuccessMessage(`Deleted ${revision.label || 'revision'}.`);
@@ -561,13 +586,106 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
     setShowMergeModal(true);
   };
 
-  // Handle successful landscaping merge
-  const handleMergeSuccess = (newRevision: LandscapingRevision, updatedProject: LandscapingTransformationProject) => {
+  // Open Circle Region Edit Modal
+  const handleOpenCircleEditModal = (targetIndex?: number) => {
+    if (!activeProject || activeProject.revisions.length === 0) return;
+    const idx = typeof targetIndex === 'number' ? targetIndex : activeProject.currentRevisionIndex;
+    setCircleEditTargetRevisionIndex(idx);
+    setShowCircleEditModal(true);
+  };
+
+  // Handle successful circle region modification
+  const handleApplyCircleRegionSuccess = async (
+    newRenderedImageUrl: string,
+    promptUsed: string,
+    newLabel: string,
+    actionType: RegionActionType,
+    customDirective: string
+  ) => {
+    if (!activeProject) return;
+
+    const sourceRev =
+      activeProject.revisions[
+        circleEditTargetRevisionIndex !== null
+          ? circleEditTargetRevisionIndex
+          : activeProject.currentRevisionIndex
+      ] || activeProject.revisions[activeProject.currentRevisionIndex];
+
+    const newRevision: LandscapingRevision = {
+      id: `rev-${Date.now()}`,
+      createdAt: Date.now(),
+      label: newLabel,
+      prompt: promptUsed,
+      viewSide: activeProject.viewSide,
+      selectedOptions: {
+        ...(sourceRev?.selectedOptions || {}),
+        regionAction: actionType,
+        regionDirective: customDirective,
+      },
+      customInstructions: customDirective,
+      renderedImageUrl: newRenderedImageUrl,
+    };
+
+    const updatedRevisions = [...activeProject.revisions, newRevision];
+    const newRevisionIndex = updatedRevisions.length - 1;
+
+    const updatedProject: LandscapingTransformationProject = {
+      ...activeProject,
+      updatedAt: Date.now(),
+      currentRevisionIndex: newRevisionIndex,
+      revisions: updatedRevisions,
+    };
+
     setActiveProject(updatedProject);
     setSavedProjects((prev) => [
       updatedProject,
       ...prev.filter((p) => p.id !== updatedProject.id)
     ]);
+
+    try {
+      await cloudService.saveLandscapingTransformation(user?.uid || 'guest-user', updatedProject);
+    } catch (err) {
+      console.error('Failed to save updated landscaping project with circled region revision:', err);
+    }
+
+    setCircleEditSuccessMessage(`Created ${newRevision.label.split(':')[0]} with your circled region ${actionType} changes.`);
+    setTimeout(() => {
+      setCircleEditSuccessMessage(null);
+    }, 6000);
+  };
+
+  // Explicit Save active project & all revisions to cloud / local account
+  const handleSaveActiveProject = async () => {
+    if (!activeProject) return;
+    setIsSavingRevisions(true);
+    try {
+      await cloudService.saveLandscapingTransformation(user?.uid || 'guest-user', activeProject);
+      setSavedProjects((prev) => [
+        activeProject,
+        ...prev.filter((p) => p.id !== activeProject.id)
+      ]);
+      setSaveSuccessMessage(`All ${activeProject.revisions.length} revisions saved to your account!`);
+      setTimeout(() => setSaveSuccessMessage(null), 3500);
+    } catch (err) {
+      console.error('Failed to save landscaping project revisions:', err);
+      alert('Failed to save project revisions. Please try again.');
+    } finally {
+      setIsSavingRevisions(false);
+    }
+  };
+
+  // Handle successful landscaping merge
+  const handleMergeSuccess = async (newRevision: LandscapingRevision, updatedProject: LandscapingTransformationProject) => {
+    setActiveProject(updatedProject);
+    setSavedProjects((prev) => [
+      updatedProject,
+      ...prev.filter((p) => p.id !== updatedProject.id)
+    ]);
+    try {
+      await cloudService.saveLandscapingTransformation(user?.uid || 'guest-user', updatedProject);
+    } catch (err) {
+      console.error('Failed to save merged landscaping project revisions:', err);
+    }
     setMergeSuccessMessage(`Successfully created ${newRevision.label.split(':')[0]} by merging two revisions!`);
     setTimeout(() => {
       setMergeSuccessMessage(null);
@@ -577,12 +695,10 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   // Delete saved landscaping project
   const handleDeleteProject = async (projectId: string) => {
     if (window.confirm('Delete this saved landscaping transformation?')) {
-      if (user?.uid) {
-        try {
-          await cloudService.deleteLandscapingTransformation(user.uid, projectId);
-        } catch (err) {
-          console.warn('Failed to delete landscaping transformation from cloud:', err);
-        }
+      try {
+        await cloudService.deleteLandscapingTransformation(user?.uid || 'guest-user', projectId);
+      } catch (err) {
+        console.warn('Failed to delete landscaping transformation from cloud/local:', err);
       }
       setSavedProjects((prev) => prev.filter((p) => p.id !== projectId));
       if (activeProject?.id === projectId) {
@@ -591,6 +707,93 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       setDeleteSuccessMessage('Landscaping transformation deleted.');
       setTimeout(() => setDeleteSuccessMessage(null), 3500);
     }
+  };
+
+  // Download transformed image
+  const handleDownloadTransformed = () => {
+    if (!activeProject) return;
+    const currentRev = activeProject.revisions[activeProject.currentRevisionIndex];
+    if (!currentRev?.renderedImageUrl) return;
+
+    const link = document.createElement('a');
+    link.href = currentRev.renderedImageUrl;
+    link.download = `${activeProject.title.replace(/[^a-z0-9]/gi, '_')}_${currentRev.label.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Download side-by-side comparison collage
+  const handleDownloadSideBySide = () => {
+    if (!activeProject) return;
+    const currentRev = activeProject.revisions[activeProject.currentRevisionIndex];
+    if (!currentRev?.renderedImageUrl) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const imgBefore = new Image();
+    const imgAfter = new Image();
+    imgBefore.crossOrigin = 'anonymous';
+    imgAfter.crossOrigin = 'anonymous';
+
+    let loadedCount = 0;
+    const onBothLoaded = () => {
+      loadedCount++;
+      if (loadedCount < 2) return;
+
+      const targetHeight = 1080;
+      const aspectBefore = imgBefore.width / imgBefore.height;
+      const aspectAfter = imgAfter.width / imgAfter.height;
+
+      const widthBefore = Math.round(targetHeight * aspectBefore);
+      const widthAfter = Math.round(targetHeight * aspectAfter);
+      const gap = 16;
+      const headerHeight = 90;
+
+      canvas.width = widthBefore + widthAfter + gap;
+      canvas.height = targetHeight + headerHeight;
+
+      // Dark background
+      ctx.fillStyle = '#064e3b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Header text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px sans-serif';
+      ctx.fillText(activeProject.title, 24, 45);
+
+      ctx.fillStyle = '#a7f3d0';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(`Before vs. ${currentRev.label}`, 24, 75);
+
+      // Draw images
+      ctx.drawImage(imgBefore, 0, headerHeight, widthBefore, targetHeight);
+      ctx.drawImage(imgAfter, widthBefore + gap, headerHeight, widthAfter, targetHeight);
+
+      // Labels over images
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(16, headerHeight + 16, 180, 40);
+      ctx.fillRect(widthBefore + gap + 16, headerHeight + 16, 260, 40);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText('BEFORE (Original)', 28, headerHeight + 42);
+      ctx.fillText('AFTER (Landscaping)', widthBefore + gap + 28, headerHeight + 42);
+
+      const downloadLink = document.createElement('a');
+      downloadLink.href = canvas.toDataURL('image/jpeg', 0.92);
+      downloadLink.download = `${activeProject.title.replace(/[^a-z0-9]/gi, '_')}_comparison.jpg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+
+    imgBefore.onload = onBothLoaded;
+    imgAfter.onload = onBothLoaded;
+    imgBefore.src = activeProject.originalImageUrl;
+    imgAfter.src = currentRev.renderedImageUrl;
   };
 
   // Reset to start a new transformation
@@ -880,6 +1083,27 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         </div>
       )}
 
+      {/* Save Success Banner */}
+      {saveSuccessMessage && (
+        <div
+          className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span className="font-medium">{saveSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveSuccessMessage(null)}
+            className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Merge Success Banner */}
       {mergeSuccessMessage && (
         <div
@@ -893,6 +1117,27 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
           <button
             type="button"
             onClick={() => setMergeSuccessMessage(null)}
+            className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Circle Edit Success Banner */}
+      {circleEditSuccessMessage && (
+        <div
+          className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between gap-3 animate-in fade-in"
+          role="status"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{circleEditSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCircleEditSuccessMessage(null)}
             className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
             aria-label="Dismiss notification"
           >
@@ -1021,6 +1266,29 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveActiveProject}
+                disabled={isSavingRevisions}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                title="Save this project and all revisions to your account so you can view them anytime after logging back in"
+                id="btn-save-landscaping-revisions-header"
+              >
+                <Save className="h-3.5 w-3.5" />
+                <span>{isSavingRevisions ? 'Saving...' : 'Save Revisions'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg border border-emerald-200 dark:border-emerald-900/60 shadow-2xs transition-colors cursor-pointer"
+                title="Circle an area in this rendering to remove, edit, or replace it"
+                id="btn-circle-edit-active-landscape-header"
+              >
+                <CircleDot className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Circle &amp; Edit Area</span>
+              </button>
+
               {activeProject.revisions.length >= 2 && (
                 <button
                   type="button"
@@ -1054,6 +1322,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                 originalLabel={`Original ${activeProject.viewSide.toUpperCase()} View`}
                 transformedLabel={`Customized ${activeProject.viewSide.toUpperCase()} Landscaping`}
                 onEnlarge={(url) => setEnlargedImageUrl(url)}
+                onCircleEdit={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                onDownloadTransformed={handleDownloadTransformed}
+                onDownloadSideBySide={handleDownloadSideBySide}
               />
             </div>
           </div>
@@ -1065,6 +1336,32 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
             className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-gray-800 dark:via-gray-800/80 dark:to-gray-800 p-6 sm:p-8 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 shadow-md"
             id="refine-landscaping-panel"
           >
+            {/* Targeted Region Inpainting Callout Banner */}
+            <div className="mb-4 p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <CircleDot className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                    Need to modify or swap a specific area, patio, plant, or pool?
+                  </h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Circle any spot directly on this rendering to erase it, replace it with another feature, or change its materials.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                className="px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-white dark:bg-gray-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg border border-emerald-300 dark:border-emerald-700 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                id="btn-launch-circle-edit-from-landscape-refine"
+              >
+                <CircleDot className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Circle Area to Edit</span>
+              </button>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-emerald-600 text-white rounded-lg shadow-xs">
@@ -1182,17 +1479,29 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                 </p>
               </div>
 
-              {activeProject.revisions.length >= 2 && (
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleOpenMergeModal()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-xl transition-all cursor-pointer border border-emerald-200 dark:border-emerald-800 shadow-2xs"
-                  id="btn-open-merge-landscaping-gallery"
+                  onClick={() => handleOpenCircleEditModal(activeProject.currentRevisionIndex)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-900/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 rounded-xl transition-all cursor-pointer border border-emerald-200 dark:border-emerald-800 shadow-2xs"
+                  id="btn-open-circle-edit-from-landscape-gallery"
                 >
-                  <GitMerge className="h-3.5 w-3.5" />
-                  <span>Merge Any 2 Revisions</span>
+                  <CircleDot className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Circle &amp; Edit Area</span>
                 </button>
-              )}
+
+                {activeProject.revisions.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMergeModal()}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-xl transition-all cursor-pointer border border-emerald-200 dark:border-emerald-800 shadow-2xs"
+                    id="btn-open-merge-landscaping-gallery"
+                  >
+                    <GitMerge className="h-3.5 w-3.5" />
+                    <span>Merge Any 2 Revisions</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
@@ -1251,6 +1560,19 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                       </span>
 
                       <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCircleEditModal(idx);
+                          }}
+                          className="p-1 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded transition-colors cursor-pointer"
+                          title={`Circle area in Rev ${idx + 1} to remove, edit, or replace`}
+                          id={`btn-circle-edit-landscape-card-rev-${idx}`}
+                        >
+                          <CircleDot className="h-3.5 w-3.5" />
+                        </button>
+
                         {activeProject.revisions.length >= 2 && (
                           <button
                             type="button"
@@ -1917,6 +2239,35 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
           initialRevAIndex={mergeRevAIndex}
           initialRevBIndex={mergeRevBIndex}
           onMergeSuccess={handleMergeSuccess}
+          isKeyReady={isKeyReady || false}
+          onSelectKey={onSelectKey || (() => {})}
+        />
+      )}
+
+      {/* Circle Region Edit Modal */}
+      {showCircleEditModal && activeProject && activeProject.revisions.length > 0 && (
+        <CircleRegionEditModal
+          isOpen={showCircleEditModal}
+          onClose={() => setShowCircleEditModal(false)}
+          sourceImageUrl={
+            activeProject.revisions[
+              circleEditTargetRevisionIndex !== null
+                ? circleEditTargetRevisionIndex
+                : activeProject.currentRevisionIndex
+            ]?.renderedImageUrl || activeProject.originalImageUrl
+          }
+          projectTitle={activeProject.title}
+          contextType="landscaping"
+          roomOrViewLabel={`${activeProject.viewSide.toUpperCase()} Exterior Landscaping`}
+          revisionLabel={
+            activeProject.revisions[
+              circleEditTargetRevisionIndex !== null
+                ? circleEditTargetRevisionIndex
+                : activeProject.currentRevisionIndex
+            ]?.label || `Revision ${activeProject.currentRevisionIndex + 1}`
+          }
+          nextRevisionNumber={activeProject.revisions.length + 1}
+          onApplySuccess={handleApplyCircleRegionSuccess}
           isKeyReady={isKeyReady || false}
           onSelectKey={onSelectKey || (() => {})}
         />
