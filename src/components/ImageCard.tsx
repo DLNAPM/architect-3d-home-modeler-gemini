@@ -392,15 +392,22 @@ const ImageCard: React.FC<ImageCardProps> = ({
                               accept="image/*"
                               id="input-edit-rendering-file"
                             />
-                            <div className="flex flex-col items-center justify-center gap-1.5 py-1">
-                              <div className="p-2 rounded-full bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400">
-                                <Upload className="h-5 w-5" />
+                            {isProcessingFile ? (
+                              <div className="flex flex-col items-center justify-center gap-1.5 py-2">
+                                <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                                <p className="text-xs text-gray-500">Processing image...</p>
                               </div>
-                              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
-                                <span className="text-brand-600 dark:text-brand-400 font-semibold underline">Click to upload</span> or drag and drop
-                              </p>
-                              <p className="text-[11px] text-gray-400">PNG, JPG, or WebP up to 10MB</p>
-                            </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center gap-1.5 py-1">
+                                <div className="p-2 rounded-full bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400">
+                                  <Upload className="h-5 w-5" />
+                                </div>
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                                  <span className="text-brand-600 dark:text-brand-400 font-semibold underline">Click to upload</span> or drag and drop
+                                </p>
+                                <p className="text-[11px] text-gray-400">PNG, JPG, or WebP up to 10MB</p>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="p-3 bg-brand-50/60 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800/60 rounded-xl">

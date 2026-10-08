@@ -53,16 +53,174 @@ export interface FeatureWallCategory {
   id: string;
   label: string;
   description: string;
+  iconName?: string;
   options: { id: string; label: string; promptModifier: string }[];
 }
+
+export interface AccentWallColor {
+  id: string;
+  label: string;
+  hex: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const ACCENT_WALL_COLORS: AccentWallColor[] = [
+  { id: 'match-room', label: 'Harmonious Room Match', hex: '#D1CDC7', description: 'Blends seamlessly with the selected room color palette', promptModifier: 'harmonious tone coordinating seamlessly with the primary room palette' },
+  { id: 'emerald-forest', label: 'Deep Forest Emerald', hex: '#1B4332', description: 'Deep rich jewel-toned emerald green', promptModifier: 'deep saturated emerald forest green architectural color' },
+  { id: 'midnight-navy', label: 'Midnight Ink Navy Blue', hex: '#16253D', description: 'Dramatic deep midnight navy with velvety depth', promptModifier: 'sophisticated inky midnight navy blue with velvety depth' },
+  { id: 'terracotta-clay', label: 'Warm Terracotta & Baked Clay', hex: '#B85D39', description: 'Earthy warm Mediterranean baked clay', promptModifier: 'warm earthy Mediterranean baked terracotta and burnt clay pigment' },
+  { id: 'charcoal-onyx', label: 'Matte Charcoal & Soft Onyx', hex: '#212529', description: 'High-contrast modern matte charcoal black', promptModifier: 'dramatic velvety matte dark charcoal and soft onyx black finish' },
+  { id: 'sage-olive', label: 'Earthy Sage & Calming Olive', hex: '#6B7F6B', description: 'Organic botanical muted green', promptModifier: 'calming botanical muted sage green and organic olive hue' },
+  { id: 'dusty-mauve', label: 'Dusty Rose & Vintage Mauve', hex: '#9D6872', description: 'Warm romantic vintage rose blush', promptModifier: 'sophisticated dusty vintage rose and warm mauve taupe tone' },
+  { id: 'ochre-amber', label: 'Sun-Drenched Ochre & Amber', hex: '#C28438', description: 'Warm radiant golden mustard and amber', promptModifier: 'sun-drenched warm golden ochre and rich amber tone' },
+  { id: 'warm-greige', label: 'Cashmere Greige & Sand', hex: '#BAA998', description: 'Neutral warm limestone greige', promptModifier: 'warm cashmere greige with architectural limestone subtlety' },
+  { id: 'burnished-gold', label: 'Burnished Brass & Metallic Gold', hex: '#C5A059', description: 'Warm reflective champagne metallic luster', promptModifier: 'refined brushed champagne brass and warm reflective metallic gold accents' },
+  { id: 'pure-alabaster', label: 'Sculptural Pure Alabaster', hex: '#F5F2EB', description: 'Crisp gallery off-white plaster', promptModifier: 'pure sculptural alabaster plaster and gallery matte off-white' }
+];
+
+export type AccentWallPurpose = 'statement' | 'brand' | 'event' | 'standard';
+
+export interface AccentWallPurposeOption {
+  id: AccentWallPurpose;
+  label: string;
+  tagline: string;
+  description: string;
+  badge: string;
+}
+
+export const ACCENT_WALL_PURPOSES: AccentWallPurposeOption[] = [
+  {
+    id: 'statement',
+    label: 'Statement Wall',
+    tagline: 'Architectural Focal Point',
+    description: 'High-impact centerpiece for living rooms, bedrooms, or dining spaces with dramatic lighting and materials',
+    badge: 'Residential Statement'
+  },
+  {
+    id: 'brand',
+    label: 'Brand Wall',
+    tagline: 'Corporate, Retail & Executive Backdrops',
+    description: 'Commercial, office, creator studio or showroom wall featuring custom 3D logo signage, brand lettering, and brand colors',
+    badge: 'Brand & Commercial'
+  },
+  {
+    id: 'event',
+    label: 'Event Backdrop',
+    tagline: 'Celebrations, Galas & Photo Studios',
+    description: 'Celebratory gala, wedding, milestone photo backdrop with floral arches, balloon installations, and glowing neon signage',
+    badge: 'Event & Photo Moment'
+  },
+  {
+    id: 'standard',
+    label: 'Subtle Accent Wall',
+    tagline: 'Harmonious Room Accent',
+    description: 'Refined single-wall architectural finish complementing the room decor',
+    badge: 'Classic Accent'
+  }
+];
+
+export const BRAND_SIGNAGE_STYLES = [
+  { id: '3d-backlit-acrylic', label: '3D Backlit Acrylic & LED Illuminated Logo', promptModifier: 'precision dimensional 3D acrylic company logo with concealed warm LED halo illumination' },
+  { id: 'brushed-brass-metal', label: 'Brushed Brass & Precision Cut Metal Lettering', promptModifier: 'architectural brushed champagne brass cut metal signage letters mounted with subtle standoffs' },
+  { id: 'neon-brand-sign', label: 'Modern Glowing Custom Neon Brand Sign', promptModifier: 'vibrant custom glowing neon sign mounted cleanly onto the feature wall backdrop' },
+  { id: 'laser-cut-wood', label: 'Laser-Cut Architectural Wood & Slat Inlay', promptModifier: 'custom laser-cut natural hardwood dimensional brand emblem seamlessly integrated with the wall paneling' },
+  { id: 'matte-architectural-deboss', label: 'Matte Architectural Deboss & Plaque', promptModifier: 'understated luxury debossed architectural logo with minimalist directional accent spotlighting' }
+];
+
+export const EVENT_BACKDROP_THEMES = [
+  { id: 'wedding-gala', label: 'Wedding & Romantic Celebration', promptModifier: 'luxurious romantic wedding and anniversary celebration backdrop with lush white roses, delicate greenery, and warm ambient glow' },
+  { id: 'milestone-birthday', label: 'Milestone Birthday & Party', promptModifier: 'festive modern milestone celebration backdrop with glamorous chic detailing and celebration accents' },
+  { id: 'vip-launch-gala', label: 'VIP Gala, Red Carpet & Product Launch', promptModifier: 'high-end VIP launch party red carpet photo backdrop with sleek architectural geometric accents' },
+  { id: 'photo-booth-studio', label: 'Photo Booth & Social Content Creator Studio', promptModifier: 'photogenic Instagram-ready photo moment wall with high-contrast focal points and cinematic studio lighting' }
+];
+
+export const EVENT_DECORATIVE_ELEMENTS = [
+  { id: 'lush-floral-arch', label: 'Lush Organic Floral Arch & Cascading Greenery', promptModifier: 'lavish asymmetrical organic floral arch featuring fresh roses, hydrangeas, and cascading eucalyptus' },
+  { id: 'glowing-neon-script', label: 'Warm Glowing Custom Neon Script Sign', promptModifier: 'stylish warm glowing handwritten neon script sign centered on the backdrop' },
+  { id: 'champagne-wall', label: 'Champagne Wall & Glassware Shelving Display', promptModifier: 'architectural champagne wall installation with custom flutes and greenery garland accents' },
+  { id: 'geometric-gold-frame', label: 'Geometric Metallic Gold Hexagon Arch Frame', promptModifier: 'modern geometric metallic brass and gold hexagon arch framing the photo backdrop' },
+  { id: 'balloon-velvet-garland', label: 'Organic Balloon Garland & Velvet Drapery', promptModifier: 'deluxe organic matte balloon garland paired with floor-length draped velvet curtains' }
+];
 
 export const FEATURE_WALL_CATEGORIES: FeatureWallCategory[] = [
   {
     id: 'none',
-    label: 'No Feature Wall',
+    label: 'No Accent Wall',
     description: 'Standard cohesive wall finish matching the selected room color palette',
     options: [
       { id: 'standard-matching', label: 'Seamless Standard Walls', promptModifier: 'walls uniformly finished in the selected clean architectural paint color with no special accent wall' }
+    ]
+  },
+  {
+    id: 'painted-color-blocked',
+    label: 'Painted & Color-Blocked Walls',
+    description: 'Modern color blocking, Roman clay, limewash, geometric shapes & high-gloss lacquer',
+    options: [
+      { id: 'two-tone-color-block', label: 'Two-Tone & Geometric Color Blocking', promptModifier: 'architectural two-tone geometric color-blocked feature wall dividing the space with crisp clean angles and balanced contemporary color contrast' },
+      { id: 'roman-clay-limewash', label: 'Hand-Troweled Roman Clay / Limewash Finish', promptModifier: 'feature wall with organic hand-troweled textured Roman clay and velvety matte limewash finish featuring rich tonal depth and mineral warmth' },
+      { id: 'bold-monochrome-dark', label: 'Deep Moody Monochromatic Wall', promptModifier: 'dramatic full-height moody monochromatic feature wall in a rich saturated pigment providing bold architectural depth' },
+      { id: 'painted-arches-motifs', label: 'Painted Architectural Arch & Niche Motifs', promptModifier: 'contemporary painted arched color motif wall framing the furniture with a soft curved architectural geometry' },
+      { id: 'venetian-polished-plaster', label: 'Polished High-Gloss Venetian Plaster', promptModifier: 'luxury polished Venetian plaster accent wall with burnished reflective sheen and subtle marble-like depth' },
+      { id: 'board-and-batten-millwork', label: 'Custom Floor-to-Ceiling Board & Batten Paneling', promptModifier: 'architectural floor-to-ceiling custom board and batten wall paneling painted in a sophisticated deep satin finish' }
+    ]
+  },
+  {
+    id: 'wood-millwork',
+    label: 'Wood & Millwork Accent Walls',
+    description: 'Acoustic timber slats, board & batten, geometric molding, walnut tambour & barn wood',
+    options: [
+      { id: 'acoustic-wood-slat-system', label: 'Vertical Fluted Acoustic Wood Slats with LED', promptModifier: 'floor-to-ceiling vertical fluted natural white oak acoustic wood slat feature wall with integrated concealed warm vertical LED channel lighting' },
+      { id: 'classic-board-batten', label: 'Floor-to-Ceiling Board & Batten Paneling', promptModifier: 'bespoke architectural floor-to-ceiling grid board-and-batten millwork paneling with refined cap moldings' },
+      { id: 'geometric-wood-molding', label: 'Contemporary Geometric Box Picture Molding', promptModifier: 'elegant transitional box-molding wainscoting and geometric architectural wall trim with refined proportions' },
+      { id: 'walnut-tambour', label: 'Warm Walnut Tambour & Fluted Paneling', promptModifier: 'rich architectural warm walnut tambour fluted wood paneling with seamless grain and warm satin luster' },
+      { id: 'rustic-reclaimed-wood', label: 'Heritage Weathered Reclaimed Barn Wood', promptModifier: 'authentic rustic reclaimed weathered barn wood accent wall with rich natural timber grain, knots, and warm organic patina' }
+    ]
+  },
+  {
+    id: 'wallpaper-and-murals',
+    label: 'Wallpaper & Murals',
+    description: 'Scenic landscape murals, hand-woven grasscloth, art deco metallic & abstract art',
+    options: [
+      { id: 'scenic-botanical-mural', label: 'Subtle Chinoiserie / Misty Forest Scenic Landscape Mural', promptModifier: 'large-scale panoramic misty forest landscape wall mural in monochrome charcoal and soft sage tones' },
+      { id: 'natural-woven-grasscloth', label: 'Textured Hand-Woven Sisal Grasscloth Wallpaper', promptModifier: 'luxury natural hand-woven Japanese sisal grasscloth wallpaper with organic textural grain and warm earthy richness' },
+      { id: 'modern-geometric-wallpaper', label: 'Art Deco Metallic & Matte Geometric Wallpaper', promptModifier: 'sophisticated modern geometric designer wallpaper with subtle brushed metallic gold accents on dark matte background' },
+      { id: 'abstract-watercolor-mural', label: 'Large-Scale Abstract Mineral Watercolor Accent Mural', promptModifier: 'custom full-wall abstract fluid watercolor mural with soft washes of warm taupe, sand, and charcoal' },
+      { id: 'lush-chinoiserie-botanical', label: 'Artisanal Chinoiserie & Whimsical Botanical Wallpaper', promptModifier: 'delicate artisanal chinoiserie botanical wallpaper featuring trailing branches, flora, and subtle avian motifs' }
+    ]
+  },
+  {
+    id: 'stone-brick-tile',
+    label: 'Stone, Tile & 3D Materials',
+    description: 'Stacked ledgestone, bookmatched marble slabs, 3D relief tiles, zellige & brick',
+    options: [
+      { id: 'stacked-ledgestone', label: 'Dry-Stacked Natural Ledge Stone Feature Wall', promptModifier: 'commanding dry-stacked natural grey and warm sandstone ledge rock feature wall with deep tactile texture and perimeter graze downlighting' },
+      { id: 'bookmatched-porcelain-slab', label: 'Bookmatched Calacatta Gold Porcelain Slab', promptModifier: 'grand continuous bookmatched Calacatta marble porcelain slab feature wall with sweeping dramatic gold and charcoal veining' },
+      { id: 'architectural-3d-relief', label: '3D Geometric Sculptural Relief Wall Panels', promptModifier: 'sculptural textured 3D architectural gypsum wall panels featuring dynamic undulating geometric waves and ambient grazing shadows' },
+      { id: 'fluted-zellige-tile', label: 'Vertical Fluted Glazed Zellige Ceramic Tile Wall', promptModifier: 'floor-to-ceiling vertical fluted glazed artisan zellige tile accent wall with soft pearlescent luster' },
+      { id: 'exposed-reclaimed-brick', label: 'Authentic Distressed Reclaimed Brick Wall', promptModifier: 'warm textured exposed reclaimed red brick feature wall with vintage mortar wash and industrial architectural charm' }
+    ]
+  },
+  {
+    id: 'functional-and-display',
+    label: 'Functional & Fabric Accents',
+    description: 'Channel-upholstered velvet, lit arched niches, built-in library & media centers',
+    options: [
+      { id: 'upholstered-velvet-channels', label: 'Floor-to-Ceiling Channel-Upholstered Velvet / Bouclé Wall', promptModifier: 'luxurious full-height vertical channel-tufted upholstered wall finished in plush architectural bouclé and velvet with acoustic warmth' },
+      { id: 'backlit-display-niches', label: 'Custom Arch Display Niches with Warm LED Backlighting', promptModifier: 'custom architectural plaster display wall featuring recessed illuminated curved arched niches displaying curated sculptures and ceramics' },
+      { id: 'built-in-library-bookcase', label: 'Floor-to-Ceiling Built-In Library & Cabinetry', promptModifier: 'bespoke floor-to-ceiling built-in architectural bookcase unit with ladder rail, integrated warm shelf lighting, and closed lower cabinet storage' },
+      { id: 'floating-media-console-panel', label: 'Floating Marble Media Console with Slatted Backdrop', promptModifier: 'integrated entertainment feature wall with a floating honed marble console, textured backdrop, and hidden wire conduits' }
+    ]
+  },
+  {
+    id: 'faux-green-living',
+    label: 'Faux green or artificial living Walls',
+    description: 'Lush multi-botanical vertical gardens, preserved moss art & neon greenery walls',
+    options: [
+      { id: 'lush-artificial-living-wall', label: 'Dense Multi-Botanical Faux Living Wall', promptModifier: 'luxurious dense biophilic artificial living vertical garden wall featuring layered faux ferns, boxwood, trailing eucalyptus, and philodendron leaves' },
+      { id: 'preserved-reindeer-moss', label: 'Preserved Reindeer & Sheet Moss Art Wall', promptModifier: 'sculptural multi-tonal preserved reindeer and sheet moss feature wall with organic topographic textures in emerald, chartreuse, and forest greens' },
+      { id: 'tropical-greenery-neon', label: 'Tropical Greenery Wall with Integrated Neon Script Sign', promptModifier: 'vibrant lush faux tropical monstera and palm foliage living wall with an integrated warm glowing neon script sign nestled in the lush leaves' },
+      { id: 'hexagonal-wood-moss', label: 'Geometric White Oak Panels with Green Moss Inlays', promptModifier: 'contemporary geometric white oak hexagonal wood tiles with inset vibrant preserved green moss pockets creating an architectural pattern' }
     ]
   },
   {
@@ -74,50 +232,6 @@ export const FEATURE_WALL_CATEGORIES: FeatureWallCategory[] = [
       { id: 'glass-rain-curtain', label: 'Illuminated Glass Rain-Curtain Water Wall', promptModifier: 'sleek floor-to-ceiling tempered glass indoor rain water curtain with warm LED edge illumination and an integrated concealed recirculating reservoir' },
       { id: 'fluted-marble-fountain', label: 'Fluted Travertine Water Wall with Copper Spouts', promptModifier: 'luxury honed travertine stone wall with gently trickling minimalist architectural copper water spouts splashing softly into a low-profile basin' },
       { id: 'mirror-water-panel', label: 'Bronze Mirror Architectural Water Panel', promptModifier: 'contemporary bronze-tinted mirror water cascade wall with subtle ambient backlighting creating shimmering reflections' }
-    ]
-  },
-  {
-    id: 'painted-and-finished',
-    label: 'Painted and Finished',
-    description: 'Roman clay, limewash, board & batten, Venetian plaster & millwork',
-    options: [
-      { id: 'roman-clay-limewash', label: 'Hand-Troweled Roman Clay / Limewash Finish', promptModifier: 'feature wall with organic hand-troweled textured Roman clay and matte limewash finish in subtle earthy taupe tones' },
-      { id: 'board-and-batten-millwork', label: 'Custom Floor-to-Ceiling Board & Batten Paneling', promptModifier: 'architectural floor-to-ceiling custom board and batten wall paneling painted in a sophisticated deep satin finish' },
-      { id: 'venetian-polished-plaster', label: 'Polished High-Gloss Venetian Plaster', promptModifier: 'luxury polished Venetian plaster accent wall with subtle marble-like depth and burnished light-reflecting sheen' },
-      { id: 'geometric-wood-molding', label: 'Contemporary Geometric Box Picture Molding', promptModifier: 'elegant transitional box-molding wainscoting and geometric architectural wall trim with refined proportions' }
-    ]
-  },
-  {
-    id: 'stone-brick-tile',
-    label: 'Stone, Brick, and Tile',
-    description: 'Stacked ledge stone, exposed brick, zellige & porcelain slabs',
-    options: [
-      { id: 'stacked-ledgestone', label: 'Dry-Stacked Natural Ledge Stone Feature Wall', promptModifier: 'commanding dry-stacked natural grey and warm sandstone ledge rock feature wall with deep tactile texture and perimeter graze downlighting' },
-      { id: 'exposed-reclaimed-brick', label: 'Authentic Distressed Reclaimed Brick Wall', promptModifier: 'warm textured exposed reclaimed red brick feature wall with vintage mortar wash and industrial architectural charm' },
-      { id: 'bookmatched-porcelain-slab', label: 'Bookmatched Calacatta Gold Porcelain Slab', promptModifier: 'grand continuous bookmatched Calacatta marble porcelain slab feature wall with sweeping dramatic gold and charcoal veining' },
-      { id: 'fluted-zellige-tile', label: 'Vertical Fluted Glazed Zellige Ceramic Tile Wall', promptModifier: 'floor-to-ceiling vertical fluted glazed artisan zellige tile accent wall with soft pearlescent luster' }
-    ]
-  },
-  {
-    id: 'wallpaper-and-murals',
-    label: 'Wallpaper and Murals',
-    description: 'Textured grasscloth, scenic landscape murals & botanical botanics',
-    options: [
-      { id: 'natural-woven-grasscloth', label: 'Textured Hand-Woven Sisal Grasscloth Wallpaper', promptModifier: 'luxury natural hand-woven Japanese sisal grasscloth wallpaper with organic textural grain and warm earthy richness' },
-      { id: 'scenic-botanical-mural', label: 'Subtle Chinoiserie / Misty Forest Scenic Landscape Mural', promptModifier: 'large-scale panoramic misty forest landscape wall mural in monochrome charcoal and soft sage tones' },
-      { id: 'modern-geometric-wallpaper', label: 'Art Deco Metallic & Matte Geometric Wallpaper', promptModifier: 'sophisticated modern geometric designer wallpaper with subtle brushed metallic gold accents on dark matte background' },
-      { id: 'abstract-watercolor-mural', label: 'Large-Scale Abstract Mineral Watercolor Accent Mural', promptModifier: 'custom full-wall abstract fluid watercolor mural with soft washes of warm taupe, sand, and charcoal' }
-    ]
-  },
-  {
-    id: 'functional-and-display',
-    label: 'Functional and Display',
-    description: 'Built-in library shelves, wood slat media consoles & backlit niches',
-    options: [
-      { id: 'backlit-display-niches', label: 'Custom Arch Display Niches with Warm LED Backlighting', promptModifier: 'custom architectural plaster display wall featuring recessed illuminated curved arched niches displaying curated sculptures and ceramics' },
-      { id: 'acoustic-wood-slat-system', label: 'Vertical White Oak Acoustic Wood Slat Feature Wall', promptModifier: 'floor-to-ceiling vertical fluted natural white oak acoustic wood slat wall with integrated concealed warm vertical LED channel lighting' },
-      { id: 'built-in-library-bookcase', label: 'Floor-to-Ceiling Built-In Library & Cabinetry', promptModifier: 'bespoke floor-to-ceiling built-in architectural bookcase unit with ladder rail, integrated warm shelf lighting, and closed lower cabinet storage' },
-      { id: 'floating-media-console-panel', label: 'Floating Marble Media Console with Slatted Backdrop', promptModifier: 'integrated entertainment feature wall with a floating honed marble console, textured backdrop, and hidden wire conduits' }
     ]
   }
 ];

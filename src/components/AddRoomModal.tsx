@@ -147,7 +147,7 @@ const AddRoomModal: React.FC<AddRoomModalProps> = ({ isOpen, onClose, onAddRoom,
 
             <h3 className="text-lg font-medium text-gray-900 dark:text-white pt-2">Customization Options</h3>
             <div className="space-y-3">
-              {categories.map((category, index) => (
+              {categories.map((category) => (
                 <div key={category.id} className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
                   <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input

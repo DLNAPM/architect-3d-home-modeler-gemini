@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppView, HousePlan, Rendering, SavedDesign, Room, User, AccessLevel } from './types';
 import HomePage from './components/HomePage';
 import ResultsPage from './components/ResultsPage';

@@ -10,7 +10,6 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
-  ZoomIn,
   X,
   Lock,
   ArrowRight,
@@ -37,7 +36,11 @@ import {
   Info,
   Pencil,
   GitMerge,
-  CircleDot
+  CircleDot,
+  Palette,
+  Building2,
+  PartyPopper,
+  Flame
 } from 'lucide-react';
 import { User, RoomTransformationProject, TransformationRevision } from '../types';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -48,6 +51,12 @@ import {
   FLOORING_OPTIONS,
   LIGHTING_OPTIONS,
   FEATURE_WALL_CATEGORIES,
+  ACCENT_WALL_COLORS,
+  ACCENT_WALL_PURPOSES,
+  AccentWallPurpose,
+  BRAND_SIGNAGE_STYLES,
+  EVENT_BACKDROP_THEMES,
+  EVENT_DECORATIVE_ELEMENTS,
   TRANSFORMATION_MODES,
   SAMPLE_ROOMS,
   SampleRoom
@@ -80,7 +89,6 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   // Demo bypass mode if user wants to preview the workflow
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
 
   // Projects list
   const [savedProjects, setSavedProjects] = useState<RoomTransformationProject[]>([]);
@@ -99,6 +107,25 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [selectedLightingId, setSelectedLightingId] = useState<string>('sunlit-daylight');
   const [selectedFeatureWallCategory, setSelectedFeatureWallCategory] = useState<string>('none');
   const [selectedFeatureWallOptionId, setSelectedFeatureWallOptionId] = useState<string>('standard-matching');
+  const [selectedAccentWallPurpose, setSelectedAccentWallPurpose] = useState<AccentWallPurpose>('statement');
+  const [selectedAccentColorId, setSelectedAccentColorId] = useState<string>('match-room');
+  const [customAccentColorHex, setCustomAccentColorHex] = useState<string>('#B85D39');
+  const [customAccentColorName, setCustomAccentColorName] = useState<string>('');
+
+  // Accent Wall Purpose-specific options
+  // Statement Wall
+  const [statementPlacement, setStatementPlacement] = useState<string>('main-focal');
+  const [statementLighting, setStatementLighting] = useState<string>('halo-graze');
+
+  // Brand Wall
+  const [brandName, setBrandName] = useState<string>('Lumina Studio');
+  const [brandSignageStyleId, setBrandSignageStyleId] = useState<string>('3d-backlit-acrylic');
+  const [brandTagline, setBrandTagline] = useState<string>('Designed for Living');
+
+  // Event Backdrop
+  const [eventThemeId, setEventThemeId] = useState<string>('wedding-gala');
+  const [eventDecorativeElementId, setEventDecorativeElementId] = useState<string>('lush-floral-arch');
+  const [eventSignageText, setEventSignageText] = useState<string>('Better Together');
   const [selectedModeId, setSelectedModeId] = useState<string>('restyle');
   const [roomSpecificSelections, setRoomSpecificSelections] = useState<Record<string, string>>({});
   const [customInstructions, setCustomInstructions] = useState<string>('');
@@ -279,14 +306,44 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
     const lightObj = LIGHTING_OPTIONS.find((l) => l.id === selectedLightingId);
     const modeObj = TRANSFORMATION_MODES.find((m) => m.id === selectedModeId);
 
-    // Feature wall modifier
+    // Accent Wall modifier
     let featureWallModifier = '';
     if (selectedFeatureWallCategory && selectedFeatureWallCategory !== 'none') {
-      const featCat = FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory);
+      const featCat = FEATURE_WALL_CATEGORIES.find(
+        (c) => c.id === selectedFeatureWallCategory || (selectedFeatureWallCategory === 'painted-and-finished' && c.id === 'painted-color-blocked')
+      );
       if (featCat) {
         const featOpt = featCat.options.find((o) => o.id === selectedFeatureWallOptionId) || featCat.options[0];
         if (featOpt) {
-          featureWallModifier = `Feature Wall (${featCat.label}): ${featOpt.promptModifier}`;
+          // Color modifier
+          let colorMod = '';
+          if (selectedAccentColorId === 'custom' && (customAccentColorName || customAccentColorHex)) {
+            colorMod = `executed in custom accent color ${customAccentColorName ? `${customAccentColorName} (${customAccentColorHex})` : customAccentColorHex}`;
+          } else if (selectedAccentColorId !== 'match-room') {
+            const colorObj = ACCENT_WALL_COLORS.find((c) => c.id === selectedAccentColorId);
+            if (colorObj) {
+              colorMod = `rendered in ${colorObj.promptModifier}`;
+            }
+          }
+
+          // Purpose / Wall type modifier
+          let purposeMod = '';
+          if (selectedAccentWallPurpose === 'brand') {
+            const signageObj = BRAND_SIGNAGE_STYLES.find((s) => s.id === brandSignageStyleId);
+            purposeMod = `Configured as a high-end commercial Brand Wall for "${brandName || 'Brand'}" ${brandTagline.trim() ? `with slogan "${brandTagline.trim()}"` : ''}, featuring architectural ${signageObj?.promptModifier || '3D backlit acrylic logo'}.`;
+          } else if (selectedAccentWallPurpose === 'event') {
+            const themeObj = EVENT_BACKDROP_THEMES.find((t) => t.id === eventThemeId);
+            const decorObj = EVENT_DECORATIVE_ELEMENTS.find((d) => d.id === eventDecorativeElementId);
+            purposeMod = `Configured as an Event Celebration Backdrop for ${themeObj?.promptModifier || 'special event photo moment'}, styled with ${decorObj?.promptModifier || 'floral arch and glowing neon'} ${eventSignageText.trim() ? `with illuminated lettering reading "${eventSignageText.trim()}"` : ''}.`;
+          } else if (selectedAccentWallPurpose === 'statement') {
+            const placementDesc = statementPlacement === 'fireplace' ? 'anchoring a modern luxury fireplace' : statementPlacement === 'bedhead' ? 'serving as a commanding bedroom headboard feature wall' : statementPlacement === 'dining' ? 'as an elegant dining room architectural backdrop' : 'as the room’s dominant high-impact architectural focal wall';
+            const lightingDesc = statementLighting === 'halo-graze' ? 'illuminated with concealed warm LED perimeter halo ceiling graze' : statementLighting === 'sconces' ? 'accentuated by architectural modern wall sconces' : 'bathed in balanced architectural accent illumination';
+            purposeMod = `Architectural Statement Wall ${placementDesc}, ${lightingDesc}.`;
+          } else {
+            purposeMod = `Harmonious accent wall integrating cleanly with room architecture.`;
+          }
+
+          featureWallModifier = `ACCENT WALL [${featCat.label} - ${featOpt.label}]: ${featOpt.promptModifier}.${colorMod ? ` ${colorMod}.` : ''} ${purposeMod}`;
         }
       }
     }
@@ -370,6 +427,18 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           lighting: selectedLightingId,
           featureWallCategory: selectedFeatureWallCategory,
           featureWallOption: selectedFeatureWallOptionId,
+          accentWallPurpose: selectedAccentWallPurpose,
+          accentColorId: selectedAccentColorId,
+          customAccentColorHex,
+          customAccentColorName,
+          brandName,
+          brandSignageStyleId,
+          brandTagline,
+          eventThemeId,
+          eventDecorativeElementId,
+          eventSignageText,
+          statementPlacement,
+          statementLighting,
           mode: selectedModeId,
           ...roomSpecificSelections,
         },
@@ -821,10 +890,6 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           user.subscriptionLevel = 'premium';
         }
       }
-      setUpgradeSuccess(true);
-      setTimeout(() => {
-        setUpgradeSuccess(false);
-      }, 2500);
     } catch (err) {
       console.error('Failed to upgrade subscription:', err);
       alert('Could not complete upgrade at this moment. Please check your network or sign in.');
@@ -2304,12 +2369,27 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                 </div>
               </div>
 
-              {/* Feature Wall Section */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Feature Wall (Optional Accent):
-                  </label>
+              {/* Accent Wall Studio Section */}
+              <div className="pt-5 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                          Accent Wall Studio
+                        </label>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          Styles &amp; Colors • Statement • Brand • Event
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        Design an architectural focal wall, bespoke brand wall, or celebratory event backdrop with custom styles and colors.
+                      </p>
+                    </div>
+                  </div>
                   {selectedFeatureWallCategory !== 'none' && (
                     <button
                       type="button"
@@ -2317,73 +2397,415 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         setSelectedFeatureWallCategory('none');
                         setSelectedFeatureWallOptionId('standard-matching');
                       }}
-                      className="text-[11px] text-purple-600 hover:text-purple-700 dark:text-purple-400 font-medium"
+                      className="text-[11px] text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold hover:underline flex items-center gap-1"
                     >
-                      Clear Feature Wall
+                      <X className="w-3 h-3" /> Clear Accent Wall
                     </button>
                   )}
                 </div>
 
-                {/* Feature Wall Category Selector */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedFeatureWallCategory('none');
-                      setSelectedFeatureWallOptionId('standard-matching');
-                    }}
-                    className={`px-3 py-2 text-xs rounded-lg border text-left transition-all ${
-                      selectedFeatureWallCategory === 'none'
-                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500'
-                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    <div className="font-semibold">Standard / No Accent Wall</div>
-                    <div className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">Uniform room walls</div>
-                  </button>
-
-                  {FEATURE_WALL_CATEGORIES.map((featCat) => (
-                    <button
-                      key={featCat.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedFeatureWallCategory(featCat.id);
-                        setSelectedFeatureWallOptionId(featCat.options[0].id);
-                      }}
-                      className={`px-3 py-2 text-xs rounded-lg border text-left transition-all ${
-                        selectedFeatureWallCategory === featCat.id
-                          ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500'
-                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      <div className="font-semibold">{featCat.label}</div>
-                      <div className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{featCat.description}</div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Feature Wall Specific Style Options (when a category is selected) */}
-                {selectedFeatureWallCategory !== 'none' && (
-                  <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                      Choose {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.label} Style:
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.options.map((opt) => (
+                {/* Accent Wall Purpose / Intent Tabs */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">
+                    Wall Purpose &amp; Focus:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {ACCENT_WALL_PURPOSES.map((purpose) => {
+                      const isSelected = selectedAccentWallPurpose === purpose.id;
+                      return (
                         <button
-                          key={opt.id}
+                          key={purpose.id}
                           type="button"
-                          onClick={() => setSelectedFeatureWallOptionId(opt.id)}
-                          className={`p-2.5 text-xs text-left rounded-lg border transition-all ${
-                            selectedFeatureWallOptionId === opt.id
-                              ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-semibold ring-1 ring-purple-500'
-                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                          onClick={() => {
+                            setSelectedAccentWallPurpose(purpose.id);
+                            if (selectedFeatureWallCategory === 'none') {
+                              setSelectedFeatureWallCategory('painted-color-blocked');
+                              setSelectedFeatureWallOptionId('two-tone-color-block');
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all relative ${
+                            isSelected
+                              ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/40 ring-2 ring-purple-500/30 text-purple-950 dark:text-purple-200 font-medium shadow-xs'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 hover:border-gray-300 text-gray-700 dark:text-gray-300'
                           }`}
                         >
-                          <div className="font-medium text-gray-900 dark:text-white">{opt.label}</div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                              {purpose.badge}
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />}
+                          </div>
+                          <div className="font-bold text-xs text-gray-900 dark:text-white">{purpose.label}</div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
+                            {purpose.tagline}
+                          </div>
                         </button>
-                      ))}
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Wall Category / Material System */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">
+                    Wall Style Category:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFeatureWallCategory('none');
+                        setSelectedFeatureWallOptionId('standard-matching');
+                      }}
+                      className={`px-3 py-2 text-xs rounded-xl border text-left transition-all ${
+                        selectedFeatureWallCategory === 'none'
+                          ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500 shadow-xs'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold">Standard / No Accent Wall</div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">Uniform room walls</div>
+                    </button>
+
+                    {FEATURE_WALL_CATEGORIES.filter((c) => c.id !== 'none').map((featCat) => (
+                      <button
+                        key={featCat.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedFeatureWallCategory(featCat.id);
+                          setSelectedFeatureWallOptionId(featCat.options[0].id);
+                        }}
+                        className={`px-3 py-2 text-xs rounded-xl border text-left transition-all ${
+                          selectedFeatureWallCategory === featCat.id
+                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 font-bold ring-1 ring-purple-500 shadow-xs'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        <div className="font-semibold text-gray-900 dark:text-white line-clamp-1">{featCat.label}</div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">{featCat.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* When an Accent Wall Category is selected */}
+                {selectedFeatureWallCategory !== 'none' && (
+                  <div className="space-y-4 p-3.5 bg-gray-50/90 dark:bg-gray-800/60 rounded-2xl border border-gray-200 dark:border-gray-700">
+                    {/* Specific Styles Grid */}
+                    <div>
+                      <span className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Choose {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.label} Style:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {FEATURE_WALL_CATEGORIES.find((c) => c.id === selectedFeatureWallCategory)?.options.map((opt) => {
+                          const isOptionSelected = selectedFeatureWallOptionId === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setSelectedFeatureWallOptionId(opt.id)}
+                              className={`p-2.5 text-xs text-left rounded-xl border transition-all ${
+                                isOptionSelected
+                                  ? 'border-purple-600 bg-white dark:bg-gray-900 text-purple-950 dark:text-purple-200 font-semibold ring-2 ring-purple-500/40 shadow-xs'
+                                  : 'border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-bold text-gray-900 dark:text-white text-xs">{opt.label}</div>
+                                {isOptionSelected && (
+                                  <span className="shrink-0 ml-1.5 w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">
+                                    ✓
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                                {opt.promptModifier}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {/* Accent Wall Color & Tone Palette */}
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <Palette className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                          Accent Wall Color &amp; Tone:
+                        </label>
+                        {selectedAccentColorId !== 'match-room' && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAccentColorId('match-room')}
+                            className="text-[10px] text-purple-600 hover:text-purple-700 dark:text-purple-400 font-medium"
+                          >
+                            Reset to Cohesive Room Match
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                        {ACCENT_WALL_COLORS.map((col) => {
+                          const isColActive = selectedAccentColorId === col.id;
+                          return (
+                            <button
+                              key={col.id}
+                              type="button"
+                              onClick={() => setSelectedAccentColorId(col.id)}
+                              className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
+                                isColActive
+                                  ? 'border-purple-600 bg-white dark:bg-gray-900 ring-2 ring-purple-500/40 shadow-xs'
+                                  : 'border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/60 hover:border-gray-300'
+                              }`}
+                            >
+                              <span
+                                className="w-5 h-5 rounded-full shrink-0 border border-black/10 dark:border-white/10 shadow-xs"
+                                style={{ backgroundColor: col.hex }}
+                              />
+                              <div className="min-w-0">
+                                <div className="text-[11px] font-semibold text-gray-900 dark:text-white truncate">
+                                  {col.label}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+
+                        {/* Custom Color Option */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAccentColorId('custom')}
+                          className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
+                            selectedAccentColorId === 'custom'
+                              ? 'border-purple-600 bg-white dark:bg-gray-900 ring-2 ring-purple-500/40 shadow-xs'
+                              : 'border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/60 hover:border-gray-300'
+                          }`}
+                        >
+                          <span
+                            className="w-5 h-5 rounded-full shrink-0 border border-black/10 dark:border-white/10 shadow-xs"
+                            style={{ backgroundColor: customAccentColorHex }}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 truncate">
+                              Custom Color
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* Custom Color Inputs when active */}
+                      {selectedAccentColorId === 'custom' && (
+                        <div className="mt-2.5 p-2.5 bg-white dark:bg-gray-900 rounded-xl border border-purple-200 dark:border-purple-800 flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <label className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                              Pick Color:
+                            </label>
+                            <input
+                              type="color"
+                              value={customAccentColorHex}
+                              onChange={(e) => setCustomAccentColorHex(e.target.value)}
+                              className="w-8 h-8 rounded-lg cursor-pointer border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                            />
+                            <span className="text-xs font-mono font-medium text-gray-700 dark:text-gray-300 uppercase">
+                              {customAccentColorHex}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-[180px]">
+                            <input
+                              type="text"
+                              value={customAccentColorName}
+                              onChange={(e) => setCustomAccentColorName(e.target.value)}
+                              placeholder="Color name (e.g. Petrol Blue, Burnt Ochre, Coral)"
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Purpose-Specific Customization Panels */}
+                    {/* 1. STATEMENT WALL */}
+                    {selectedAccentWallPurpose === 'statement' && (
+                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                          <Flame className="w-3.5 h-3.5 text-amber-500" />
+                          Statement Wall Customization:
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Focal Zone Placement:
+                            </label>
+                            <select
+                              value={statementPlacement}
+                              onChange={(e) => setStatementPlacement(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            >
+                              <option value="main-focal">Dominant Architectural Focal Wall / Media Center</option>
+                              <option value="fireplace">Fireplace Surround &amp; Chimney Breast</option>
+                              <option value="bedhead">Master Bedroom Headboard Backdrop</option>
+                              <option value="dining">Dining Room Feature Backdrop</option>
+                              <option value="vista">Entrance / Open Hallway Vista</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Architectural Illumination:
+                            </label>
+                            <select
+                              value={statementLighting}
+                              onChange={(e) => setStatementLighting(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            >
+                              <option value="halo-graze">Concealed Warm LED Halo Perimeter Graze</option>
+                              <option value="sconces">Architectural Modern Sconce Downlights</option>
+                              <option value="cove">Soft Under-Slat / Cove Ambient Glow</option>
+                              <option value="daylight">Sunlit Daylight Natural Contrast</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. BRAND WALL */}
+                    {selectedAccentWallPurpose === 'brand' && (
+                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                          <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                          Brand Wall &amp; Corporate Identity Customization:
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Company / Brand Name:
+                            </label>
+                            <input
+                              type="text"
+                              value={brandName}
+                              onChange={(e) => setBrandName(e.target.value)}
+                              placeholder="e.g. Lumina Studio, Apex HQ, Solstice"
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                            />
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {['Lumina Studio', 'Apex HQ', 'Solstice Lounge', 'Vogue Studio', 'Vertex AI'].map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => setBrandName(preset)}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-gray-200/70 dark:bg-gray-700 hover:bg-gray-300 text-gray-700 dark:text-gray-300"
+                                >
+                                  {preset}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Signage &amp; Logo Style:
+                            </label>
+                            <select
+                              value={brandSignageStyleId}
+                              onChange={(e) => setBrandSignageStyleId(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            >
+                              {BRAND_SIGNAGE_STYLES.map((style) => (
+                                <option key={style.id} value={style.id}>
+                                  {style.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                            Brand Tagline or Mission (Optional):
+                          </label>
+                          <input
+                            type="text"
+                            value={brandTagline}
+                            onChange={(e) => setBrandTagline(e.target.value)}
+                            placeholder="e.g. Innovate &amp; Inspire • Designed for Living"
+                            className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. EVENT BACKDROP */}
+                    {selectedAccentWallPurpose === 'event' && (
+                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                          <PartyPopper className="w-3.5 h-3.5 text-pink-500" />
+                          Event Backdrop &amp; Photo Studio Customization:
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Event Occasion / Theme:
+                            </label>
+                            <select
+                              value={eventThemeId}
+                              onChange={(e) => setEventThemeId(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            >
+                              {EVENT_BACKDROP_THEMES.map((theme) => (
+                                <option key={theme.id} value={theme.id}>
+                                  {theme.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                              Backdrop Feature &amp; Decor:
+                            </label>
+                            <select
+                              value={eventDecorativeElementId}
+                              onChange={(e) => setEventDecorativeElementId(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            >
+                              {EVENT_DECORATIVE_ELEMENTS.map((elem) => (
+                                <option key={elem.id} value={elem.id}>
+                                  {elem.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-1">
+                            Backdrop Signage / Neon Script Text:
+                          </label>
+                          <input
+                            type="text"
+                            value={eventSignageText}
+                            onChange={(e) => setEventSignageText(e.target.value)}
+                            placeholder="e.g. Better Together, Happily Ever After, Cheers!, Welcome"
+                            className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {['Better Together', 'Happily Ever After', 'Cheers!', 'VIP Lounge', "Let's Celebrate", 'Welcome'].map((txt) => (
+                              <button
+                                key={txt}
+                                type="button"
+                                onClick={() => setEventSignageText(txt)}
+                                className="text-[10px] px-2 py-0.5 rounded bg-pink-100 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 hover:bg-pink-200"
+                              >
+                                {txt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

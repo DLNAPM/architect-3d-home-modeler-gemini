@@ -6,23 +6,16 @@ import {
   Sparkles,
   Upload,
   Wand2,
-  Lock,
   ArrowRight,
   RotateCcw,
   History,
   CheckCircle2,
   FolderOpen,
   Plus,
-  Compass,
-  Sun,
   Layers,
-  ChevronRight,
   Info,
   X,
-  ExternalLink,
   ShieldCheck,
-  Flame,
-  Waves,
   Maximize2,
   Trash2,
   Pencil,
@@ -74,7 +67,6 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   // Demo bypass mode for previewing the workflow
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
 
   // Projects list
   const [savedProjects, setSavedProjects] = useState<LandscapingTransformationProject[]>([]);
@@ -89,7 +81,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [selectedViewSide, setSelectedViewSide] = useState<HouseViewSide>('front');
   const [selectedStyleId, setSelectedStyleId] = useState<string>('modern-minimalist');
   const [selectedLightingId, setSelectedLightingId] = useState<string>('golden-hour');
-  const [selectedScopeId, setSelectedScopeId] = useState<string>('complete-overhaul');
+  const [selectedScopeId] = useState<string>('complete-overhaul');
   const [viewSpecificSelections, setViewSpecificSelections] = useState<Record<string, string>>({});
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -815,7 +807,6 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       setIsUpgrading(true);
       try {
         await onUpgradeToPremium();
-        setUpgradeSuccess(true);
       } catch (e) {
         console.error(e);
       } finally {

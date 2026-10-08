@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User } from '../types';
 import { cloudService } from '../services/cloudService';
-import { ShieldAlert, Users, Check, X, Search, PieChart as PieChartIcon, Trash2, Snowflake, Lock, Unlock } from 'lucide-react';
+import { ShieldAlert, Users, Check, Search, PieChart as PieChartIcon, Trash2, Snowflake, Unlock } from 'lucide-react';
 import LoadingOverlay from './LoadingOverlay';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 

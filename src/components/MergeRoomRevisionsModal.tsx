@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GitMerge,
   X,
   Sparkles,
   Wand2,
   Check,
-  Layers,
-  ArrowRight,
   AlertCircle,
-  Eye,
-  SlidersHorizontal,
-  CheckCircle2,
-  Plus
+  CheckCircle2
 } from 'lucide-react';
 import { RoomTransformationProject, TransformationRevision, User } from '../types';
 import {
@@ -19,8 +14,7 @@ import {
   COLOR_PALETTES,
   FLOORING_OPTIONS,
   LIGHTING_OPTIONS,
-  FEATURE_WALL_CATEGORIES,
-  ROOM_TYPES
+  FEATURE_WALL_CATEGORIES
 } from '../data/roomTransformationData';
 import { generateImageFromImage, AdditionalImageInput } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
@@ -160,8 +154,9 @@ export const MergeRoomRevisionsModal: React.FC<MergeRoomRevisionsModalProps> = (
     'Ambient Daylight';
 
   const getFeatureWallLabel = (rev: TransformationRevision) => {
+    const rawCat = rev.selectedOptions?.featureWallCategory;
     const cat = FEATURE_WALL_CATEGORIES.find(
-      (c) => c.id === rev.selectedOptions?.featureWallCategory
+      (c) => c.id === rawCat || (rawCat === 'painted-and-finished' && c.id === 'painted-color-blocked')
     );
     if (!cat || cat.id === 'none') return 'None';
     const opt = cat.options.find((o) => o.id === rev.selectedOptions?.featureWallOption);
@@ -256,12 +251,14 @@ export const MergeRoomRevisionsModal: React.FC<MergeRoomRevisionsModalProps> = (
 
       let featureWallModifier = '';
       if (chosenFeatureWallCat && chosenFeatureWallCat !== 'none') {
-        const featCat = FEATURE_WALL_CATEGORIES.find((c) => c.id === chosenFeatureWallCat);
+        const featCat = FEATURE_WALL_CATEGORIES.find(
+          (c) => c.id === chosenFeatureWallCat || (chosenFeatureWallCat === 'painted-and-finished' && c.id === 'painted-color-blocked')
+        );
         if (featCat) {
           const featOpt =
             featCat.options.find((o) => o.id === chosenFeatureWallOpt) || featCat.options[0];
           if (featOpt) {
-            featureWallModifier = `Feature Wall (${featCat.label}): ${featOpt.promptModifier}`;
+            featureWallModifier = `Accent Wall (${featCat.label}): ${featOpt.promptModifier}`;
           }
         }
       }

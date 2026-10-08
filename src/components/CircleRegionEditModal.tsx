@@ -9,14 +9,9 @@ import {
   ShieldCheck,
   Wand2,
   Trash2,
-  RefreshCw,
-  Info,
-  HelpCircle,
-  Eye,
-  SlidersHorizontal,
-  ChevronRight
+  RefreshCw
 } from 'lucide-react';
-import { generateImageFromImage, AdditionalImageInput } from '../services/geminiService';
+import { generateImageFromImage } from '../services/geminiService';
 
 export type RegionActionType = 'remove' | 'replace' | 'edit';
 
@@ -420,59 +415,6 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     return `${vertical}, ${horizontal} (occupying approx ${widthPercent}% width × ${heightPercent}% height)`;
   };
 
-  // Generate an annotated image Data URL with the drawn circle
-  const createAnnotatedImageUri = (): string | null => {
-    const img = imageObjRef.current;
-    if (!img || !region) return null;
-
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = img.naturalWidth || 1280;
-    exportCanvas.height = img.naturalHeight || 720;
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) return null;
-
-    const w = exportCanvas.width;
-    const h = exportCanvas.height;
-
-    // Draw base
-    ctx.drawImage(img, 0, 0, w, h);
-
-    // Draw high-visibility marker ring
-    ctx.save();
-    if (region.mode === 'circle' && region.center && region.radiusX && region.radiusY) {
-      const cx = region.center.x * w;
-      const cy = region.center.y * h;
-      const rx = region.radiusX * w;
-      const ry = region.radiusY * h;
-
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 0, 128, 0.25)';
-      ctx.fill();
-
-      ctx.strokeStyle = '#ff007f';
-      ctx.lineWidth = Math.max(4, Math.round(w * 0.005));
-      ctx.stroke();
-    } else if (region.mode === 'lasso' && region.points) {
-      ctx.beginPath();
-      ctx.moveTo(region.points[0].x * w, region.points[0].y * h);
-      for (let i = 1; i < region.points.length; i++) {
-        ctx.lineTo(region.points[i].x * w, region.points[i].y * h);
-      }
-      ctx.closePath();
-
-      ctx.fillStyle = 'rgba(255, 0, 128, 0.25)';
-      ctx.fill();
-
-      ctx.strokeStyle = '#ff007f';
-      ctx.lineWidth = Math.max(4, Math.round(w * 0.005));
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    return exportCanvas.toDataURL('image/jpeg', 0.88);
-  };
-
   // Execute inpainting / region modification
   const handleApplyRegionEdit = async () => {
     if (!region) {
@@ -533,40 +475,28 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 - The change in color, material finish, texture, or styling must be prominently and visibly transformed, clearly noticeable compared to the original.`;
       }
 
-      const preservationDirective = `CONTEXT INTEGRATION:
-- Maintain the overall room perspective, surrounding walls, ceiling, and architectural aesthetic of the space so it is recognized as the same room, but ensure the requested transformation in the target zone is boldly applied and distinctly visible.`;
-
-      const annotatedUri = createAnnotatedImageUri();
+      const preservationDirective = strictPreservation
+        ? `CONTEXT INTEGRATION: Maintain the room's surrounding walls, flooring continuity, and perspective geometry while ensuring the requested transformation in the target zone is boldly and visibly applied.`
+        : `Ensure the requested transformation is boldly applied with realistic materials and natural scene lighting.`;
 
       const fullPrompt = [
-        `Photorealistic architectural rendering modification of this ${roomOrViewLabel}.`,
-        `INPUT REFERENCE:`,
-        annotatedUri
-          ? `Image 1 is the clean original rendering to be modified.\nImage 2 is a visual guide highlighting the target zone with a high-visibility outline.`
-          : `Modify the provided rendering in the designated target zone: ${locDesc} (${minXPercent}%-${maxXPercent}% width, ${minYPercent}%-${maxYPercent}% height).`,
+        `High-fidelity architectural rendering modification of this ${roomOrViewLabel}.`,
+        `TARGET ZONE: ${locDesc} (bounding box coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame).`,
         actionPromptDirective,
         preservationDirective,
-        `CRITICAL OUTPUT SPECIFICATION: Return a clean, ultra-photorealistic architectural rendering without any circles, lines, or markup from Image 2. 8k clarity, seamless natural lighting, tactile physical materials.`
+        `OUTPUT REQUIREMENT: Return a photorealistic 8k architectural visualization where the requested change in the circled zone is clearly visible, unmistakable, and seamlessly integrated into the space.`
       ].join('\n\n');
 
       setGenerationStep('Synthesizing targeted edit with Gemini image engine...');
 
-      let additionalImageInput: AdditionalImageInput | undefined;
-      if (annotatedUri) {
-        const cleanBase64 = annotatedUri.includes('base64,') ? annotatedUri.split('base64,')[1] : annotatedUri;
-        additionalImageInput = {
-          base64: cleanBase64,
-          mimeType: 'image/jpeg',
-        };
-      }
-
       const rawSourceBase64 = sourceImageUrl.includes('base64,') ? sourceImageUrl.split('base64,')[1] : sourceImageUrl;
 
+      // Pass single clean image to ensure Gemini vision-language model applies targeted transformation
       const renderedResultUri = await generateImageFromImage(
         fullPrompt,
         rawSourceBase64,
         'image/jpeg',
-        additionalImageInput,
+        undefined,
         '16:9'
       );
 
@@ -595,16 +525,20 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 
   // Preset chips for quick ideas
   const roomQuickReplaceSuggestions = [
+    'Painted & color-blocked geometric accent wall in deep navy',
+    'Vertical natural white oak acoustic slat wood accent wall with LED',
+    'Scenic panoramic misty forest wallpaper mural',
+    'Dry-stacked natural stone & 3D tile statement wall',
+    'Lush faux green botanical living wall with warm glowing neon',
+    'Commercial brand wall with 3D backlit acrylic logo & company signage',
+    'Celebratory floral arch & glowing script neon event backdrop',
+    'Floor-to-ceiling channel-upholstered bouclé fabric accent wall',
     'Curved cream bouclé sofa',
     'Monolithic honed travertine coffee table',
     'Linear modern electric fireplace with Venetian plaster',
     'Sculptural multi-tier brass mobile chandelier',
-    'Vertical natural white oak acoustic slat accent wall',
     'Tall potted Mediterranean olive tree in fiberstone planter',
     '7-foot arched thin black iron floor leaner mirror',
-    'Oversized abstract minimalist canvas artwork',
-    'Minimalist smoked glass & brass accent table',
-    'Cognac saddle-leather lounge chairs with bolster cushions',
   ];
 
   const landscapingQuickReplaceSuggestions = [
@@ -645,7 +579,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
               >
                 <span>Circle Area to Remove, Edit, or Replace</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-semibold hidden sm:inline">
-                  {revisionLabel}
+                  {projectTitle ? `${projectTitle} • ${revisionLabel}` : revisionLabel}
                 </span>
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">

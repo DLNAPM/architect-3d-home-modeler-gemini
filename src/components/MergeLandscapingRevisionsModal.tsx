@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { LandscapingTransformationProject, LandscapingRevision, User } from '../types';
 import {
-  LANDSCAPING_STYLES,
   HOUSE_VIEW_SIDES
 } from '../data/landscapingTransformationData';
 import { generateImageFromImage, AdditionalImageInput } from '../services/geminiService';

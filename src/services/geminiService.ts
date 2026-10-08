@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { HousePlan, Room, CustomizationOption } from "../types";
 import { ROOM_CATEGORIES } from "../constants";
 
@@ -183,7 +183,7 @@ export async function generateRoomOptions(roomName: string): Promise<Record<stri
       },
     });
 
-    const parsed = JSON.parse(response.text);
+    const parsed = JSON.parse(response.text || '{}');
     const categories: GeneratedCategory[] = parsed.customizationCategories;
     
     if (!categories || categories.length === 0) {
@@ -257,7 +257,7 @@ export async function generateHousePlanFromDescription(prompt: string, images: {
       },
     });
 
-    const parsedJson = JSON.parse(response.text);
+    const parsedJson = JSON.parse(response.text || '{}');
     
     const roomNames: string[] = Array.from(new Set(parsedJson.rooms as string[]));
     
@@ -306,7 +306,7 @@ export async function generateImage(prompt: string): Promise<string> {
   const ai = getAiClient();
   validatePrompt(prompt);
 
-  const modelsToTry = ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'];
+  const modelsToTry = ['gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-3-pro-image'];
   let lastError: unknown;
 
   for (const model of modelsToTry) {
@@ -342,7 +342,7 @@ export async function generateImage(prompt: string): Promise<string> {
     }
   }
 
-  // Fallback to imagen-3.0-generate-002 if gemini-flash-image models are not available
+  // Fallback to imagen-3.0-generate-002 if available
   try {
     const response = await ai.models.generateImages({
       model: 'imagen-3.0-generate-002',
@@ -354,14 +354,12 @@ export async function generateImage(prompt: string): Promise<string> {
       },
     });
 
-    if (response.generatedImages && response.generatedImages.length > 0) {
+    if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image?.imageBytes) {
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/jpeg;base64,${base64ImageBytes}`;
     }
   } catch (error) {
     console.warn("Imagen 3 fallback also failed:", error);
-    parseAndThrowApiError(lastError || error, 'image');
-    throw new Error("Unreachable code");
   }
 
   parseAndThrowApiError(lastError, 'image');
@@ -434,7 +432,7 @@ export async function generateImageFromImage(
   const ai = getAiClient();
   validatePrompt(prompt);
 
-  const modelsToTry = ['gemini-3.1-flash-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'];
+  const modelsToTry = ['gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-3-pro-image'];
   let lastError: unknown;
 
   const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [];
