@@ -392,7 +392,7 @@ export async function generateVideo(prompt: string): Promise<string> {
   validatePrompt(prompt);
   try {
     let operation = await ai.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
+      model: 'gemini-omni-1.1-flash',
       prompt: prompt,
       config: {
         numberOfVideos: 1
