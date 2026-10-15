@@ -18,11 +18,6 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(apiKey),
       'process.env.GEMINI_API_KEY': JSON.stringify(apiKey),
-      'process.env': JSON.stringify({
-        ...env,
-        API_KEY: apiKey,
-        GEMINI_API_KEY: apiKey,
-      }),
     },
   }
 })

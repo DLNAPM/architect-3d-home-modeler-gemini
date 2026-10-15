@@ -56,8 +56,17 @@ export const authService = {
             // This will trigger the firebaseOnAuthStateChanged above upon success
             await signInWithPopup(auth, provider);
             return currentUser;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error signing in", error);
+            const errStr = String(error?.message || error?.code || error || '');
+            if (
+                errStr.includes('suspended') ||
+                errStr.includes('CONSUMER_SUSPENDED') ||
+                errStr.includes('api_key') ||
+                error?.code === 'auth/internal-error'
+            ) {
+                throw new Error("Your Google Cloud project (architect-3d-home-modeler) or API key is currently suspended by Google Cloud. Please check Google Cloud Console to appeal the suspension or use Guest Mode in the meantime.");
+            }
             throw error;
         }
     },

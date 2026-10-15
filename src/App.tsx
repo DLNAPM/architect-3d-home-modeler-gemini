@@ -680,8 +680,8 @@ function App() {
       setLoadingMessage("Signing in with Google...");
       try {
         await authService.signIn();
-      } catch (e) {
-        setError("Sign in failed. Please try again.");
+      } catch (e: any) {
+        setError(e?.message || "Sign in failed. Please try again.");
       } finally {
         setIsLoading(false);
         setLoadingMessage('');
