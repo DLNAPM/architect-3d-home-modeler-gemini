@@ -22,7 +22,10 @@ import {
   Check,
   GitMerge,
   CircleDot,
-  Save
+  Save,
+  Flame,
+  Waves,
+  Flag
 } from 'lucide-react';
 import {
   HOUSE_VIEW_SIDES,
@@ -1859,42 +1862,137 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   </span>
                 </div>
 
-                {activeViewConfig.sections.map((section) => (
-                  <div key={section.id} className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                      {section.title}:
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {section.options.map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() =>
-                            setViewSpecificSelections((prev) => ({
-                              ...prev,
-                              [section.id]: opt.id,
-                            }))
-                          }
-                          className={`p-3 rounded-xl border text-left transition-all ${
-                            viewSpecificSelections[section.id] === opt.id
-                              ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-bold text-xs">{opt.label}</span>
-                            {viewSpecificSelections[section.id] === opt.id && (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                            {opt.description}
-                          </p>
-                        </button>
-                      ))}
+                {/* Helper Banner for Quick Access to Luxury Outdoor Living */}
+                {selectedViewSide !== 'back' && (
+                  <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-cyan-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                      <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>
+                        Looking to add <strong>Luxury Outdoor Kitchens with Pergolas</strong>, <strong>Swimming Pools</strong>, or <strong>Championship Putting Greens</strong>?
+                      </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedViewSide('back')}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shrink-0 cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      <span>Switch to Back of House</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                ))}
+                )}
+
+                {activeViewConfig.sections.map((section) => {
+                  const isKitchen = section.id === 'outdoorCooking';
+                  const isPool = section.id === 'poolWater';
+                  const isGolf = section.id === 'puttingGreen';
+
+                  let sectionIcon = null;
+                  let sectionBadge = null;
+                  if (isKitchen) {
+                    sectionIcon = <Flame className="h-4 w-4 text-amber-500" />;
+                    sectionBadge = (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 rounded">
+                        Luxury Kitchen &amp; Pergola
+                      </span>
+                    );
+                  } else if (isPool) {
+                    sectionIcon = <Waves className="h-4 w-4 text-cyan-500" />;
+                    sectionBadge = (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-cyan-100 dark:bg-cyan-900/60 text-cyan-800 dark:text-cyan-300 rounded">
+                        Pool &amp; Spa Designs
+                      </span>
+                    );
+                  } else if (isGolf) {
+                    sectionIcon = <Flag className="h-4 w-4 text-emerald-500" />;
+                    sectionBadge = (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded">
+                        Championship Golf
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={section.id}
+                      className={`space-y-2.5 p-3 rounded-xl transition-all ${
+                        isKitchen
+                          ? 'bg-amber-50/20 dark:bg-amber-950/10 border border-amber-200/60 dark:border-amber-900/40'
+                          : isPool
+                          ? 'bg-cyan-50/20 dark:bg-cyan-950/10 border border-cyan-200/60 dark:border-cyan-900/40'
+                          : isGolf
+                          ? 'bg-emerald-50/20 dark:bg-emerald-950/10 border border-emerald-200/60 dark:border-emerald-900/40'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wide flex items-center gap-1.5">
+                          {sectionIcon}
+                          <span>{section.title}:</span>
+                        </label>
+                        {sectionBadge}
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        {section.description}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {section.options.map((opt) => {
+                          const isSelected = viewSpecificSelections[section.id] === opt.id;
+                          const isNegative = opt.id.startsWith('no-');
+
+                          let activeClass = 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500';
+                          let checkColor = 'text-emerald-600';
+
+                          if (isNegative) {
+                            activeClass = 'border-gray-400 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ring-1 ring-gray-400';
+                            checkColor = 'text-gray-500';
+                          } else if (isKitchen) {
+                            activeClass = 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 ring-1 ring-amber-500';
+                            checkColor = 'text-amber-600';
+                          } else if (isPool) {
+                            activeClass = 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-950 dark:text-cyan-200 ring-1 ring-cyan-500';
+                            checkColor = 'text-cyan-600';
+                          }
+
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() =>
+                                setViewSpecificSelections((prev) => ({
+                                  ...prev,
+                                  [section.id]: opt.id,
+                                }))
+                              }
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? activeClass
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800/80'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  {isNegative && (
+                                    <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                                      Omit
+                                    </span>
+                                  )}
+                                  <span>{opt.label}</span>
+                                </span>
+                                {isSelected && (
+                                  <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${checkColor}`} />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                {opt.description}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Step 4: Overall Landscaping Style */}

@@ -56,6 +56,126 @@ export interface SampleLandscaping {
   appliedOptions: string[];
 }
 
+// LUXURY OUTDOOR KITCHEN & GRILL SETS WITH PERGOLA
+export const LUXURY_OUTDOOR_KITCHEN_OPTIONS: LandscapingOption[] = [
+  {
+    id: 'paradise-grills',
+    label: 'Paradise Grills',
+    description: 'Modular luxury kitchen island with commercial gas grill, cocktail station, granite/porcelain bar counter, and motorized louvered aluminum pergola.',
+    promptSnippet: 'luxury Paradise Grills commercial-grade modular outdoor kitchen island featuring a heavy-duty stainless steel built-in gas grill, cocktail beverage center, sink, granite bar-height counter with luxury barstools, covered by an architectural motorized louvered aluminum pergola with integrated LED lighting'
+  },
+  {
+    id: 'kokomo-outdoor-kitchens',
+    label: 'Kokomo Outdoor Kitchens',
+    description: 'Heavy-duty custom BBQ island with commercial Kokomo stainless grill, side burner, natural stone or stucco masonry base, and a handcrafted cedar shade pergola.',
+    promptSnippet: 'custom Kokomo Outdoor Kitchens heavy-duty barbecue grill island with stacked stone masonry facade, bullnose granite countertops, built-in Kokomo stainless steel 5-burner gas grill, dual side burners, outdoor refrigerator, and an overhead warm cedar open-rafter shade pergola'
+  },
+  {
+    id: 'bull-outdoor-products',
+    label: 'Bull Outdoor Products',
+    description: 'Premium Bull stainless steel grill island with ReliaBULL even-heat technology, rotisserie, warming drawers, and a modern cantilevered metal pergola.',
+    promptSnippet: 'high-performance Bull Outdoor Products luxury barbecue island equipped with a premium built-in Bull stainless steel grill, infrared rotisserie, searing station, under-counter stainless storage drawers, polished quartz prep counter, and a sleek modern black steel cantilevered pergola canopy'
+  },
+  {
+    id: 'range-outdoor-living',
+    label: 'Range Outdoor Living',
+    description: 'Sleek architectural outdoor kitchen suite with seamless Dekton ultra-compact surfaces, precision stainless grill, wine cooler, and a custom timber pergola.',
+    promptSnippet: 'minimalist architectural Range Outdoor Living kitchen island featuring seamless Dekton heatproof countertops, precision built-in stainless grill, integrated dual-zone wine cooler, trash drawer, and an overhead modern warm fir timber pergola with recessed dimmable downlights'
+  },
+  {
+    id: 'mont-alp',
+    label: 'Mont Alp',
+    description: 'Signature waterfall granite or black stainless modular suite with 6-burner infrared grill, beverage center, warming drawers, and an integrated pergola.',
+    promptSnippet: 'deluxe Mont Alp / Mont Alpi modular outdoor kitchen suite with stunning white waterfall composite stone countertops, 6-burner stainless steel infrared rotisserie grill, built-in outdoor refrigerator and sink module, set beneath a stylish architectural dark metal pergola with ambient string lighting'
+  },
+  {
+    id: 'no-outdoor-kitchen',
+    label: 'Do NOT Add Outdoor Kitchen',
+    description: 'No outdoor kitchen or grill set; keep the patio, deck, or lawn open for spacious seating and garden flora.',
+    promptSnippet: 'explicitly do NOT include any outdoor kitchen, BBQ island, or cooking appliances; preserve the open patio, terrace, and garden space for relaxing seating and natural landscaping'
+  }
+];
+
+// OUTDOOR POOL DESIGNS
+export const OUTDOOR_POOL_DESIGN_OPTIONS: LandscapingOption[] = [
+  {
+    id: 'infinity-pools-negative-edge',
+    label: 'Infinity Pools (Negative Edge)',
+    description: 'Breathtaking vanishing negative edge pool with water spilling seamlessly into a lower catch basin, creating a horizon reflection effect.',
+    promptSnippet: 'custom luxury negative-edge infinity pool where the water surface seamlessly cascades over a vanishing edge into a hidden lower catch basin, reflecting the open sky and surrounding landscape, bordered by sleek travertine coping'
+  },
+  {
+    id: 'modern-geometric-pools',
+    label: 'Modern Geometric Pools',
+    description: 'Crisp rectilinear pool with clean architectural lines, integrated flush spa, and a wide Baja tanning ledge with in-pool loungers.',
+    promptSnippet: 'contemporary geometric rectangular swimming pool with crisp linear edges, submerged Baja shelf sun ledge with floating luxury lounge chairs, and an integrated flush zero-edge hot tub spa with sheer water spillover'
+  },
+  {
+    id: 'lagoon-style-natural-pools',
+    label: 'Lagoon-Style / Natural Pools',
+    description: 'Organic freeform pool with natural moss boulder rock waterfalls, grotto cave, flagstone beach entry, and lush tropical foliage.',
+    promptSnippet: 'freeform naturalistic lagoon swimming pool surrounded by stacked natural moss rock boulders, cascading multi-tier stone waterfalls, swimming grotto, and lush biophilic tropical landscaping fringing the water'
+  },
+  {
+    id: 'zero-entry-beach-entry-pools',
+    label: 'Zero-Entry (Beach-Entry) Pools',
+    description: 'Gradually sloping pebble or aggregate shore transitioning seamlessly from pool deck into water without steps.',
+    promptSnippet: 'resort-style zero-entry beach-entry swimming pool with a gradual gently sloping non-slip pebble shore entry transitioning smoothly from the sun deck into turquoise water, accented with shallow splash bubbler fountains'
+  },
+  {
+    id: 'lap-pools',
+    label: 'Lap Pools',
+    description: 'Long, narrow architectural pool engineered for exercise and swimming laps with sleek lane tile and minimalist surround.',
+    promptSnippet: 'sleek architectural exercise lap pool with an elongated linear channel, contrasting dark waterline racing lane tiles, integrated submerged end-wall steps, and a minimalist low-profile limestone deck surround'
+  },
+  {
+    id: 'no-pool',
+    label: 'Do NOT add Pool',
+    description: 'No swimming pool; focus ground area on lush open lawn, flowering botanical gardens, or extended paver terrace.',
+    promptSnippet: 'explicitly do NOT include any swimming pool or spa basin; dedicate the grounds to lush green open grass lawn, flowering perennial borders, and comfortable ground-level patio hardscaping'
+  }
+];
+
+// PUTTING GREEN DESIGNS
+export const PUTTING_GREEN_DESIGN_OPTIONS: LandscapingOption[] = [
+  {
+    id: 'resort-style-poolside-green',
+    label: 'The Resort-Style Poolside Integration',
+    description: 'Championship-grade synthetic putting and chipping green seamlessly bordering the pool deck and travertine terrace with regulation cups and flagsticks.',
+    promptSnippet: 'resort-style custom synthetic turf putting green seamlessly integrated alongside the swimming pool deck, featuring tour-grade multi-directional synthetic turf, contrasting longer fringe grass collar, stainless cup holes with custom flagsticks, and seamless travertine transition borders'
+  },
+  {
+    id: 'multi-level-tiered-green',
+    label: 'The Multi-Level Tiered Green',
+    description: 'Dynamic multi-tiered green with distinct elevation breaks, undulating contours, natural stone retaining steps, and multiple target pin placements.',
+    promptSnippet: 'architectural multi-level tiered synthetic putting green with custom elevation slopes, subtle contours and breaks, dry-stacked stone retaining step transitions between tiers, and four precision regulation cups with numbered golf flags'
+  },
+  {
+    id: 'modern-minimalist-geometric-green',
+    label: 'The Modern Minimalist Geometric Green',
+    description: 'Crisp rectilinear putting green framed by raw steel or concrete borders with low-profile LED perimeter lighting and architectural gravel.',
+    promptSnippet: 'contemporary minimalist geometric putting green with sharp rectangular laser-straight borders, raw steel or honed concrete edge restraints, contrasting dark river rock perimeter beds, integrated low-profile flush LED night lighting, and regulation target cups'
+  },
+  {
+    id: 'short-game-training-complex',
+    label: 'The Short Game Training Complex (with Sunken Bunkers)',
+    description: 'Professional backyard short game facility with sunken white silica sand bunkers, graduated rough fringe, and dedicated chipping stations.',
+    promptSnippet: 'professional backyard golf practice complex featuring an undulating synthetic putting green, authentic sunken white silica sand bunkers with natural revetted turf faces, graduated second-cut rough fringe, and multiple designated short-game chipping tee pads'
+  },
+  {
+    id: 'organic-country-club-ribbon',
+    label: 'The Organic Country Club Ribbon',
+    description: 'Undulating organic freeform ribbon green winding naturally through lush perennial garden beds, ornamental grasses, and mature trees.',
+    promptSnippet: 'organic country club ribbon putting green with graceful meandering natural curves winding through lush flowering perennial gardens and ornamental fountain grasses, featuring true-roll bentgrass-style turf, subtle break contours, and custom brass golf flags'
+  },
+  {
+    id: 'no-putting-green',
+    label: 'Do NOT add Putting Green',
+    description: 'No synthetic golf green; preserve natural turf lawn, ornamental groundcover, or garden planters.',
+    promptSnippet: 'explicitly do NOT include any putting green or golf turf; keep the lawn as natural grass, ornamental groundcover, or decorative flowering garden landscape'
+  }
+];
+
 // 1. HOUSE VIEW SIDES & SECTION CONFIGURATIONS
 export const HOUSE_VIEW_SIDES: HouseViewSideConfig[] = [
   {
@@ -204,14 +324,22 @@ export const HOUSE_VIEW_SIDES: HouseViewSideConfig[] = [
     iconName: 'Trees',
     badge: 'Outdoor Living',
     quickRefinements: [
-      'Add luxury heated gunite pool with sheer descent stone waterfalls',
+      'Add Paradise Grills luxury kitchen with motorized pergola',
+      'Add custom Kokomo outdoor BBQ island with cedar pergola',
+      'Add Bull Outdoor Products ReliaBULL grill with rotisserie',
+      'Add Range Outdoor Living modern Dekton kitchen and pergola',
+      'Add Mont Alp waterfall granite kitchen with rotisserie grill',
+      'Add modern infinity negative-edge swimming pool',
+      'Add modern geometric pool with sunken spa and Baja shelf',
+      'Add natural lagoon-style pool with boulder rock waterfalls',
+      'Add zero-entry beach-entry pool with pebble shore',
+      'Add architectural lap pool with dark waterline racing lanes',
+      'Install resort-style poolside putting green with tournament turf',
+      'Add multi-level tiered putting green with stone steps',
+      'Add championship short game training green with sunken bunkers',
+      'Add organic country club ribbon putting green through gardens',
       'Add sunken gas fire pit with curved built-in stone banquette',
-      'Add outdoor kitchen island with stainless grill and bar seating',
-      'Add motorized louvered aluminum pergola over dining patio',
-      'Surround perimeter with 12ft privacy arborvitae trees',
-      'Add modern cantilevered composite deck with built-in stair lighting',
-      'Add outdoor lounge sectional with weather-resistant teak wood',
-      'Add stone outdoor wood-fired pizza oven and cocktail bar'
+      'Surround perimeter with 12ft privacy arborvitae trees'
     ],
     sections: [
       {
@@ -246,60 +374,22 @@ export const HOUSE_VIEW_SIDES: HouseViewSideConfig[] = [
         ]
       },
       {
-        id: 'poolWater',
-        title: 'Pool, Spa & Water Features',
-        description: 'Swimming pools, hot tubs, spas, and soothing water installations.',
-        options: [
-          {
-            id: 'gunite-pool-waterfall',
-            label: 'Heated Gunite Pool with Waterfall',
-            description: 'Rectangular deep blue pool with sheer descent water blade waterfalls and integrated spa.',
-            promptSnippet: 'custom inground heated saltwater gunite pool with deep cerulean blue plaster, sheer descent stone waterfall wall, and elevated spillover spa hot tub'
-          },
-          {
-            id: 'baja-shelf-pool',
-            label: 'Modern Pool with Baja Tanning Ledge',
-            description: 'Shallow sun shelf with Ledge Lounger in-water chairs and bubbler fountains.',
-            promptSnippet: 'contemporary designer pool featuring a wide shallow Baja tanning ledge with submerged white lounge chairs and gentle laminar water bubblers'
-          },
-          {
-            id: 'natural-koi-pond',
-            label: 'Natural Stone Waterfall & Koi Pond',
-            description: 'Cascading natural moss rock waterfall flowing into a crystal clear pond.',
-            promptSnippet: 'naturalistic moss boulder waterfall cascading over multiple ledges into a crystal clear koi pond surrounded by water lilies and iris'
-          },
-          {
-            id: 'no-pool-lawn',
-            label: 'Open Lawn & Garden Focus (No Pool)',
-            description: 'Spacious grass play area, mature shade trees, and perimeter flowering garden beds.',
-            promptSnippet: 'spacious open emerald green lawn ideal for family recreation, framed by vibrant flower beds and ornamental shade trees without a swimming pool'
-          }
-        ]
+        id: 'outdoorCooking',
+        title: 'Luxury Outdoor Kitchen and Grill Sets with Pergola',
+        description: 'Built-in commercial-grade BBQ grill suites, kitchen islands, beverage centers, and shaded architectural pergolas.',
+        options: LUXURY_OUTDOOR_KITCHEN_OPTIONS
       },
       {
-        id: 'outdoorCooking',
-        title: 'Outdoor Kitchen & Dining',
-        description: 'Built-in grills, countertops, pizza ovens, and bar seating.',
-        options: [
-          {
-            id: 'chef-bbq-island',
-            label: 'Stainless BBQ Island with Granite Bar',
-            description: 'Built-in 42-inch gas grill, mini fridge, prep sink, and 4 high-top barstools.',
-            promptSnippet: 'luxury outdoor kitchen island with stacked stone base, polished black granite countertops, 42-inch stainless steel built-in grill, beverage fridge, and counter barstools'
-          },
-          {
-            id: 'pizza-oven-counter',
-            label: 'Wood-Fired Pizza Oven & Prep Counter',
-            description: 'Artisan stone wood-fired pizza dome with firewood niche and food prep table.',
-            promptSnippet: 'authentic stone-clad wood-fired outdoor pizza oven with firewood storage niche below and stainless prep counters'
-          },
-          {
-            id: 'alfresco-dining',
-            label: 'Covered Al Fresco Dining for 8',
-            description: 'Solid teak outdoor dining table with comfortable woven wicker armchairs.',
-            promptSnippet: 'elegant outdoor dining area with a long solid teak dining table accommodating eight wicker dining chairs under festive string lighting'
-          }
-        ]
+        id: 'poolWater',
+        title: 'Outdoor Pool Designs',
+        description: 'Resort-style custom swimming pools, spas, sun shelves, and architectural water features.',
+        options: OUTDOOR_POOL_DESIGN_OPTIONS
+      },
+      {
+        id: 'puttingGreen',
+        title: 'Putting Green Designs',
+        description: 'Custom championship synthetic putting and chipping greens with sand bunkers, elevation breaks, and tournament turf.',
+        options: PUTTING_GREEN_DESIGN_OPTIONS
       },
       {
         id: 'fireGathering',
@@ -457,6 +547,12 @@ export const HOUSE_VIEW_SIDES: HouseViewSideConfig[] = [
             promptSnippet: 'charming compact cedar potting bench with galvanized metal work surface, wall-mounted tool storage rack, and hanging flower baskets'
           }
         ]
+      },
+      {
+        id: 'puttingGreen',
+        title: 'Putting Green Designs',
+        description: 'Long green putting strip, dynamic tiered golf green, or minimal geometric practice turf.',
+        options: PUTTING_GREEN_DESIGN_OPTIONS
       },
       {
         id: 'sideLighting',

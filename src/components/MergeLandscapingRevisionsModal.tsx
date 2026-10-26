@@ -30,14 +30,19 @@ interface MergeLandscapingRevisionsModalProps {
 const COMMON_LANDSCAPING_SAVE_TAGS = [
   'Patio & Pavers',
   'Pergola & Trellis',
+  'Luxury Outdoor Kitchen & Pergola',
+  'Swimming Pool Design',
+  'Putting Green Turf',
   'Mature Trees & Privacy Hedge',
-  'Outdoor Kitchen Island',
   'Pathway Illumination',
   'Lush Grass & Sod',
   'Retaining Wall'
 ];
 
 const COMMON_LANDSCAPING_REPLACE_TAGS = [
+  'Luxury Outdoor Kitchen',
+  'Infinity / Geometric Pool',
+  'Putting Green & Bunkers',
   'Pool & Water Feature',
   'Sunken Fire Pit',
   'Travertine Decking',
