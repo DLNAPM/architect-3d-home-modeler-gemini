@@ -86,6 +86,8 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [selectedLightingId, setSelectedLightingId] = useState<string>('golden-hour');
   const [selectedScopeId] = useState<string>('complete-overhaul');
   const [viewSpecificSelections, setViewSpecificSelections] = useState<Record<string, string>>({});
+  const [useSpecificDescriptionOnly, setUseSpecificDescriptionOnly] = useState<boolean>(false);
+  const [specificDescriptionText, setSpecificDescriptionText] = useState<string>('');
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
@@ -279,6 +281,22 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   // Build the generation prompt for initial transformation
   const buildInitialPrompt = (): string => {
     const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === selectedViewSide) || HOUSE_VIEW_SIDES[0];
+
+    // If custom specific description is enabled, ONLY build transformation based on the typed description
+    if (useSpecificDescriptionOnly) {
+      const description = specificDescriptionText.trim();
+      return [
+        `Photorealistic professional architectural landscape redesign of the ${viewConfig.name.toLowerCase()} of this residential home.`,
+        `CRITICAL ARCHITECTURAL CONSERVATION: Strictly preserve the original architectural structural footprint, roof pitch, exterior window locations, doors, and camera perspective of the house.`,
+        `View Focus: ${viewConfig.name} (${viewConfig.tagline}).`,
+        `EXCLUSIVE USER-SPECIFIED CUSTOM REQUIREMENTS (Build the landscape transformation strictly and only based on this specific description):`,
+        description,
+        `Output Specifications: High-end architectural landscape photography, 8k resolution, crisp photorealistic textures for stone, hardscaping, lawn, foliage, water, and wood. Pristine curb appeal and luxury outdoor living executed exactly as requested.`
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
     const styleObj = LANDSCAPING_STYLES.find((s) => s.id === selectedStyleId) || LANDSCAPING_STYLES[0];
     const lightingObj = LANDSCAPING_LIGHTINGS.find((l) => l.id === selectedLightingId) || LANDSCAPING_LIGHTINGS[0];
     const scopeObj = LANDSCAPING_SCOPES.find((s) => s.id === selectedScopeId) || LANDSCAPING_SCOPES[0];
@@ -315,6 +333,13 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       return;
     }
 
+    const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === selectedViewSide) || HOUSE_VIEW_SIDES[0];
+
+    if (useSpecificDescriptionOnly && !specificDescriptionText.trim()) {
+      setErrorMessage(`Please type the specific features you want shown for the ${viewConfig.name}, or uncheck the custom description option.`);
+      return;
+    }
+
     setIsGenerating(true);
     setErrorMessage(null);
     setGenerationStepMessage('Analyzing house elevation & topography...');
@@ -331,17 +356,20 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       const prompt = buildInitialPrompt();
       const renderedUrl = await generateImageFromImage(prompt, uploadedImageUri, uploadedImageMime);
 
-      const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === selectedViewSide) || HOUSE_VIEW_SIDES[0];
       const styleObj = LANDSCAPING_STYLES.find((s) => s.id === selectedStyleId) || LANDSCAPING_STYLES[0];
 
       const initialRevision: LandscapingRevision = {
         id: `rev-${Date.now()}`,
         createdAt: Date.now(),
-        label: `Initial Redesign (${styleObj.name})`,
+        label: useSpecificDescriptionOnly
+          ? `Custom ${viewConfig.name} (${specificDescriptionText.slice(0, 26)}${specificDescriptionText.length > 26 ? '...' : ''})`
+          : `Initial Redesign (${styleObj.name})`,
         prompt,
         viewSide: selectedViewSide,
-        selectedOptions: { ...viewSpecificSelections },
-        customInstructions,
+        selectedOptions: useSpecificDescriptionOnly
+          ? { mode: 'custom-specific-description', description: specificDescriptionText }
+          : { ...viewSpecificSelections },
+        customInstructions: useSpecificDescriptionOnly ? specificDescriptionText : customInstructions,
         renderedImageUrl: renderedUrl,
       };
 
@@ -350,7 +378,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         createdAt: Date.now(),
         updatedAt: Date.now(),
         userId: user?.uid || 'guest',
-        title: `${viewConfig.name} - ${styleObj.name}`,
+        title: useSpecificDescriptionOnly
+          ? `${viewConfig.name} - Custom Specifics`
+          : `${viewConfig.name} - ${styleObj.name}`,
         viewSide: selectedViewSide,
         originalImageUrl: uploadedImageUri,
         originalImageMimeType: uploadedImageMime,
@@ -1848,22 +1878,103 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     </button>
                   ))}
                 </div>
+
+                {/* Checkbox: Allow user to type specifics for chosen view */}
+                <div
+                  className={`mt-4 p-4 rounded-xl border transition-all ${
+                    useSpecificDescriptionOnly
+                      ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 ring-1 ring-emerald-500 shadow-xs'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 hover:border-gray-300'
+                  }`}
+                  id="specific-description-mode-container"
+                >
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={useSpecificDescriptionOnly}
+                      onChange={(e) => setUseSpecificDescriptionOnly(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      id="checkbox-specific-description-only"
+                    />
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                          <Pencil className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>Type specifics I want shown for {activeViewConfig.name}</span>
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
+                            useSpecificDescriptionOnly
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          {useSpecificDescriptionOnly ? 'Custom Mode Active' : 'Custom Description Mode'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Check this box to type the exact landscape features, architecture, and materials you want for this view. When enabled, all preset options below are disabled and the transformation is built solely from your typed description.
+                      </p>
+                    </div>
+                  </label>
+
+                  {useSpecificDescriptionOnly && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800/60 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="input-specific-description-view"
+                          className="text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wide flex items-center gap-1.5"
+                        >
+                          <span>Type your specific requirements for {activeViewConfig.name}:</span>
+                        </label>
+                        <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                          {specificDescriptionText.length} characters
+                        </span>
+                      </div>
+                      <textarea
+                        id="input-specific-description-view"
+                        value={specificDescriptionText}
+                        onChange={(e) => setSpecificDescriptionText(e.target.value)}
+                        placeholder={`Describe exactly what you want built and landscaped for the ${activeViewConfig.name.toLowerCase()}... e.g. An infinity swimming pool with sheer stone waterfall, Bull BBQ grill island under a cedar pergola, flagstone terrace with boxwood hedges, and a multi-level putting green`}
+                        rows={4}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden resize-none shadow-xs"
+                        autoFocus
+                      />
+                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span>All preset options below are disabled. The transformation will be generated purely from your typed description above.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Step 3: View-Specific Customization Sections */}
-              <div className="space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div
+                className={`space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700 transition-all ${
+                  useSpecificDescriptionOnly
+                    ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
+                    : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <Layers className="h-4 w-4 text-emerald-600" />
                     <span>Tailored Options for {activeViewConfig.name}</span>
                   </h3>
-                  <span className="text-xs text-gray-500">
-                    {activeViewConfig.sections.length} categories
-                  </span>
+                  {useSpecificDescriptionOnly ? (
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 rounded">
+                      Disabled (Custom Mode Active)
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      {activeViewConfig.sections.length} categories
+                    </span>
+                  )}
                 </div>
 
                 {/* Helper Banner for Quick Access to Luxury Outdoor Living */}
-                {selectedViewSide !== 'back' && (
+                {selectedViewSide !== 'back' && !useSpecificDescriptionOnly && (
                   <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-cyan-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
                       <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -1958,16 +2069,19 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                             <button
                               key={opt.id}
                               type="button"
+                              disabled={useSpecificDescriptionOnly}
                               onClick={() =>
                                 setViewSpecificSelections((prev) => ({
                                   ...prev,
                                   [section.id]: opt.id,
                                 }))
                               }
-                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                                isSelected
-                                  ? activeClass
-                                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800/80'
+                              className={`p-3 rounded-xl border text-left transition-all ${
+                                useSpecificDescriptionOnly
+                                  ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 text-gray-400'
+                                  : isSelected
+                                  ? `${activeClass} cursor-pointer`
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800/80 cursor-pointer'
                               }`}
                             >
                               <div className="flex items-center justify-between gap-1">
@@ -1979,7 +2093,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                                   )}
                                   <span>{opt.label}</span>
                                 </span>
-                                {isSelected && (
+                                {isSelected && !useSpecificDescriptionOnly && (
                                   <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${checkColor}`} />
                                 )}
                               </div>
@@ -1996,20 +2110,36 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               </div>
 
               {/* Step 4: Overall Landscaping Style */}
-              <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Landscaping Style &amp; Flora Theme:
-                </label>
+              <div
+                className={`space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700 transition-all ${
+                  useSpecificDescriptionOnly
+                    ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
+                    : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Landscaping Style &amp; Flora Theme:
+                  </label>
+                  {useSpecificDescriptionOnly && (
+                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                      Disabled (Custom Mode Active)
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {LANDSCAPING_STYLES.map((style) => (
                     <button
                       key={style.id}
                       type="button"
+                      disabled={useSpecificDescriptionOnly}
                       onClick={() => setSelectedStyleId(style.id)}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
-                        selectedStyleId === style.id
-                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                        useSpecificDescriptionOnly
+                          ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 text-gray-400 bg-gray-50 dark:bg-gray-800/40'
+                          : selectedStyleId === style.id
+                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500 cursor-pointer'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 cursor-pointer'
                       }`}
                     >
                       <div className="font-bold text-xs">{style.name}</div>
@@ -2022,20 +2152,36 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               </div>
 
               {/* Step 5: Lighting & Time of Day */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Time of Day &amp; Lighting Atmosphere:
-                </label>
+              <div
+                className={`space-y-3 transition-all ${
+                  useSpecificDescriptionOnly
+                    ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
+                    : ''
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Time of Day &amp; Lighting Atmosphere:
+                  </label>
+                  {useSpecificDescriptionOnly && (
+                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                      Disabled (Custom Mode Active)
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {LANDSCAPING_LIGHTINGS.map((light) => (
                     <button
                       key={light.id}
                       type="button"
+                      disabled={useSpecificDescriptionOnly}
                       onClick={() => setSelectedLightingId(light.id)}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
-                        selectedLightingId === light.id
-                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                        useSpecificDescriptionOnly
+                          ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 text-gray-400 bg-gray-50 dark:bg-gray-800/40'
+                          : selectedLightingId === light.id
+                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500 cursor-pointer'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 cursor-pointer'
                       }`}
                     >
                       <div className="font-bold text-xs">{light.name}</div>
@@ -2048,19 +2194,21 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               </div>
 
               {/* Step 6: Written Custom Descriptions */}
-              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Specific Custom Instructions (Optional):
-                </label>
-                <textarea
-                  value={customInstructions}
-                  onChange={(e) => setCustomInstructions(e.target.value)}
-                  placeholder="e.g. Add a natural stone retaining wall, an olive tree focal point, black slate walkway, and hidden recessed up-lighting along the driveway..."
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden resize-none"
-                  id="input-custom-landscaping"
-                />
-              </div>
+              {!useSpecificDescriptionOnly ? (
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Specific Custom Instructions (Optional):
+                  </label>
+                  <textarea
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    placeholder="e.g. Add a natural stone retaining wall, an olive tree focal point, black slate walkway, and hidden recessed up-lighting along the driveway..."
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden resize-none"
+                    id="input-custom-landscaping"
+                  />
+                </div>
+              ) : null}
 
               {/* Primary Action Button: Generate Landscaping Transformation */}
               <div className="pt-4">
@@ -2079,7 +2227,11 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   ) : (
                     <>
                       <Sparkles className="h-5 w-5" />
-                      <span>Generate Landscaping Transformation</span>
+                      <span>
+                        {useSpecificDescriptionOnly
+                          ? `Generate Custom ${activeViewConfig.name} Transformation`
+                          : 'Generate Landscaping Transformation'}
+                      </span>
                     </>
                   )}
                 </button>
