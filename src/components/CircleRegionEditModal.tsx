@@ -9,11 +9,14 @@ import {
   ShieldCheck,
   Wand2,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  MapPin,
+  ArrowLeftRight
 } from 'lucide-react';
 import { generateImageFromImage } from '../services/geminiService';
 
-export type RegionActionType = 'remove' | 'replace' | 'edit';
+export type RegionActionType = 'remove' | 'replace' | 'edit' | 'copy';
 
 export interface CircleRegionEditModalProps {
   isOpen: boolean;
@@ -84,6 +87,16 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
   const [editModificationsDescription, setEditModificationsDescription] = useState<string>('');
   const [strictPreservation, setStrictPreservation] = useState<boolean>(true);
 
+  // Copy & Place specific state
+  const [copyTargetPoint, setCopyTargetPoint] = useState<NormalizedPoint | null>(null);
+  const [copyPreset, setCopyPreset] = useState<
+    'opposite-symmetrical' | 'adjacent-right' | 'adjacent-left' | 'foreground' | 'background' | 'custom'
+  >('opposite-symmetrical');
+  const [copyDestinationDescription, setCopyDestinationDescription] = useState<string>('');
+  const [copyMirror, setCopyMirror] = useState<boolean>(false);
+  const [copyScale, setCopyScale] = useState<'100%' | '75%' | '125%'>('100%');
+  const [canvasPlacementMode, setCanvasPlacementMode] = useState<'source' | 'destination'>('source');
+
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>('');
@@ -93,6 +106,50 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Preset calculation helper for destination positioning
+  const calculatePresetDestination = useCallback(
+    (
+      preset: 'opposite-symmetrical' | 'adjacent-right' | 'adjacent-left' | 'foreground' | 'background',
+      currentRegion: CircledRegion
+    ): NormalizedPoint => {
+      const cx = (currentRegion.minX + currentRegion.maxX) / 2;
+      const cy = (currentRegion.minY + currentRegion.maxY) / 2;
+      const w = currentRegion.maxX - currentRegion.minX;
+      const h = currentRegion.maxY - currentRegion.minY;
+
+      switch (preset) {
+        case 'opposite-symmetrical':
+          return {
+            x: Math.max(0.1, Math.min(0.9, 1 - cx)),
+            y: cy,
+          };
+        case 'adjacent-right':
+          return {
+            x: Math.max(0.08, Math.min(0.92, cx + Math.max(0.12, w * 1.35))),
+            y: cy,
+          };
+        case 'adjacent-left':
+          return {
+            x: Math.max(0.08, Math.min(0.92, cx - Math.max(0.12, w * 1.35))),
+            y: cy,
+          };
+        case 'foreground':
+          return {
+            x: cx,
+            y: Math.max(0.1, Math.min(0.92, cy + Math.max(0.16, h * 1.15))),
+          };
+        case 'background':
+          return {
+            x: cx,
+            y: Math.max(0.08, Math.min(0.9, cy - Math.max(0.16, h * 1.15))),
+          };
+        default:
+          return { x: 0.5, y: 0.5 };
+      }
+    },
+    []
+  );
 
   // Load source image
   useEffect(() => {
@@ -104,6 +161,12 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     setCircleStart(null);
     setCircleCurrent(null);
     setCurrentItemDescription('');
+    setCopyTargetPoint(null);
+    setCopyDestinationDescription('');
+    setCopyMirror(false);
+    setCopyScale('100%');
+    setCopyPreset('opposite-symmetrical');
+    setCanvasPlacementMode('source');
     setErrorMessage(null);
 
     const img = new Image();
@@ -136,6 +199,9 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
       if (!editModificationsDescription) {
         setEditModificationsDescription('Change finish to warm fluted white oak with subtle ambient warm brass accents');
       }
+      if (!copyDestinationDescription) {
+        setCopyDestinationDescription('Place symmetrical duplicate on the opposite side to balance the room layout');
+      }
     } else {
       if (!replaceWithDescription) {
         setReplaceWithDescription('Modern rectangular plunge pool with blue waterline tiles and integrated underwater lights');
@@ -145,6 +211,9 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
       }
       if (!editModificationsDescription) {
         setEditModificationsDescription('Upgrade to dark smoked timber with warm outdoor recessed perimeter pathway downlighting');
+      }
+      if (!copyDestinationDescription) {
+        setCopyDestinationDescription('Place matching duplicate on opposite side of walkway/patio for balanced curb appeal');
       }
     }
   }, [contextType]);
@@ -217,16 +286,19 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     if (region && !isDrawing) {
       ctx.save();
 
+      let scx = 0;
+      let scy = 0;
+
       if (region.mode === 'circle' && region.center && region.radiusX && region.radiusY) {
-        const cx = region.center.x * w;
-        const cy = region.center.y * h;
+        scx = region.center.x * w;
+        scy = region.center.y * h;
         const rx = region.radiusX * w;
         const ry = region.radiusY * h;
 
         // Darken outside slightly or highlight inside
         ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
+        ctx.ellipse(scx, scy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = actionType === 'copy' ? 'rgba(147, 51, 234, 0.22)' : 'rgba(168, 85, 247, 0.25)';
         ctx.fill();
 
         // Glowing outer stroke
@@ -246,10 +318,13 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 
         // Center crosshair / pin
         ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.arc(scx, scy, 4, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
       } else if (region.mode === 'lasso' && region.points && region.points.length > 2) {
+        scx = ((region.minX + region.maxX) / 2) * w;
+        scy = ((region.minY + region.maxY) / 2) * h;
+
         ctx.beginPath();
         ctx.moveTo(region.points[0].x * w, region.points[0].y * h);
         for (let i = 1; i < region.points.length; i++) {
@@ -257,7 +332,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
         }
         ctx.closePath();
 
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
+        ctx.fillStyle = actionType === 'copy' ? 'rgba(147, 51, 234, 0.22)' : 'rgba(168, 85, 247, 0.25)';
         ctx.fill();
 
         ctx.shadowColor = '#9333ea';
@@ -274,9 +349,137 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
         ctx.stroke();
       }
 
+      // If action is copy, draw source badge label
+      if (actionType === 'copy') {
+        const srcText = '① Source (To Copy)';
+        ctx.font = 'bold 12px sans-serif';
+        const srcTextW = ctx.measureText(srcText).width;
+        const bW = srcTextW + 16;
+        const bH = 22;
+        const bX = Math.max(8, Math.min(w - bW - 8, scx - bW / 2));
+        const bY = Math.max(8, region.minY * h - bH - 6);
+
+        ctx.fillStyle = 'rgba(76, 29, 149, 0.92)';
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(bX, bY, bW, bH, 5);
+          ctx.fill();
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else {
+          ctx.fillRect(bX, bY, bW, bH);
+        }
+        ctx.fillStyle = '#f3e8ff';
+        ctx.fillText(srcText, bX + 8, bY + 15);
+      }
+
+      // If action is copy and destination point is set, draw arrow and target placement zone
+      if (actionType === 'copy' && copyTargetPoint) {
+        const tx = copyTargetPoint.x * w;
+        const ty = copyTargetPoint.y * h;
+
+        const scaleMultiplier = copyScale === '75%' ? 0.75 : copyScale === '125%' ? 1.25 : 1.0;
+        const baseRx = region.radiusX ? region.radiusX * w : ((region.maxX - region.minX) / 2) * w;
+        const baseRy = region.radiusY ? region.radiusY * h : ((region.maxY - region.minY) / 2) * h;
+        const targetRx = Math.max(16, baseRx * scaleMultiplier);
+        const targetRy = Math.max(16, baseRy * scaleMultiplier);
+
+        // Connecting dashed trajectory line with arrow
+        ctx.beginPath();
+        ctx.setLineDash([8, 6]);
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.moveTo(scx, scy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+
+        // Arrow head at target
+        const angle = Math.atan2(ty - scy, tx - scx);
+        const headLen = 14;
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(
+          tx - headLen * Math.cos(angle - Math.PI / 6),
+          ty - headLen * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.lineTo(
+          tx - headLen * Math.cos(angle + Math.PI / 6),
+          ty - headLen * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fill();
+
+        // Target placement zone ellipse
+        ctx.beginPath();
+        ctx.ellipse(tx, ty, targetRx, targetRy, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+        ctx.fill();
+
+        ctx.shadowColor = '#059669';
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash([8, 5]);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+
+        // Target crosshair pin
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(tx, ty, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(tx, ty, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Destination badge tag
+        const destTagText = copyMirror ? '② Target Placement (Mirrored ⇄)' : '② Target Placement';
+        ctx.font = 'bold 12px sans-serif';
+        const destTagW = ctx.measureText(destTagText).width + 18;
+        const destTagH = 24;
+        const destTagX = Math.max(8, Math.min(w - destTagW - 8, tx - destTagW / 2));
+        const destTagY = Math.max(8, ty - targetRy - destTagH - 6);
+
+        ctx.fillStyle = 'rgba(6, 78, 59, 0.95)';
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(destTagX, destTagY, destTagW, destTagH, 6);
+          ctx.fill();
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        } else {
+          ctx.fillRect(destTagX, destTagY, destTagW, destTagH);
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(destTagText, destTagX + 9, destTagY + 16);
+      }
+
       ctx.restore();
     }
-  }, [imageLoaded, isDrawing, drawingMode, circleStart, circleCurrent, lassoPoints, region]);
+  }, [
+    imageLoaded,
+    isDrawing,
+    drawingMode,
+    circleStart,
+    circleCurrent,
+    lassoPoints,
+    region,
+    actionType,
+    copyTargetPoint,
+    copyScale,
+    copyMirror
+  ]);
 
   useEffect(() => {
     redrawCanvas();
@@ -306,11 +509,17 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     return { x, y };
   };
 
-  // Mouse / Touch handlers for drawing
+  // Mouse / Touch handlers for drawing and destination positioning
   const handleStartDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const pt = getNormalizedCoords(e);
     if (!pt) return;
+
+    if (actionType === 'copy' && region && canvasPlacementMode === 'destination') {
+      setCopyTargetPoint(pt);
+      setCopyPreset('custom');
+      return;
+    }
 
     setIsDrawing(true);
     if (drawingMode === 'circle') {
@@ -322,6 +531,17 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
   };
 
   const handleMoveDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (actionType === 'copy' && region && canvasPlacementMode === 'destination') {
+      e.preventDefault();
+      if (('buttons' in e && e.buttons > 0) || 'touches' in e) {
+        const pt = getNormalizedCoords(e);
+        if (!pt) return;
+        setCopyTargetPoint(pt);
+        setCopyPreset('custom');
+      }
+      return;
+    }
+
     if (!isDrawing) return;
     e.preventDefault();
     const pt = getNormalizedCoords(e);
@@ -335,6 +555,16 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
   };
 
   const handleEndDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (actionType === 'copy' && region && canvasPlacementMode === 'destination') {
+      e.preventDefault();
+      const pt = getNormalizedCoords(e);
+      if (pt) {
+        setCopyTargetPoint(pt);
+        setCopyPreset('custom');
+      }
+      return;
+    }
+
     if (!isDrawing) return;
     e.preventDefault();
     setIsDrawing(false);
@@ -357,7 +587,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
         const radiusX = width / 2;
         const radiusY = height / 2;
 
-        setRegion({
+        const newRegion: CircledRegion = {
           mode: 'circle',
           center,
           radiusX,
@@ -366,7 +596,13 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
           minY,
           maxX,
           maxY,
-        });
+        };
+        setRegion(newRegion);
+        if (actionType === 'copy') {
+          const defaultPt = calculatePresetDestination('opposite-symmetrical', newRegion);
+          setCopyTargetPoint(defaultPt);
+          setCanvasPlacementMode('destination');
+        }
       }
     } else if (drawingMode === 'lasso' && lassoPoints.length > 3) {
       let minX = 1;
@@ -382,14 +618,20 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
       });
 
       if (maxX - minX > 0.02 && maxY - minY > 0.02) {
-        setRegion({
+        const newLassoRegion: CircledRegion = {
           mode: 'lasso',
           points: lassoPoints,
           minX,
           minY,
           maxX,
           maxY,
-        });
+        };
+        setRegion(newLassoRegion);
+        if (actionType === 'copy') {
+          const defaultPt = calculatePresetDestination('opposite-symmetrical', newLassoRegion);
+          setCopyTargetPoint(defaultPt);
+          setCanvasPlacementMode('destination');
+        }
       }
     }
   };
@@ -399,6 +641,36 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
     setLassoPoints([]);
     setCircleStart(null);
     setCircleCurrent(null);
+    setCopyTargetPoint(null);
+    setCanvasPlacementMode('source');
+  };
+
+  // Target Location description calculation
+  const getTargetLocationDescription = (
+    target: NormalizedPoint,
+    sourceRegion: CircledRegion,
+    scale: '100%' | '75%' | '125%'
+  ): string => {
+    const scaleMultiplier = scale === '75%' ? 0.75 : scale === '125%' ? 1.25 : 1.0;
+    const sourceW = sourceRegion.maxX - sourceRegion.minX;
+    const sourceH = sourceRegion.maxY - sourceRegion.minY;
+    const targetW = sourceW * scaleMultiplier;
+    const targetH = sourceH * scaleMultiplier;
+
+    const minX = Math.max(0, target.x - targetW / 2);
+    const maxX = Math.min(1, target.x + targetW / 2);
+    const minY = Math.max(0, target.y - targetH / 2);
+    const maxY = Math.min(1, target.y + targetH / 2);
+
+    const horizontal = target.x < 0.35 ? 'left side' : target.x > 0.65 ? 'right side' : 'center';
+    const vertical = target.y < 0.35 ? 'upper background / rear area' : target.y > 0.65 ? 'foreground / lower area' : 'mid-ground';
+
+    const minXPercent = Math.round(minX * 100);
+    const maxXPercent = Math.round(maxX * 100);
+    const minYPercent = Math.round(minY * 100);
+    const maxYPercent = Math.round(maxY * 100);
+
+    return `${vertical}, ${horizontal} (target zone coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame)`;
   };
 
   // Region description calculation
@@ -464,7 +736,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 - MANDATORY INSTRUCTION: Completely remove and erase the ${currentItemText} from the specified target zone, and IN ITS PLACE RENDER: ${replaceText}.
 - The replacement ${replaceText} MUST BE BOLDLY VISIBLE, PROMINENT, and CLEARLY DIFFERENT from the original image. Do NOT output the old item.
 - Render the new ${replaceText} with realistic tactile materials, appropriate perspective scaling for this ${roomOrViewLabel}, and accurate cast lighting shadows.`;
-      } else {
+      } else if (actionType === 'edit') {
         const editText = editModificationsDescription.trim() || 'restyle to luxury contemporary finish';
         customDirectiveText = `Edit ${currentItemText}: ${editText}`;
         revisionLabelSummary = `Edited: ${editText.slice(0, 30)}${editText.length > 30 ? '...' : ''}`;
@@ -473,6 +745,55 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
 - Targeted item: ${currentItemText}.
 - MANDATORY INSTRUCTION: Boldly modify and restyle the ${currentItemText} according to: ${editText}.
 - The change in color, material finish, texture, or styling must be prominently and visibly transformed, clearly noticeable compared to the original.`;
+      } else if (actionType === 'copy') {
+        const targetPt = copyTargetPoint || calculatePresetDestination('opposite-symmetrical', region);
+        const scaleFactor = copyScale === '75%' ? 0.75 : copyScale === '125%' ? 1.25 : 1.0;
+        const sourceW = region.maxX - region.minX;
+        const sourceH = region.maxY - region.minY;
+        const targetW = sourceW * scaleFactor;
+        const targetH = sourceH * scaleFactor;
+        const targetMinXPercent = Math.round(Math.max(0, targetPt.x - targetW / 2) * 100);
+        const targetMaxXPercent = Math.round(Math.min(1, targetPt.x + targetW / 2) * 100);
+        const targetMinYPercent = Math.round(Math.max(0, targetPt.y - targetH / 2) * 100);
+        const targetMaxYPercent = Math.round(Math.min(1, targetPt.y + targetH / 2) * 100);
+
+        const targetLocationDesc = getTargetLocationDescription(targetPt, region, copyScale);
+        const userPlacementNote =
+          copyDestinationDescription.trim() || 'Place matching duplicate in the designated target zone';
+        const mirrorInstruction = copyMirror
+          ? 'MIRROR FLIP: Horizontally mirror and flip the duplicated item so it faces symmetrically inward toward the scene center.'
+          : 'ORIENTATION: Preserve natural perspective-matched orientation suitable for this placement.';
+        const scaleInstruction =
+          copyScale === '75%'
+            ? 'SCALE: Render at approx 75% scale to simulate deeper background perspective distance.'
+            : copyScale === '125%'
+            ? 'SCALE: Render at approx 125% scale to reflect closer foreground perspective.'
+            : 'SCALE: Render at 100% matching real-world architectural scale.';
+
+        customDirectiveText = `Copy ${currentItemText} to ${targetLocationDesc}. Note: ${userPlacementNote}. ${mirrorInstruction} ${scaleInstruction}`;
+        const destPresetLabel =
+          copyPreset === 'opposite-symmetrical'
+            ? 'opposite side'
+            : copyPreset === 'adjacent-right'
+            ? 'adjacent right'
+            : copyPreset === 'adjacent-left'
+            ? 'adjacent left'
+            : copyPreset === 'foreground'
+            ? 'foreground'
+            : copyPreset === 'background'
+            ? 'background'
+            : 'new spot';
+        revisionLabelSummary = `Copied ${currentItemText.slice(0, 20)} to ${destPresetLabel}`;
+
+        actionPromptDirective = `PRIMARY TASK - DUPLICATE & COPY CIRCLED ELEMENT TO TARGET AREA:
+- SOURCE ITEM TO DUPLICATE: Identify the ${currentItemText} in the circled source area at ${locDesc} (bounding box coordinates: ${minXPercent}% to ${maxXPercent}% width, ${minYPercent}% to ${maxYPercent}% height of frame).
+- TARGET DESTINATION LOCATION: Replicate an exact duplicate copy of this ${currentItemText} into the destination area: ${targetLocationDesc} (bounding box coordinates: ${targetMinXPercent}% to ${targetMaxXPercent}% width, ${targetMinYPercent}% to ${targetMaxYPercent}% height).
+- PLACEMENT DIRECTIVE: ${userPlacementNote}.
+- ${mirrorInstruction}
+- ${scaleInstruction}
+- MANDATORY RETENTION OF ORIGINAL: The original source ${currentItemText} MUST BE 100% PRESERVED in its current position. Do NOT delete, erase, or move the original. BOTH the original item and the newly placed duplicate copy must coexist naturally together in the finished space.
+- PHOTOREALISTIC BLENDING & SHADOWS: Calculate authentic ambient occlusion, physical ground contact shadows, realistic light reflections, and true 3D spatial perspective for the new copied item matching the room/landscape lighting.
+- ARCHITECTURAL CONTINUITY: Preserve all other walls, flooring, plants, structures, and surrounding areas pristine and intact.`;
       }
 
       const preservationDirective = strictPreservation
@@ -638,6 +959,15 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 </button>
               </div>
 
+              {actionType === 'copy' && region && (
+                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-[11px]">
+                  <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+                  <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                    Click/drag image to move target
+                  </span>
+                </div>
+              )}
+
               {region && (
                 <button
                   type="button"
@@ -647,7 +977,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                   id="btn-clear-circle"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Redraw Circle</span>
+                  <span>Redraw Source</span>
                 </button>
               )}
             </div>
@@ -673,23 +1003,45 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-none px-4">
                   <div className="bg-black/85 backdrop-blur-xs text-white text-xs px-4 py-2 rounded-full shadow-lg border border-purple-500/40 flex items-center gap-2 animate-bounce">
                     <CircleDot className="h-4 w-4 text-purple-400 animate-pulse" />
-                    <span className="font-semibold">Click &amp; drag on the image to circle any object or area</span>
+                    <span className="font-semibold">
+                      {actionType === 'copy'
+                        ? 'Click & drag on the image to circle the item you want to copy'
+                        : 'Click & drag on the image to circle any object or area'}
+                    </span>
                   </div>
                 </div>
               )}
 
-              {/* Region confirmed tag */}
+              {/* Region confirmed tags */}
               {region && (
-                <div className="absolute top-3 left-3 bg-purple-900/90 backdrop-blur-xs text-purple-100 text-xs px-3 py-1.5 rounded-lg shadow-md border border-purple-400/40 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-purple-300" />
-                  <span className="font-bold">Area Circled:</span>
-                  <span className="text-purple-200">{getRegionLocationDescription(region)}</span>
+                <div className="absolute top-3 left-3 flex flex-col gap-1.5 max-w-[90%] pointer-events-none">
+                  <div className="bg-purple-900/90 backdrop-blur-xs text-purple-100 text-xs px-3 py-1.5 rounded-lg shadow-md border border-purple-400/40 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-300 shrink-0" />
+                    <span className="font-bold shrink-0">
+                      {actionType === 'copy' ? '① Source Item:' : 'Area Circled:'}
+                    </span>
+                    <span className="text-purple-200 truncate">{getRegionLocationDescription(region)}</span>
+                  </div>
+
+                  {actionType === 'copy' && copyTargetPoint && (
+                    <div className="bg-emerald-950/90 backdrop-blur-xs text-emerald-100 text-xs px-3 py-1.5 rounded-lg shadow-md border border-emerald-400/40 flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-emerald-300 shrink-0" />
+                      <span className="font-bold shrink-0">② Target Placement:</span>
+                      <span className="text-emerald-200 truncate">
+                        {getTargetLocationDescription(copyTargetPoint, region, copyScale)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 px-1">
-              <span>💡 Tip: Click and drag around a sofa, chandelier, fireplace, tree, patio, or wall.</span>
+              <span>
+                {actionType === 'copy'
+                  ? '💡 Tip: Click/drag on image to reposition destination, or choose a preset on the right.'
+                  : '💡 Tip: Click and drag around a sofa, chandelier, fireplace, tree, patio, or wall.'}
+              </span>
               {region && (
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
@@ -707,7 +1059,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
                   1. Choose What to Do with the Circled Area:
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setActionType('replace')}
@@ -720,7 +1072,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                   >
                     <RefreshCw className="h-4 w-4 mx-auto mb-1 text-purple-600" />
                     <div className="text-xs">Replace</div>
-                    <div className="text-[10px] text-gray-500 font-normal">Swap with new item</div>
+                    <div className="text-[10px] text-gray-500 font-normal">Swap with new</div>
                   </button>
 
                   <button
@@ -735,7 +1087,7 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                   >
                     <Trash2 className="h-4 w-4 mx-auto mb-1 text-red-500" />
                     <div className="text-xs">Remove</div>
-                    <div className="text-[10px] text-gray-500 font-normal">Erase &amp; fill in</div>
+                    <div className="text-[10px] text-gray-500 font-normal">Erase &amp; fill</div>
                   </button>
 
                   <button
@@ -749,8 +1101,32 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                     id="btn-action-edit"
                   >
                     <Wand2 className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                    <div className="text-xs">Edit / Restyle</div>
-                    <div className="text-[10px] text-gray-500 font-normal">Change color/style</div>
+                    <div className="text-xs">Edit</div>
+                    <div className="text-[10px] text-gray-500 font-normal">Change style</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionType('copy');
+                      if (region) {
+                        if (!copyTargetPoint) {
+                          const defaultPt = calculatePresetDestination('opposite-symmetrical', region);
+                          setCopyTargetPoint(defaultPt);
+                        }
+                        setCanvasPlacementMode('destination');
+                      }
+                    }}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      actionType === 'copy'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-600 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500 font-bold'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 text-gray-700 dark:text-gray-300'
+                    }`}
+                    id="btn-action-copy"
+                  >
+                    <Copy className="h-4 w-4 mx-auto mb-1 text-emerald-600 dark:text-emerald-400" />
+                    <div className="text-xs">Copy &amp; Place</div>
+                    <div className="text-[10px] text-gray-500 font-normal">Duplicate spot</div>
                   </button>
                 </div>
               </div>
@@ -948,6 +1324,171 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                 </div>
               )}
 
+              {/* Step 3 (Copy & Place Options) */}
+              {actionType === 'copy' && (
+                <div className="space-y-4 p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Copy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        3. Placement &amp; Duplication Settings:
+                      </label>
+                    </div>
+                    {copyTargetPoint && (
+                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        Target: {Math.round(copyTargetPoint.x * 100)}% X, {Math.round(copyTargetPoint.y * 100)}% Y
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Canvas interactive placement helper */}
+                  <div className="p-2.5 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-emerald-200 dark:border-emerald-700 text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-bold text-emerald-900 dark:text-emerald-300">
+                        Canvas Interactive Placement:
+                      </p>
+                      <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
+                        Click or drag anywhere on the image preview on the left to move the green target placement circle.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quick placement presets */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1.5">
+                      Quick Placement Presets:
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'opposite-symmetrical', label: 'Opposite Side (Symmetrical)' },
+                        { id: 'adjacent-right', label: 'Adjacent Right (Beside)' },
+                        { id: 'adjacent-left', label: 'Adjacent Left (Beside)' },
+                        { id: 'foreground', label: 'Foreground (Lower)' },
+                        { id: 'background', label: 'Background (Upper)' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            setCopyPreset(preset.id as any);
+                            if (region) {
+                              const newPt = calculatePresetDestination(preset.id as any, region);
+                              setCopyTargetPoint(newPt);
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg border text-left transition-colors cursor-pointer ${
+                            copyPreset === preset.id
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold'
+                              : 'bg-white dark:bg-gray-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Destination description input */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      Placement details / notes (optional):
+                    </label>
+                    <input
+                      type="text"
+                      value={copyDestinationDescription}
+                      onChange={(e) => setCopyDestinationDescription(e.target.value)}
+                      placeholder={
+                        contextType === 'room'
+                          ? 'E.g. Place matching duplicate chair on the right side of fireplace...'
+                          : 'E.g. Symmetrical duplicate planter flanking the entry walkway...'
+                      }
+                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                      id="input-copy-destination"
+                    />
+                  </div>
+
+                  {/* 1-Click quick copy placement ideas */}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">
+                      Popular Duplication Ideas:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                      {(contextType === 'room'
+                        ? [
+                            'Symmetrical pair on opposite side of fireplace',
+                            'Second matching chair to complete conversation nook',
+                            'Twin bedside wall sconce on other side of bed',
+                            'Matching potted olive tree in opposite corner',
+                            'Second matching barstool along the island counter',
+                            'Twin nightstand on the other side of master bed',
+                          ]
+                        : [
+                            'Second matching chaise lounge along the pool sun shelf',
+                            'Twin decorative planter on opposite side of walkway',
+                            'Matching specimen tree in opposite corner of lawn',
+                            'Symmetrical coach lantern on opposite side of garage',
+                            'Matching outdoor armchair around fire pit seating circle',
+                            'Duplicate pathway bollard light along the walk',
+                          ]
+                      ).map((chip, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setCopyDestinationDescription(chip)}
+                          className="px-2 py-0.5 text-[11px] font-medium bg-white dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-gray-700 dark:text-gray-200 rounded border border-gray-200 dark:border-gray-600 text-left cursor-pointer"
+                        >
+                          + {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mirror and scale options */}
+                  <div className="pt-2 border-t border-emerald-200/80 dark:border-emerald-800/80 space-y-2.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={copyMirror}
+                        onChange={(e) => setCopyMirror(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                        id="checkbox-copy-mirror"
+                      />
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                        <ArrowLeftRight className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Mirror duplicate horizontally (flip orientation for symmetrical pairs)</span>
+                      </span>
+                    </label>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Perspective Scale Adjustment:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { val: '100%', label: '100% (Same scale)' },
+                          { val: '75%', label: '75% (Deeper / further)' },
+                          { val: '125%', label: '125% (Foreground)' },
+                        ].map((s) => (
+                          <button
+                            key={s.val}
+                            type="button"
+                            onClick={() => setCopyScale(s.val as any)}
+                            className={`px-2 py-1.5 text-xs font-medium rounded-lg border text-center transition-colors cursor-pointer ${
+                              copyScale === s.val
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold'
+                                : 'bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Perimeter Preservation Toggle */}
               <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/50 flex items-start gap-3">
                 <ShieldCheck className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
@@ -999,6 +1540,8 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                   className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white shadow-md flex items-center gap-2 transition-all cursor-pointer ${
                     isGenerating || !region
                       ? 'bg-purple-400 dark:bg-purple-800 cursor-not-allowed opacity-60'
+                      : actionType === 'copy'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/25 active:scale-98'
                       : 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/25 active:scale-98'
                   }`}
                   id="btn-apply-region-edit"
@@ -1010,10 +1553,16 @@ export const CircleRegionEditModal: React.FC<CircleRegionEditModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4" />
+                      {actionType === 'copy' ? (
+                        <Copy className="h-4 w-4" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
                       <span>
                         {region
-                          ? `Apply & Render Revision ${nextRevisionNumber}`
+                          ? actionType === 'copy'
+                            ? `Copy & Place in Revision ${nextRevisionNumber}`
+                            : `Apply & Render Revision ${nextRevisionNumber}`
                           : 'Circle an Area First'}
                       </span>
                     </>
