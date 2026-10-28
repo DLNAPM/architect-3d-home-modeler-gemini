@@ -343,6 +343,40 @@ export const JUNK_ROOM_FURNITURE_OPTIONS: JunkRoomFurnitureOption[] = [
   }
 ];
 
+export type JunkRoomFurnitureActionId = 'replace-all' | 'keep-existing' | 'hybrid-upgrade';
+
+export interface JunkRoomFurnitureAction {
+  id: JunkRoomFurnitureActionId;
+  label: string;
+  tagline: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_FURNITURE_ACTIONS: JunkRoomFurnitureAction[] = [
+  {
+    id: 'replace-all',
+    label: 'Replace with New Designer Furniture',
+    tagline: 'Fresh Modern Pieces',
+    description: 'Completely remove old, worn, mismatched, or broken furniture and replace with new, coordinated, modern designer pieces matching the room proportions',
+    promptModifier: 'completely remove and replace all existing dated or worn furniture from the photo with brand-new, modern, space-efficient designer furniture pieces tailored to the room style and scale'
+  },
+  {
+    id: 'keep-existing',
+    label: 'Keep & Rearrange Existing Furniture',
+    tagline: 'Preserve & Reposition Original Pieces',
+    description: 'Keep the original primary furniture pieces shown in the photo, but clean them up, polish surfaces, and strategically rearrange them into a decluttered layout',
+    promptModifier: 'keep and preserve the client’s core existing furniture pieces visible in the original photo, but thoroughly clean, restore, and strategically rearrange them into an ergonomic, decluttered placement'
+  },
+  {
+    id: 'hybrid-upgrade',
+    label: 'Hybrid Upgrade (Keep Key Pieces, Replace Clutter Items)',
+    tagline: 'Keep Main Anchor, Upgrade Ancillary Pieces',
+    description: 'Retain the room’s main anchor piece (like the sofa or bed frame) while replacing bulky, mismatched clutter items with sleek modern storage furniture',
+    promptModifier: 'keep the main anchor furniture piece from the photo, but discard and replace all secondary mismatched clutter furniture with sleek modern storage-integrated furnishings'
+  }
+];
+
 export interface JunkRoomDeclutterLevel {
   id: string;
   label: string;

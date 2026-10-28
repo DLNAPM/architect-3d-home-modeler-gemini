@@ -65,6 +65,8 @@ import {
   SampleRoom,
   JUNK_ROOM_STORAGE_OPTIONS,
   JUNK_ROOM_FURNITURE_OPTIONS,
+  JUNK_ROOM_FURNITURE_ACTIONS,
+  JunkRoomFurnitureActionId,
   JUNK_ROOM_DECLUTTER_LEVELS,
   JUNK_ROOM_SPECIAL_FEATURES
 } from '../data/roomTransformationData';
@@ -141,6 +143,7 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   // Junk Room & Interior Designer Decluttering State
   const [isJunkRoom, setIsJunkRoom] = useState<boolean>(false);
   const [junkRoomStorageType, setJunkRoomStorageType] = useState<string>('floating-shelves-containers');
+  const [junkRoomFurnitureAction, setJunkRoomFurnitureAction] = useState<JunkRoomFurnitureActionId>('replace-all');
   const [junkRoomFurnitureStrategy, setJunkRoomFurnitureStrategy] = useState<string>('ergonomic-flow');
   const [junkRoomDeclutterLevel, setJunkRoomDeclutterLevel] = useState<string>('total-clean');
   const [junkRoomSelectedFeatures, setJunkRoomSelectedFeatures] = useState<string[]>(['cord-management', 'labeled-containers']);
@@ -384,6 +387,7 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
     let junkRoomDirectives = '';
     if (isJunkRoom) {
       const storageObj = JUNK_ROOM_STORAGE_OPTIONS.find((s) => s.id === junkRoomStorageType) || JUNK_ROOM_STORAGE_OPTIONS[0];
+      const furnitureActionObj = JUNK_ROOM_FURNITURE_ACTIONS.find((a) => a.id === junkRoomFurnitureAction) || JUNK_ROOM_FURNITURE_ACTIONS[0];
       const furnitureObj = JUNK_ROOM_FURNITURE_OPTIONS.find((f) => f.id === junkRoomFurnitureStrategy) || JUNK_ROOM_FURNITURE_OPTIONS[0];
       const declutterObj = JUNK_ROOM_DECLUTTER_LEVELS.find((d) => d.id === junkRoomDeclutterLevel) || JUNK_ROOM_DECLUTTER_LEVELS[0];
       const specialFeaturesText = junkRoomSelectedFeatures
@@ -395,8 +399,9 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
 Act as an expert high-end Interior Designer and Master Professional Organizer hired to dramatically upgrade this cluttered junk room into a tranquil, spacious, designer-quality organized interior:
 1. COMPLETE CLUTTER ELIMINATION (${declutterObj.label}): ${declutterObj.promptModifier}. Identify and remove all scattered junk, chaotic trash, piles, loose items, boxes, and mess from the room.
 2. CUSTOM STORAGE CONTAINERS & SHELVING (${storageObj.label}): ${storageObj.promptModifier}. Install clean, modern shelving systems and style them with uniform matching containers, woven baskets, and labeled designer bins to keep all functional items neatly organized and out of sight.
-3. STRATEGIC FURNITURE REARRANGEMENT (${furnitureObj.label}): ${furnitureObj.promptModifier}. Thoughtfully rearrange and reposition the furniture in the room for optimal ergonomics, walking clearance, functional zoning, and natural light.
-${specialFeaturesText ? `4. INTERIOR DESIGN DETAILS: Incorporate ${specialFeaturesText}.\n` : ''}${junkRoomCustomNotes.trim() ? `5. CLIENT DECLUTTER REQUESTS: ${junkRoomCustomNotes.trim()}.\n` : ''}Transform what was once a cluttered junk room into an immaculate, serene, functional, and organized luxury space.`;
+3. FURNITURE KEEP OR REPLACE DIRECTIVE (${furnitureActionObj.label}): ${furnitureActionObj.promptModifier}.
+4. STRATEGIC FURNITURE REARRANGEMENT (${furnitureObj.label}): ${furnitureObj.promptModifier}. Thoughtfully rearrange and reposition the furniture in the room for optimal ergonomics, walking clearance, functional zoning, and natural light.
+${specialFeaturesText ? `5. INTERIOR DESIGN DETAILS: Incorporate ${specialFeaturesText}.\n` : ''}${junkRoomCustomNotes.trim() ? `6. CLIENT DECLUTTER REQUESTS: ${junkRoomCustomNotes.trim()}.\n` : ''}Transform what was once a cluttered junk room into an immaculate, serene, functional, and organized luxury space.`;
     }
 
     if (isIterative && extraInstructions.trim()) {
@@ -489,6 +494,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
           mode: selectedModeId,
           isJunkRoom,
           junkRoomStorageType: isJunkRoom ? junkRoomStorageType : undefined,
+          junkRoomFurnitureAction: isJunkRoom ? junkRoomFurnitureAction : undefined,
           junkRoomFurnitureStrategy: isJunkRoom ? junkRoomFurnitureStrategy : undefined,
           junkRoomDeclutterLevel: isJunkRoom ? junkRoomDeclutterLevel : undefined,
           junkRoomSelectedFeatures: isJunkRoom ? junkRoomSelectedFeatures : undefined,
@@ -2223,11 +2229,53 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         </div>
                       </div>
 
-                      {/* 2. Furniture Rearrangement Strategy */}
+                      {/* 2. Furniture Decision: Keep or Replace Existing Furniture */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 mb-2">
+                          <Sofa className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>2. Furniture Decision: Keep or Replace</span>
+                        </label>
+                        <div className="grid grid-cols-1 gap-2">
+                          {JUNK_ROOM_FURNITURE_ACTIONS.map((opt) => {
+                            const isSelected = junkRoomFurnitureAction === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setJunkRoomFurnitureAction(opt.id)}
+                                className={`text-left p-2.5 rounded-lg border transition-all text-xs cursor-pointer ${
+                                  isSelected
+                                    ? 'border-amber-500 bg-white dark:bg-amber-950/40 ring-1 ring-amber-500 font-medium'
+                                    : 'border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 hover:border-amber-300 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                    <CheckCircle2
+                                      className={`h-3.5 w-3.5 ${
+                                        isSelected ? 'text-amber-600 dark:text-amber-400' : 'text-gray-300 dark:text-gray-600'
+                                      }`}
+                                    />
+                                    {opt.label}
+                                  </span>
+                                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                                    {opt.tagline}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 pl-5 line-clamp-2">
+                                  {opt.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 3. Furniture Rearrangement Strategy */}
                       <div>
                         <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 mb-2">
                           <Move className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>2. Strategic Furniture Rearrangement</span>
+                          <span>3. Strategic Furniture Rearrangement</span>
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {JUNK_ROOM_FURNITURE_OPTIONS.map((opt) => {
@@ -2260,11 +2308,11 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         </div>
                       </div>
 
-                      {/* 3. Decluttering Intensity Level */}
+                      {/* 4. Decluttering Intensity Level */}
                       <div>
                         <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 mb-2">
                           <Archive className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>3. Declutter &amp; Purge Intensity</span>
+                          <span>4. Declutter &amp; Purge Intensity</span>
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {JUNK_ROOM_DECLUTTER_LEVELS.map((lvl) => {
@@ -2297,11 +2345,11 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         </div>
                       </div>
 
-                      {/* 4. Special Interior Design Accents */}
+                      {/* 5. Special Interior Design Accents */}
                       <div>
                         <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5 mb-1.5">
                           <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>4. Organization Details &amp; Designer Accents</span>
+                          <span>5. Organization Details &amp; Designer Accents</span>
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                           {JUNK_ROOM_SPECIAL_FEATURES.map((feat) => {
@@ -2331,7 +2379,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                         </div>
                       </div>
 
-                      {/* 5. Optional Specific Organization Instructions */}
+                      {/* 6. Optional Specific Organization Instructions */}
                       <div>
                         <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
                           Specific Clutter / Furniture Requests (Optional)
@@ -2343,6 +2391,23 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                           placeholder="e.g. Move the heavy desk near window, put all loose clothes in styled woven bins"
                           className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-amber-500 focus:border-amber-500 shadow-2xs"
                         />
+                      </div>
+
+                      {/* Action Button at bottom of interior design section */}
+                      <div className="pt-3 border-t border-amber-200/80 dark:border-amber-900/40">
+                        <button
+                          type="button"
+                          onClick={handleGenerateTransformation}
+                          disabled={isGenerating || !uploadedImageUri}
+                          className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm sm:text-base rounded-xl shadow-md hover:shadow-amber-500/25 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          id="btn-junk-room-transform-compare"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          <span>Transform Room &amp; Compare Side-by-Side</span>
+                        </button>
+                        <p className="text-[11px] text-center text-amber-800 dark:text-amber-300 mt-1.5 font-medium">
+                          Clears clutter, organizes with containers &amp; shelving, and opens the interactive side-by-side comparison slider.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -2444,12 +2509,18 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       2
                     </span>
                     <span>Select Room Type</span>
+                    {isJunkRoom && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                        Disabled (Junk Room Active)
+                      </span>
+                    )}
                   </h2>
 
                   {/* Category Filter Tabs */}
-                  <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+                  <div className={`flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl ${isJunkRoom ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
                     <button
                       type="button"
+                      disabled={isJunkRoom}
                       onClick={() => setRoomCategoryTab('basement')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'basement'
@@ -2465,6 +2536,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     </button>
                     <button
                       type="button"
+                      disabled={isJunkRoom}
                       onClick={() => setRoomCategoryTab('all')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'all'
@@ -2480,6 +2552,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     </button>
                     <button
                       type="button"
+                      disabled={isJunkRoom}
                       onClick={() => setRoomCategoryTab('main')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'main'
@@ -2496,7 +2569,21 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {isJunkRoom && (
+                  <div className="mb-3.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 shadow-2xs">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-amber-800 dark:text-amber-300">
+                        Room Type Options Are Disabled
+                      </p>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300/80 leading-relaxed">
+                        Because <strong>"Is this a Junk Room needing interior design upgrade?"</strong> is checked, the AI acts as an interior designer and declutters your existing room space directly from the uploaded photo, so specific room presets are disabled.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 ${isJunkRoom ? 'opacity-50 select-none' : ''}`}>
                   {ROOM_TYPES
                     .filter((room) => {
                       if (roomCategoryTab === 'basement') return room.category === 'basement';
@@ -2507,11 +2594,16 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     <button
                       key={room.id}
                       type="button"
+                      disabled={isJunkRoom}
                       onClick={() => setSelectedRoomTypeId(room.id)}
                       className={`p-3 rounded-xl border text-left transition-all relative ${
-                        selectedRoomTypeId === room.id
-                          ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                        isJunkRoom
+                          ? selectedRoomTypeId === room.id
+                            ? 'border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 cursor-not-allowed'
+                            : 'border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/20 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                          : selectedRoomTypeId === room.id
+                          ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500 cursor-pointer'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300 cursor-pointer'
                       }`}
                       id={`room-type-${room.id}`}
                     >
