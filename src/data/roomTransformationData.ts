@@ -355,18 +355,18 @@ export interface JunkRoomFurnitureAction {
 
 export const JUNK_ROOM_FURNITURE_ACTIONS: JunkRoomFurnitureAction[] = [
   {
+    id: 'keep-existing',
+    label: 'Maintain & Rearrange Original Furniture (Recommended)',
+    tagline: 'Preserve & Optimize Original Furniture',
+    description: 'Maintain the existing furniture from the photo, cleaning and restoring surfaces while strategically rearranging and organizing them for optimal flow',
+    promptModifier: 'strictly maintain and preserve the original furniture pieces from the photo; do not replace them with different furniture, but clean, restore, and strategically rearrange them into an ergonomic, decluttered placement'
+  },
+  {
     id: 'replace-all',
     label: 'Replace with New Designer Furniture',
     tagline: 'Fresh Modern Pieces',
     description: 'Completely remove old, worn, mismatched, or broken furniture and replace with new, coordinated, modern designer pieces matching the room proportions',
-    promptModifier: 'completely remove and replace all existing dated or worn furniture from the photo with brand-new, modern, space-efficient designer furniture pieces tailored to the room style and scale'
-  },
-  {
-    id: 'keep-existing',
-    label: 'Keep & Rearrange Existing Furniture',
-    tagline: 'Preserve & Reposition Original Pieces',
-    description: 'Keep the original primary furniture pieces shown in the photo, but clean them up, polish surfaces, and strategically rearrange them into a decluttered layout',
-    promptModifier: 'keep and preserve the client’s core existing furniture pieces visible in the original photo, but thoroughly clean, restore, and strategically rearrange them into an ergonomic, decluttered placement'
+    promptModifier: 'replace existing dated or worn furniture from the photo with brand-new, modern, space-efficient designer furniture pieces tailored to the room style and scale'
   },
   {
     id: 'hybrid-upgrade',
@@ -374,6 +374,118 @@ export const JUNK_ROOM_FURNITURE_ACTIONS: JunkRoomFurnitureAction[] = [
     tagline: 'Keep Main Anchor, Upgrade Ancillary Pieces',
     description: 'Retain the room’s main anchor piece (like the sofa or bed frame) while replacing bulky, mismatched clutter items with sleek modern storage furniture',
     promptModifier: 'keep the main anchor furniture piece from the photo, but discard and replace all secondary mismatched clutter furniture with sleek modern storage-integrated furnishings'
+  }
+];
+
+export interface PreservedFeatureOption {
+  id: string;
+  label: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_PRESERVED_FEATURES: PreservedFeatureOption[] = [
+  {
+    id: 'maintain-cabinets',
+    label: 'Maintain Original Cabinets',
+    description: 'Preserve existing kitchen/room cabinets, built-in shelving, wood finishes, and hardware',
+    promptModifier: 'strictly maintain and preserve all original cabinets, built-in cabinetry, and woodwork from the photo, keeping their exact style, color, finish, and structural layout'
+  },
+  {
+    id: 'maintain-furniture',
+    label: 'Maintain Original Furniture',
+    description: 'Preserve core furniture pieces from the photo, rearranging strategically without replacing',
+    promptModifier: 'strictly maintain and retain the original core furniture pieces from the photo; do not replace them with different furniture, but clean, restore, and reposition them strategically'
+  },
+  {
+    id: 'maintain-carpet-flooring',
+    label: 'Maintain Original Carpet / Flooring',
+    description: 'Keep the original carpet, hardwood, or tile floor texture, material, and color intact',
+    promptModifier: 'strictly maintain and keep the original carpet and flooring material, color, and pattern seen in the uploaded photo without replacing or changing the floor'
+  },
+  {
+    id: 'maintain-architecture',
+    label: 'Maintain Architectural Features',
+    description: 'Keep original walls, doors, trim, moldings, baseboards, and window placements',
+    promptModifier: 'maintain all existing architectural features including windows, doors, trim moldings, baseboards, and ceiling architecture exactly as shown in the original room photo'
+  }
+];
+
+export interface ClutterRemovalTarget {
+  id: string;
+  label: string;
+  iconName: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const CLUTTER_REMOVAL_TARGETS: ClutterRemovalTarget[] = [
+  {
+    id: 'extra-clothes',
+    label: 'Extra Clothes & Garments',
+    iconName: 'Shirt',
+    description: 'Clear all stray garments, laundry, coats, shoes, and clothes piled on beds, chairs, and floors',
+    promptModifier: 'remove all scattered clothing, laundry, jackets, shoes, and stray garments strewn across the room and floors'
+  },
+  {
+    id: 'boxes-packaging',
+    label: 'Boxes & Cardboard Containers',
+    iconName: 'Package',
+    description: 'Clear all cardboard shipping boxes, loose packaging, delivery cartons, and plastic totes',
+    promptModifier: 'remove all cardboard boxes, shipping packages, plastic storage bins, and bulky moving containers'
+  },
+  {
+    id: 'items-on-floors',
+    label: 'Items on Floors',
+    iconName: 'Layers',
+    description: 'Clear all loose items, trash, miscellaneous clutter, cords, and debris sitting on floors/carpet',
+    promptModifier: 'clear all loose items, trash, miscellaneous clutter, cords, and debris sitting on the floors and carpet'
+  },
+  {
+    id: 'items-on-furniture',
+    label: 'Items on Furniture',
+    iconName: 'Sofa',
+    description: 'Clear papers, bottles, loose clutter, and disorganized items piled on furniture and tables',
+    promptModifier: 'completely clear all loose papers, clutter, dishes, bottles, and disorganized items piled on furniture surfaces, beds, desks, and tables'
+  }
+];
+
+export interface ClutterPlacementSpace {
+  id: string;
+  label: string;
+  tagline: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const CLUTTER_PLACEMENT_SPACES: ClutterPlacementSpace[] = [
+  {
+    id: 'hybrid-organized-zones',
+    label: 'Designer Hybrid: Bins on Shelves + Inside Cabinets',
+    tagline: 'Recommended Balanced Organization',
+    description: 'Everyday essentials stored in styled containers on shelves, and excess clutter stowed inside cabinets and closets',
+    promptModifier: 'place everyday essentials neatly into labeled bins and designer storage containers on floating shelves, while stowing all bulk items and extra clothes inside cabinets and closets'
+  },
+  {
+    id: 'shelves-containers',
+    label: 'Modular Wall Shelves & Labeled Bins',
+    tagline: 'Visible Stylized Storage',
+    description: 'Neatly organized into matching labeled containers, canvas bins, and decorative vessels on open floating shelves',
+    promptModifier: 'place items neatly into curated storage containers, uniform labeled bins, woven baskets, and bookends on newly styled floating wall shelves'
+  },
+  {
+    id: 'concealed-cabinets',
+    label: 'Inside Cabinets, Closets & Drawers',
+    tagline: 'Concealed Out-of-Sight Storage',
+    description: 'Stowed away inside existing or built-in cabinets, wardrobes, and dresser drawers to keep surfaces 100% clean',
+    promptModifier: 'stow all items neatly out of sight inside the room’s cabinets, closets, and dresser drawers, leaving countertops, floors, and furniture tops completely bare and spotless'
+  },
+  {
+    id: 'closet-wardrobe-racks',
+    label: 'Organized Closet Racks & Hangers',
+    tagline: 'Hanging Racks & Shoe Cubbies',
+    description: 'Clothes hung on uniform luxury hangers within closet spaces, with folded items and shoes organized in designated cubbies',
+    promptModifier: 'hang extra clothes on uniform luxury hangers within an organized closet system, with folded items organized in designated shelving cubbies and shoe racks'
   }
 ];
 
