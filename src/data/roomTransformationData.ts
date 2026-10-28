@@ -257,6 +257,128 @@ export const TRANSFORMATION_MODES = [
   }
 ];
 
+// --- JUNK ROOM & INTERIOR DESIGNER DECLUTTERING SUITE ---
+export interface JunkRoomStorageOption {
+  id: string;
+  label: string;
+  tagline: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_STORAGE_OPTIONS: JunkRoomStorageOption[] = [
+  {
+    id: 'floating-shelves-containers',
+    label: 'Floating Shelves & Storage Containers',
+    tagline: 'Open Shelves + Labeled Designer Bins',
+    description: 'Sleek floating wood/acrylic wall shelves paired with labeled canvas bins, acrylic organizers, and woven baskets',
+    promptModifier: 'install architectural floating wall shelves styled with matching labeled storage containers, textured woven baskets, and minimalist bookends to organize small loose items'
+  },
+  {
+    id: 'built-in-cabinetry',
+    label: 'Floor-to-Ceiling Built-In Cabinetry',
+    tagline: 'Concealed Storage & Clean Millwork',
+    description: 'Seamless custom cabinetry with flush push-to-open doors that conceal all household clutter behind elegant architectural panels',
+    promptModifier: 'build seamless floor-to-ceiling custom cabinetry with concealed flush push-to-open doors, hiding all clutter behind elegant architectural wood millwork'
+  },
+  {
+    id: 'cubby-grid-baskets',
+    label: 'Modular Cubby Grid & Fabric Baskets',
+    tagline: 'Versatile Cubes + Coordinated Baskets',
+    description: 'Multi-compartment designer modular cubby system with coordinated neutral fabric bins and wicker baskets for grab-and-go organization',
+    promptModifier: 'incorporate a designer modular cubby storage system with curated neutral fabric baskets and rattan storage cubes for structured item organization'
+  },
+  {
+    id: 'industrial-racks-totes',
+    label: 'Open Architectural Steel Racks & Totes',
+    tagline: 'Matte Black Metal + Wood Shelves + Totes',
+    description: 'Modern blackened steel framing with solid oak shelf inserts and uniform matte storage totes for organized utility',
+    promptModifier: 'construct modern matte black steel frame open shelving with natural timber inserts and uniform minimalist matte storage totes'
+  },
+  {
+    id: 'closet-wall-system',
+    label: 'Custom Wall-to-Wall Organizer System',
+    tagline: 'Tiered Shelves, Drawers & Hanging Racks',
+    description: 'Comprehensive built-in wall unit with adjustable tiered shelving, soft-close drawers, shoe compartments, and upper storage bins',
+    promptModifier: 'install a comprehensive wall-to-wall storage organizer featuring adjustable shelving, soft-close organized drawers, and uniform upper containment boxes'
+  }
+];
+
+export interface JunkRoomFurnitureOption {
+  id: string;
+  label: string;
+  tagline: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_FURNITURE_OPTIONS: JunkRoomFurnitureOption[] = [
+  {
+    id: 'ergonomic-flow',
+    label: 'Ergonomic Flow & Walkway Clearance',
+    tagline: 'Clear Doors & Natural Pathways',
+    description: 'Reposition bulky furniture away from doorways and windows, creating wide open walkways and natural ergonomic traffic paths',
+    promptModifier: 'strategically rearrange furniture away from room entryways and windows to create wide, open walking pathways and ergonomic circulation throughout the room'
+  },
+  {
+    id: 'multi-zone',
+    label: 'Functional Multi-Zone Layout',
+    tagline: 'Work, Lounge & Storage Micro-Zones',
+    description: 'Divide the space into purposeful micro-zones (work desk area, cozy seating lounge, and dedicated storage wall) with clean spacing',
+    promptModifier: 'reorganize furniture into distinct, purposeful functional zones (dedicated workstation, cozy seating lounge, and dedicated organized storage zone) with balanced spacing'
+  },
+  {
+    id: 'focal-float',
+    label: 'Open-Concept Focal Float',
+    tagline: 'Center Key Furniture & Open Walls',
+    description: 'Float core seating or desk pieces away from cluttered walls towards natural light, freeing up wall surfaces for streamlined organization',
+    promptModifier: 'float the main furniture pieces away from cramped corners toward the center of the room, freeing up perimeter walls for organized storage and creating an expansive airy feel'
+  },
+  {
+    id: 'space-saver',
+    label: 'Space-Maximizing Perimeter Arrangement',
+    tagline: 'Tuck Along Walls for Maximum Floor Space',
+    description: 'Align essential furniture smoothly along structural walls to maximize open central floor area and declutter the room footprint',
+    promptModifier: 'realign essential furniture cleanly along perimeter walls to open up maximum central floor area, creating a breathable, uncluttered environment'
+  }
+];
+
+export interface JunkRoomDeclutterLevel {
+  id: string;
+  label: string;
+  description: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_DECLUTTER_LEVELS: JunkRoomDeclutterLevel[] = [
+  {
+    id: 'total-clean',
+    label: 'Total Minimalist Clean Sweep (100% Clutter-Free)',
+    description: 'Completely eliminate all piles, boxes, stray clothing, loose paperwork, and trash for a spotless magazine-worthy space',
+    promptModifier: 'completely eliminate 100% of all scattered junk, chaotic trash, piles, loose items, boxes, and floor clutter, leaving immaculate surfaces'
+  },
+  {
+    id: 'curated-organized',
+    label: 'Curated Designer Organization & Styling',
+    description: 'Sort everyday essentials into styled containers, with books, plants, and decorative pieces artfully styled on shelves',
+    promptModifier: 'systematically sort and organize room essentials into styled matching bins and baskets, with books, decorative vessels, and green plants artfully staged on open shelves'
+  }
+];
+
+export interface JunkRoomSpecialFeature {
+  id: string;
+  label: string;
+  promptModifier: string;
+}
+
+export const JUNK_ROOM_SPECIAL_FEATURES: JunkRoomSpecialFeature[] = [
+  { id: 'cord-management', label: 'Concealed Cable & Wire Management', promptModifier: 'hidden architectural wire raceways and concealed power hubs to eliminate all exposed cords' },
+  { id: 'storage-ottoman', label: 'Multi-Functional Storage Ottoman Bench', promptModifier: 'a luxury upholstered storage bench or ottoman offering concealed blanket and accessory storage' },
+  { id: 'labeled-containers', label: 'Uniform Labeled Container Suite', promptModifier: 'cohesive designer storage containers with uniform elegant minimalist labels' },
+  { id: 'shelf-plants', label: 'Trailing Greenery on Storage Shelves', promptModifier: 'curated indoor potted plants and trailing greenery cascading naturally over shelf edges' },
+  { id: 'vertical-wall-pegs', label: 'Architectural Wall Pegboard / Hook Rail', promptModifier: 'a modern natural wood and brass peg rail for organized vertical hanging of bags, coats, and accessories' }
+];
+
 export const ROOM_TYPES: RoomTypeConfig[] = [
   {
     id: 'living-room',
@@ -1059,5 +1181,14 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     description: 'Interior view of front entrance door, sidelights, threshold, and entryway drop zone',
     defaultStyle: 'modern-minimalist',
     defaultPrompt: 'Transform into a high-end front entrance featuring an oversized white oak pivot door with full-height matte black pull bar, symmetrical frosted sidelights, flush recessed coir mat, and concealed floor-to-ceiling wardrobe cabinetry'
+  },
+  {
+    id: 'sample-junk-room',
+    name: 'Cluttered Junk Room',
+    roomType: 'living-room',
+    thumbnail: 'https://images.unsplash.com/photo-1594904351111-a072f80b1a71?auto=format&fit=crop&w=1000&q=80',
+    description: 'Cluttered space with scattered boxes, loose items and disorganized furniture needing interior designer upgrade',
+    defaultStyle: 'japandi',
+    defaultPrompt: 'Transform this cluttered junk room by acting as an expert interior designer: remove all clutter and junk, install sleek modular floating shelves and labeled storage containers, and strategically rearrange furniture for optimal flow and organization.'
   }
 ];

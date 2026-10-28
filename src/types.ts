@@ -79,7 +79,7 @@ export interface TransformationRevision {
   label: string;
   prompt: string;
   roomType: string;
-  selectedOptions: Record<string, string>;
+  selectedOptions: Record<string, any>;
   customInstructions: string;
   renderedImageUrl: string;
 }
