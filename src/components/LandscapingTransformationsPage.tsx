@@ -88,6 +88,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [viewSpecificSelections, setViewSpecificSelections] = useState<Record<string, string>>({});
   const [useSpecificDescriptionOnly, setUseSpecificDescriptionOnly] = useState<boolean>(false);
   const [specificDescriptionText, setSpecificDescriptionText] = useState<string>('');
+  const [useCustomInstructionsOnly, setUseCustomInstructionsOnly] = useState<boolean>(false);
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
@@ -133,6 +134,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const customInstructionsRef = useRef<HTMLTextAreaElement>(null);
+
+  const isPresetsDisabled = useSpecificDescriptionOnly || useCustomInstructionsOnly;
 
   // Active house view side config
   const activeViewConfig: HouseViewSideConfig = useMemo(() => {
@@ -282,6 +286,20 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const buildInitialPrompt = (): string => {
     const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === selectedViewSide) || HOUSE_VIEW_SIDES[0];
 
+    // If custom instructions only mode (bypass view type and all presets) is enabled
+    if (useCustomInstructionsOnly) {
+      const description = customInstructions.trim();
+      return [
+        `Photorealistic architectural landscape photo-to-rendering modification of this photographed property.`,
+        `CRITICAL ARCHITECTURAL CONSERVATION: Strictly preserve the exact house structure, roofline, exterior siding/materials, windows, doors, camera perspective, and all unmentioned surroundings shown in the uploaded photo.`,
+        `ONLY APPLY THESE USER-SPECIFIED WRITTEN CUSTOM INSTRUCTIONS (Bypass house view & preset themes—modify the image solely based on these instructions):`,
+        description,
+        `Output Specifications: High-end architectural landscape photography, 8k resolution, crisp photorealistic textures for stone, hardscaping, lawn, foliage, water, wood, and lighting, seamlessly integrated into the uploaded image.`
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
     // If custom specific description is enabled, ONLY build transformation based on the typed description
     if (useSpecificDescriptionOnly) {
       const description = specificDescriptionText.trim();
@@ -335,14 +353,25 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
     const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === selectedViewSide) || HOUSE_VIEW_SIDES[0];
 
-    if (useSpecificDescriptionOnly && !specificDescriptionText.trim()) {
+    if (useCustomInstructionsOnly && !customInstructions.trim()) {
+      setErrorMessage('Please describe what you want changed in Written Custom Instructions (Optional), or uncheck the bypass option.');
+      customInstructionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => customInstructionsRef.current?.focus(), 250);
+      return;
+    }
+
+    if (!useCustomInstructionsOnly && useSpecificDescriptionOnly && !specificDescriptionText.trim()) {
       setErrorMessage(`Please type the specific features you want shown for the ${viewConfig.name}, or uncheck the custom description option.`);
       return;
     }
 
     setIsGenerating(true);
     setErrorMessage(null);
-    setGenerationStepMessage('Analyzing house elevation & topography...');
+    setGenerationStepMessage(
+      useCustomInstructionsOnly
+        ? 'Applying your written custom instructions to uploaded photo...'
+        : 'Analyzing house elevation & topography...'
+    );
 
     try {
       setTimeout(() => {
@@ -361,12 +390,16 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       const initialRevision: LandscapingRevision = {
         id: `rev-${Date.now()}`,
         createdAt: Date.now(),
-        label: useSpecificDescriptionOnly
+        label: useCustomInstructionsOnly
+          ? `Custom Edit (${customInstructions.trim().slice(0, 26)}${customInstructions.trim().length > 26 ? '...' : ''})`
+          : useSpecificDescriptionOnly
           ? `Custom ${viewConfig.name} (${specificDescriptionText.slice(0, 26)}${specificDescriptionText.length > 26 ? '...' : ''})`
           : `Initial Redesign (${styleObj.name})`,
         prompt,
         viewSide: selectedViewSide,
-        selectedOptions: useSpecificDescriptionOnly
+        selectedOptions: useCustomInstructionsOnly
+          ? { mode: 'custom-instructions-only', description: customInstructions.trim() }
+          : useSpecificDescriptionOnly
           ? { mode: 'custom-specific-description', description: specificDescriptionText }
           : { ...viewSpecificSelections },
         customInstructions: useSpecificDescriptionOnly ? specificDescriptionText : customInstructions,
@@ -378,7 +411,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
         createdAt: Date.now(),
         updatedAt: Date.now(),
         userId: user?.uid || 'guest',
-        title: useSpecificDescriptionOnly
+        title: useCustomInstructionsOnly
+          ? 'Custom Landscaping Transformation'
+          : useSpecificDescriptionOnly
           ? `${viewConfig.name} - Custom Specifics`
           : `${viewConfig.name} - ${styleObj.name}`,
         viewSide: selectedViewSide,
@@ -429,9 +464,12 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
       refineMode === 'build-on-current' ? 'image/jpeg' : activeProject.originalImageMimeType;
 
     const viewConfig = HOUSE_VIEW_SIDES.find((v) => v.id === activeProject.viewSide) || HOUSE_VIEW_SIDES[0];
+    const isCustomPhotoMode = activeProject.revisions[0]?.selectedOptions?.mode === 'custom-instructions-only';
 
     const refinementPromptFull = [
-      `Iterative professional architectural landscape refinement for the ${viewConfig.name.toLowerCase()} of this home.`,
+      isCustomPhotoMode
+        ? `Iterative professional architectural landscape photo refinement of this property image.`
+        : `Iterative professional architectural landscape refinement for the ${viewConfig.name.toLowerCase()} of this home.`,
       `Base Context: Continue from the previous transformation design while strictly executing the following modifications:`,
       `User Requested Refinements: ${instructions}`,
       `Mandatory Requirements: Maintain cohesive architectural perspective, preserve the house geometry, seamlessly integrate new flora, pavers, lighting, or water features with the existing setting. Produce a crisp, luxury architectural photograph.`
@@ -825,6 +863,8 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
   const handleStartNewTransformation = () => {
     setActiveProject(null);
     setUploadedImageUri(null);
+    setUseCustomInstructionsOnly(false);
+    setUseSpecificDescriptionOnly(false);
     setCustomInstructions('');
     setRefinementPrompt('');
     setErrorMessage(null);
@@ -1214,7 +1254,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <Pencil className="h-4 w-4" />
                   </button>
                   <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 uppercase">
-                    {activeProject.viewSide} view
+                    {activeProject.revisions[0]?.selectedOptions?.mode === 'custom-instructions-only'
+                      ? 'custom instructions'
+                      : `${activeProject.viewSide} view`}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1667,9 +1709,10 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   <button
                     type="button"
                     onClick={() => {
-                      setUploadedImageUri(null);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
+                    setUploadedImageUri(null);
+                    setUseCustomInstructionsOnly(false);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
                     className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                   >
                     <RotateCcw className="h-3 w-3" />
@@ -1737,6 +1780,76 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                       Change Photo
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* BYPASS VIEW TYPE & PRESETS: WRITTEN CUSTOM INSTRUCTIONS ONLY CARD */}
+              {uploadedImageUri && (
+                <div
+                  className={`mt-4 p-4 rounded-xl border transition-all ${
+                    useCustomInstructionsOnly
+                      ? 'border-emerald-500 dark:border-emerald-500/80 bg-gradient-to-br from-emerald-50/90 via-teal-50/50 to-emerald-50/30 dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-gray-900 shadow-sm ring-1 ring-emerald-500/40'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40 hover:border-emerald-300 dark:hover:border-emerald-700/60'
+                  }`}
+                  id="landscaping-custom-instructions-only-container"
+                >
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="checkbox-landscaping-custom-instructions-only"
+                      checked={useCustomInstructionsOnly}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setUseCustomInstructionsOnly(checked);
+                        if (checked) {
+                          setUseSpecificDescriptionOnly(false);
+                          setErrorMessage(null);
+                          setTimeout(() => {
+                            customInstructionsRef.current?.focus();
+                          }, 100);
+                        }
+                      }}
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          Bypass View / Room Type &amp; Use Only Written Custom Instructions
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            useCustomInstructionsOnly
+                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
+                          }`}
+                        >
+                          {useCustomInstructionsOnly ? 'Custom-Only Active' : 'Skip Presets'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                        Bypass selecting a House View / Room Type and all landscaping presets, and ONLY use <strong>Written Custom Instructions (Optional)</strong> to describe what you want changed in this image.
+                      </p>
+                    </div>
+                  </label>
+
+                  {useCustomInstructionsOnly && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+                        <Pencil className="h-3.5 w-3.5 shrink-0" />
+                        <span>Type what you want changed in Written Custom Instructions</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          customInstructionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          setTimeout(() => customInstructionsRef.current?.focus(), 250);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] shrink-0 cursor-pointer transition-colors"
+                      >
+                        Go to Instructions ↓
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1833,13 +1946,26 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-6">
               {/* Step 2: Select Which Side of the House View is Uploaded */}
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  <span>Which Side of the House View is This?</span>
-                </h2>
+              <div
+                className={`transition-all ${
+                  useCustomInstructionsOnly
+                    ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
+                    : ''
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
+                      2
+                    </span>
+                    <span>Which Side of the House View is This?</span>
+                  </h2>
+                  {useCustomInstructionsOnly && (
+                    <span className="px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 rounded-full">
+                      Bypassed (Custom Instructions Only)
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                   Selections and customization options automatically adjust based on the uploaded elevation.
                 </p>
@@ -1849,9 +1975,12 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <button
                       key={side.id}
                       type="button"
+                      disabled={useCustomInstructionsOnly}
                       onClick={() => setSelectedViewSide(side.id)}
                       className={`p-4 rounded-xl border text-left transition-all relative ${
-                        selectedViewSide === side.id
+                        useCustomInstructionsOnly
+                          ? 'cursor-not-allowed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 text-gray-400'
+                          : selectedViewSide === side.id
                           ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 text-gray-700 dark:text-gray-300'
                       }`}
@@ -1891,8 +2020,12 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   <label className="flex items-start gap-3 cursor-pointer select-none">
                     <input
                       type="checkbox"
+                      disabled={useCustomInstructionsOnly}
                       checked={useSpecificDescriptionOnly}
-                      onChange={(e) => setUseSpecificDescriptionOnly(e.target.checked)}
+                      onChange={(e) => {
+                        setUseSpecificDescriptionOnly(e.target.checked);
+                        if (e.target.checked) setUseCustomInstructionsOnly(false);
+                      }}
                       className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                       id="checkbox-specific-description-only"
                     />
@@ -1952,7 +2085,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               {/* Step 3: View-Specific Customization Sections */}
               <div
                 className={`space-y-5 pt-2 border-t border-gray-100 dark:border-gray-700 transition-all ${
-                  useSpecificDescriptionOnly
+                  isPresetsDisabled
                     ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
                     : ''
                 }`}
@@ -1962,9 +2095,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <Layers className="h-4 w-4 text-emerald-600" />
                     <span>Tailored Options for {activeViewConfig.name}</span>
                   </h3>
-                  {useSpecificDescriptionOnly ? (
+                  {isPresetsDisabled ? (
                     <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 rounded">
-                      Disabled (Custom Mode Active)
+                      {useCustomInstructionsOnly ? 'Bypassed (Custom Instructions Only)' : 'Disabled (Custom Mode Active)'}
                     </span>
                   ) : (
                     <span className="text-xs text-gray-500">
@@ -1974,7 +2107,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                 </div>
 
                 {/* Helper Banner for Quick Access to Luxury Outdoor Living */}
-                {selectedViewSide !== 'back' && !useSpecificDescriptionOnly && (
+                {selectedViewSide !== 'back' && !isPresetsDisabled && (
                   <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/30 dark:via-teal-950/30 dark:to-cyan-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
                       <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -2069,7 +2202,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                             <button
                               key={opt.id}
                               type="button"
-                              disabled={useSpecificDescriptionOnly}
+                              disabled={isPresetsDisabled}
                               onClick={() =>
                                 setViewSpecificSelections((prev) => ({
                                   ...prev,
@@ -2077,7 +2210,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                                 }))
                               }
                               className={`p-3 rounded-xl border text-left transition-all ${
-                                useSpecificDescriptionOnly
+                                isPresetsDisabled
                                   ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 text-gray-400'
                                   : isSelected
                                   ? `${activeClass} cursor-pointer`
@@ -2093,7 +2226,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                                   )}
                                   <span>{opt.label}</span>
                                 </span>
-                                {isSelected && !useSpecificDescriptionOnly && (
+                                {isSelected && !isPresetsDisabled && (
                                   <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${checkColor}`} />
                                 )}
                               </div>
@@ -2112,7 +2245,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               {/* Step 4: Overall Landscaping Style */}
               <div
                 className={`space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700 transition-all ${
-                  useSpecificDescriptionOnly
+                  isPresetsDisabled
                     ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
                     : ''
                 }`}
@@ -2121,9 +2254,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     Landscaping Style &amp; Flora Theme:
                   </label>
-                  {useSpecificDescriptionOnly && (
+                  {isPresetsDisabled && (
                     <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                      Disabled (Custom Mode Active)
+                      {useCustomInstructionsOnly ? 'Bypassed (Custom Instructions Only)' : 'Disabled (Custom Mode Active)'}
                     </span>
                   )}
                 </div>
@@ -2132,10 +2265,10 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <button
                       key={style.id}
                       type="button"
-                      disabled={useSpecificDescriptionOnly}
+                      disabled={isPresetsDisabled}
                       onClick={() => setSelectedStyleId(style.id)}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
-                        useSpecificDescriptionOnly
+                        isPresetsDisabled
                           ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 text-gray-400 bg-gray-50 dark:bg-gray-800/40'
                           : selectedStyleId === style.id
                           ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500 cursor-pointer'
@@ -2154,7 +2287,7 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
               {/* Step 5: Lighting & Time of Day */}
               <div
                 className={`space-y-3 transition-all ${
-                  useSpecificDescriptionOnly
+                  isPresetsDisabled
                     ? 'opacity-35 pointer-events-none select-none filter grayscale-30'
                     : ''
                 }`}
@@ -2163,9 +2296,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     Time of Day &amp; Lighting Atmosphere:
                   </label>
-                  {useSpecificDescriptionOnly && (
+                  {isPresetsDisabled && (
                     <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                      Disabled (Custom Mode Active)
+                      {useCustomInstructionsOnly ? 'Bypassed (Custom Instructions Only)' : 'Disabled (Custom Mode Active)'}
                     </span>
                   )}
                 </div>
@@ -2174,10 +2307,10 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <button
                       key={light.id}
                       type="button"
-                      disabled={useSpecificDescriptionOnly}
+                      disabled={isPresetsDisabled}
                       onClick={() => setSelectedLightingId(light.id)}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
-                        useSpecificDescriptionOnly
+                        isPresetsDisabled
                           ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 text-gray-400 bg-gray-50 dark:bg-gray-800/40'
                           : selectedLightingId === light.id
                           ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500 cursor-pointer'
@@ -2195,18 +2328,53 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
 
               {/* Step 6: Written Custom Descriptions */}
               {!useSpecificDescriptionOnly ? (
-                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Specific Custom Instructions (Optional):
-                  </label>
+                <div
+                  className={`space-y-2 pt-2 border-t transition-all ${
+                    useCustomInstructionsOnly
+                      ? 'p-4 rounded-xl border border-emerald-400 dark:border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/30 ring-2 ring-emerald-500/30 shadow-sm'
+                      : 'border-gray-100 dark:border-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label
+                      htmlFor="input-custom-landscaping"
+                      className={`block text-xs font-bold uppercase tracking-wider ${
+                        useCustomInstructionsOnly
+                          ? 'text-emerald-900 dark:text-emerald-200'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      Written Custom Instructions (Optional):
+                    </label>
+                    {useCustomInstructionsOnly && (
+                      <span className="text-[11px] font-bold text-white bg-emerald-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                        <Check className="h-3 w-3" /> Active — Only Mode Enabled
+                      </span>
+                    )}
+                  </div>
                   <textarea
+                    ref={customInstructionsRef}
                     value={customInstructions}
                     onChange={(e) => setCustomInstructions(e.target.value)}
-                    placeholder="e.g. Add a natural stone retaining wall, an olive tree focal point, black slate walkway, and hidden recessed up-lighting along the driveway..."
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden resize-none"
+                    placeholder={
+                      useCustomInstructionsOnly
+                        ? "Describe ONLY what you want changed in this uploaded photo (e.g. 'Replace the front lawn with drought-tolerant native landscaping and flagstone stepping stones, add architectural uplighting on the trees, and keep the house exterior unchanged')..."
+                        : "e.g. Add a natural stone retaining wall, an olive tree focal point, black slate walkway, and hidden recessed up-lighting along the driveway..."
+                    }
+                    rows={useCustomInstructionsOnly ? 4 : 3}
+                    className={`w-full px-4 py-3 rounded-xl border bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden resize-none ${
+                      useCustomInstructionsOnly
+                        ? 'border-emerald-400 dark:border-emerald-600 shadow-xs'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     id="input-custom-landscaping"
                   />
+                  {useCustomInstructionsOnly && (
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>View Type &amp; presets are bypassed. Only your written custom instructions above will be applied to the image.</span>
+                    </p>
+                  )}
                 </div>
               ) : null}
 
@@ -2228,7 +2396,9 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
                     <>
                       <Sparkles className="h-5 w-5" />
                       <span>
-                        {useSpecificDescriptionOnly
+                        {useCustomInstructionsOnly
+                          ? 'Transform Photo with Custom Instructions'
+                          : useSpecificDescriptionOnly
                           ? `Generate Custom ${activeViewConfig.name} Transformation`
                           : 'Generate Landscaping Transformation'}
                       </span>
@@ -2499,7 +2669,11 @@ export const LandscapingTransformationsPage: React.FC<LandscapingTransformations
           }
           projectTitle={activeProject.title}
           contextType="landscaping"
-          roomOrViewLabel={`${activeProject.viewSide.toUpperCase()} Exterior Landscaping`}
+          roomOrViewLabel={
+            activeProject.revisions[0]?.selectedOptions?.mode === 'custom-instructions-only'
+              ? 'Exterior Landscaping'
+              : `${activeProject.viewSide.toUpperCase()} Exterior Landscaping`
+          }
           revisionLabel={
             activeProject.revisions[
               circleEditTargetRevisionIndex !== null

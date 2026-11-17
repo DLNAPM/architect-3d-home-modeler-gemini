@@ -143,6 +143,8 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
   const [roomSpecificSelections, setRoomSpecificSelections] = useState<Record<string, string>>({});
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [useCustomInstructionsOnly, setUseCustomInstructionsOnly] = useState<boolean>(false);
+  const customInstructionsRef = useRef<HTMLTextAreaElement>(null);
 
   // Junk Room & Interior Designer Decluttering State
   const [isJunkRoom, setIsJunkRoom] = useState<boolean>(false);
@@ -319,6 +321,7 @@ export const RoomTransformationsPage: React.FC<RoomTransformationsPageProps> = (
     setCustomInstructions(sample.defaultPrompt);
     if (sample.id === 'sample-junk-room') {
       setIsJunkRoom(true);
+      setUseCustomInstructionsOnly(false);
     }
 
     try {
@@ -452,12 +455,27 @@ TRANSFORMATION GOAL: The resulting image must look like the EXACT same space aft
     }
 
     if (isIterative && extraInstructions.trim()) {
+      if (useCustomInstructionsOnly || activeProject?.roomType === 'Custom Photo') {
+        return `Photorealistic interior architectural photo-editing revision.
+Preserve the existing architecture, room geometry, camera perspective, and all unmentioned surfaces or furnishings in the image.
+Crucial iterative customization: ${extraInstructions.trim()}.
+Maintain ultra-high architectural fidelity, photographic clarity, realistic lighting, and natural materials.`;
+      }
       return `${junkRoomDirectives ? `${junkRoomDirectives}\n\n` : ''}Photorealistic interior architectural rendering revision of this ${activeRoomTypeConfig.name}.
 Crucial iterative customization: ${extraInstructions.trim()}.
 Maintain high architectural integrity, photographic clarity, accurate materials, and seamless lighting.
 ${styleObj ? `Aesthetic style: ${styleObj.prompt}.` : ''}
 ${colorObj ? `Color palette: ${colorObj.prompt}.` : ''}
 ${featureWallModifier ? `Feature Wall specification: ${featureWallModifier}.` : ''}`;
+    }
+
+    if (useCustomInstructionsOnly) {
+      return `Photorealistic architectural photo-to-rendering transformation of this photographed room based strictly and exclusively on the client's written custom instructions.
+CRITICAL PRESERVATION: Preserve the exact camera angle, room geometry, walls, windows, doors, lighting physics, and all existing objects or surfaces in the uploaded photo EXCEPT for the specific modifications explicitly requested below.
+ONLY APPLY THESE REQUESTED CHANGES:
+${customInstructions.trim()}
+
+Quality requirements: 8k resolution, ultra-photorealistic architectural visualization, crisp materials, accurate perspective, natural cast shadows, and seamless integration into the photographed space.`;
     }
 
     const effectiveFlooring = (isJunkRoom && preservedFeatures.includes('maintain-carpet-flooring'))
@@ -490,6 +508,13 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
       return;
     }
 
+    if (useCustomInstructionsOnly && !customInstructions.trim()) {
+      setErrorMessage('Please describe what you want changed in Written Custom Instructions (Optional), or uncheck the bypass option.');
+      customInstructionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => customInstructionsRef.current?.focus(), 250);
+      return;
+    }
+
     if (!isKeyReady) {
       onSelectKey();
       return;
@@ -498,7 +523,9 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
     setIsGenerating(true);
     setErrorMessage(null);
     setGenerationStepMessage(
-      isJunkRoom
+      useCustomInstructionsOnly
+        ? 'Applying your written custom instructions to uploaded photo...'
+        : isJunkRoom
         ? 'Interior designer analyzing clutter, room layout & storage systems...'
         : 'Analyzing room geometry & architectural perspective...'
     );
@@ -510,7 +537,9 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         : uploadedImageUri;
 
       setGenerationStepMessage(
-        isJunkRoom
+        useCustomInstructionsOnly
+          ? 'Rendering custom photo modifications...'
+          : isJunkRoom
           ? `Decluttering & styling ${activeRoomTypeConfig.name} in ${selectedStyleId}...`
           : `Styling ${activeRoomTypeConfig.name} in ${selectedStyleId}...`
       );
@@ -523,46 +552,56 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         '16:9'
       );
 
+      const effectiveRoomLabel = useCustomInstructionsOnly ? 'Custom Photo' : activeRoomTypeConfig.name;
+
       const newRevision: TransformationRevision = {
         id: `rev-${Date.now()}`,
         createdAt: Date.now(),
-        label: isJunkRoom
+        label: useCustomInstructionsOnly
+          ? `Rev 1: Custom Instructions (${customInstructions.trim().slice(0, 26)}${customInstructions.trim().length > 26 ? '...' : ''})`
+          : isJunkRoom
           ? `Rev 1: Decluttered & Organized (${COMMON_STYLES.find((s) => s.id === selectedStyleId)?.label || 'Interior Designer'})`
           : `Rev 1: ${COMMON_STYLES.find((s) => s.id === selectedStyleId)?.label || 'Transformation'}`,
         prompt,
-        roomType: activeRoomTypeConfig.name,
-        selectedOptions: {
-          style: selectedStyleId,
-          color: selectedColorId,
-          flooring: selectedFlooringId,
-          lighting: selectedLightingId,
-          featureWallCategory: selectedFeatureWallCategory,
-          featureWallOption: selectedFeatureWallOptionId,
-          accentWallPurpose: selectedAccentWallPurpose,
-          accentColorId: selectedAccentColorId,
-          customAccentColorHex,
-          customAccentColorName,
-          brandName,
-          brandSignageStyleId,
-          brandTagline,
-          eventThemeId,
-          eventDecorativeElementId,
-          eventSignageText,
-          statementPlacement,
-          statementLighting,
-          mode: selectedModeId,
-          isJunkRoom,
-          preservedFeatures: isJunkRoom ? preservedFeatures : undefined,
-          selectedClutterTargets: isJunkRoom ? selectedClutterTargets : undefined,
-          selectedPlacementSpace: isJunkRoom ? selectedPlacementSpace : undefined,
-          junkRoomStorageType: isJunkRoom ? junkRoomStorageType : undefined,
-          junkRoomFurnitureAction: isJunkRoom ? junkRoomFurnitureAction : undefined,
-          junkRoomFurnitureStrategy: isJunkRoom ? junkRoomFurnitureStrategy : undefined,
-          junkRoomDeclutterLevel: isJunkRoom ? junkRoomDeclutterLevel : undefined,
-          junkRoomSelectedFeatures: isJunkRoom ? junkRoomSelectedFeatures : undefined,
-          junkRoomCustomNotes: isJunkRoom ? junkRoomCustomNotes : undefined,
-          ...roomSpecificSelections,
-        },
+        roomType: effectiveRoomLabel,
+        selectedOptions: useCustomInstructionsOnly
+          ? {
+              mode: 'custom-instructions-only',
+              useCustomInstructionsOnly: true,
+              customInstructions: customInstructions.trim(),
+            }
+          : {
+              style: selectedStyleId,
+              color: selectedColorId,
+              flooring: selectedFlooringId,
+              lighting: selectedLightingId,
+              featureWallCategory: selectedFeatureWallCategory,
+              featureWallOption: selectedFeatureWallOptionId,
+              accentWallPurpose: selectedAccentWallPurpose,
+              accentColorId: selectedAccentColorId,
+              customAccentColorHex,
+              customAccentColorName,
+              brandName,
+              brandSignageStyleId,
+              brandTagline,
+              eventThemeId,
+              eventDecorativeElementId,
+              eventSignageText,
+              statementPlacement,
+              statementLighting,
+              mode: selectedModeId,
+              isJunkRoom,
+              preservedFeatures: isJunkRoom ? preservedFeatures : undefined,
+              selectedClutterTargets: isJunkRoom ? selectedClutterTargets : undefined,
+              selectedPlacementSpace: isJunkRoom ? selectedPlacementSpace : undefined,
+              junkRoomStorageType: isJunkRoom ? junkRoomStorageType : undefined,
+              junkRoomFurnitureAction: isJunkRoom ? junkRoomFurnitureAction : undefined,
+              junkRoomFurnitureStrategy: isJunkRoom ? junkRoomFurnitureStrategy : undefined,
+              junkRoomDeclutterLevel: isJunkRoom ? junkRoomDeclutterLevel : undefined,
+              junkRoomSelectedFeatures: isJunkRoom ? junkRoomSelectedFeatures : undefined,
+              junkRoomCustomNotes: isJunkRoom ? junkRoomCustomNotes : undefined,
+              ...roomSpecificSelections,
+            },
         customInstructions,
         renderedImageUrl: renderedResultUri,
       };
@@ -572,10 +611,12 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
         createdAt: Date.now(),
         updatedAt: Date.now(),
         userId: user?.uid || 'guest-user',
-        title: isJunkRoom
+        title: useCustomInstructionsOnly
+          ? 'Custom Room Transformation'
+          : isJunkRoom
           ? `${activeRoomTypeConfig.name} Declutter & Organization`
           : `${activeRoomTypeConfig.name} Transformation`,
-        roomType: activeRoomTypeConfig.name,
+        roomType: effectiveRoomLabel,
         originalImageUrl: uploadedImageUri,
         originalImageMimeType: uploadedImageMime,
         currentRevisionIndex: 0,
@@ -1497,6 +1538,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
               onClick={() => {
                 setActiveProject(null);
                 setUploadedImageUri(null);
+                setUseCustomInstructionsOnly(false);
                 setRefinementPrompt('');
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 shadow-xs transition-colors"
@@ -1736,6 +1778,12 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white shadow-2xs">
                     <Sparkles className="h-2.5 w-2.5" />
                     Decluttered &amp; Organized
+                  </span>
+                )}
+                {activeProject.revisions[activeProject.currentRevisionIndex]?.selectedOptions?.useCustomInstructionsOnly && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-600 text-white shadow-2xs">
+                    <Pencil className="h-2.5 w-2.5" />
+                    Custom Instructions Only
                   </span>
                 )}
                 <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1 max-w-md">
@@ -2195,14 +2243,85 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </span>
                   <button
                     type="button"
-                    onClick={(e) => {
+                      onClick={(e) => {
                       e.stopPropagation();
                       setUploadedImageUri(null);
+                      setUseCustomInstructionsOnly(false);
                     }}
                     className="text-red-500 hover:text-red-700 underline"
                   >
                     Remove
                   </button>
+                </div>
+              )}
+
+              {/* BYPASS ROOM TYPE / PRESETS: WRITTEN CUSTOM INSTRUCTIONS ONLY CARD */}
+              {uploadedImageUri && (
+                <div
+                  className={`mt-4 p-4 rounded-xl border transition-all ${
+                    useCustomInstructionsOnly
+                      ? 'border-purple-500 dark:border-purple-500/80 bg-gradient-to-br from-purple-50/90 via-indigo-50/50 to-purple-50/30 dark:from-purple-950/40 dark:via-indigo-950/20 dark:to-gray-900 shadow-sm ring-1 ring-purple-500/40'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40 hover:border-purple-300 dark:hover:border-purple-700/60'
+                  }`}
+                  id="room-custom-instructions-only-container"
+                >
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="checkbox-room-custom-instructions-only"
+                      checked={useCustomInstructionsOnly}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setUseCustomInstructionsOnly(checked);
+                        if (checked) {
+                          setIsJunkRoom(false);
+                          setErrorMessage(null);
+                          setTimeout(() => {
+                            customInstructionsRef.current?.focus();
+                          }, 100);
+                        }
+                      }}
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          Bypass Room Type &amp; Use Only Written Custom Instructions
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            useCustomInstructionsOnly
+                              ? 'bg-purple-600 text-white shadow-2xs'
+                              : 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200'
+                          }`}
+                        >
+                          {useCustomInstructionsOnly ? 'Custom-Only Active' : 'Skip Presets'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                        Bypass selecting a Room Type and preset options, and ONLY use <strong>Written Custom Instructions (Optional)</strong> to describe what you want changed in this photo.
+                      </p>
+                    </div>
+                  </label>
+
+                  {useCustomInstructionsOnly && (
+                    <div className="mt-3 pt-3 border-t border-purple-200/80 dark:border-purple-800/50 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-purple-800 dark:text-purple-300 font-medium flex items-center gap-1.5">
+                        <Pencil className="h-3.5 w-3.5 shrink-0" />
+                        <span>Type what you want changed in Written Custom Instructions</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          customInstructionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          setTimeout(() => customInstructionsRef.current?.focus(), 250);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-[11px] shrink-0 cursor-pointer transition-colors"
+                      >
+                        Go to Instructions ↓
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2221,7 +2340,13 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       type="checkbox"
                       id="junk-room-checkbox"
                       checked={isJunkRoom}
-                      onChange={(e) => setIsJunkRoom(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsJunkRoom(checked);
+                        if (checked) {
+                          setUseCustomInstructionsOnly(false);
+                        }
+                      }}
                       className="mt-1 h-5 w-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer shrink-0"
                     />
                     <div className="flex-1 min-w-0">
@@ -2742,18 +2867,22 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                       2
                     </span>
                     <span>Select Room Type</span>
-                    {isJunkRoom && (
+                    {useCustomInstructionsOnly ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded-full">
+                        Bypassed (Custom Instructions Only)
+                      </span>
+                    ) : isJunkRoom ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
                         Disabled (Junk Room Active)
                       </span>
-                    )}
+                    ) : null}
                   </h2>
 
                   {/* Category Filter Tabs */}
-                  <div className={`flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl ${isJunkRoom ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
+                  <div className={`flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl ${(isJunkRoom || useCustomInstructionsOnly) ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
                     <button
                       type="button"
-                      disabled={isJunkRoom}
+                      disabled={isJunkRoom || useCustomInstructionsOnly}
                       onClick={() => setRoomCategoryTab('basement')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'basement'
@@ -2769,7 +2898,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     </button>
                     <button
                       type="button"
-                      disabled={isJunkRoom}
+                      disabled={isJunkRoom || useCustomInstructionsOnly}
                       onClick={() => setRoomCategoryTab('all')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'all'
@@ -2785,7 +2914,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     </button>
                     <button
                       type="button"
-                      disabled={isJunkRoom}
+                      disabled={isJunkRoom || useCustomInstructionsOnly}
                       onClick={() => setRoomCategoryTab('main')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                         roomCategoryTab === 'main'
@@ -2802,7 +2931,21 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </div>
                 </div>
 
-                {isJunkRoom && (
+                {useCustomInstructionsOnly && (
+                  <div className="mb-3.5 p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-xs flex items-start gap-2.5 shadow-2xs">
+                    <Pencil className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-purple-900 dark:text-purple-200">
+                        Room Type &amp; Style Presets Bypassed
+                      </p>
+                      <p className="text-[11px] text-purple-700 dark:text-purple-300/90 leading-relaxed">
+                        Because <strong>"Bypass Room Type &amp; Use Only Written Custom Instructions"</strong> is checked, Room Type, styles, colors, flooring, and accent wall presets are disabled. Only your description in <strong>Written Custom Instructions (Optional)</strong> below will be applied to the image.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!useCustomInstructionsOnly && isJunkRoom && (
                   <div className="mb-3.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 shadow-2xs">
                     <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div className="space-y-1">
@@ -2816,7 +2959,7 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   </div>
                 )}
 
-                <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 ${isJunkRoom ? 'opacity-50 select-none' : ''}`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 ${(isJunkRoom || useCustomInstructionsOnly) ? 'opacity-45 select-none pointer-events-none' : ''}`}>
                   {ROOM_TYPES
                     .filter((room) => {
                       if (roomCategoryTab === 'basement') return room.category === 'basement';
@@ -2827,12 +2970,12 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                     <button
                       key={room.id}
                       type="button"
-                      disabled={isJunkRoom}
+                      disabled={isJunkRoom || useCustomInstructionsOnly}
                       onClick={() => setSelectedRoomTypeId(room.id)}
                       className={`p-3 rounded-xl border text-left transition-all relative ${
-                        isJunkRoom
+                        (isJunkRoom || useCustomInstructionsOnly)
                           ? selectedRoomTypeId === room.id
-                            ? 'border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 cursor-not-allowed'
+                            ? 'border-gray-300 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                             : 'border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/20 text-gray-400 dark:text-gray-600 cursor-not-allowed'
                           : selectedRoomTypeId === room.id
                           ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200 ring-1 ring-purple-500 cursor-pointer'
@@ -2863,6 +3006,12 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                 </div>
               </div>
 
+              <fieldset
+                disabled={useCustomInstructionsOnly}
+                className={`space-y-6 min-w-0 transition-all ${
+                  useCustomInstructionsOnly ? 'opacity-35 pointer-events-none select-none filter grayscale-30' : ''
+                }`}
+              >
               {/* Transformation Scope */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">
@@ -3479,31 +3628,62 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                   ))}
                 </div>
               </div>
+              </fieldset>
 
               {/* Written Description / Custom Instructions */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+              <div
+                className={`pt-4 border-t transition-all ${
+                  useCustomInstructionsOnly
+                    ? 'p-4 rounded-xl border border-purple-400 dark:border-purple-600 bg-purple-50/60 dark:bg-purple-950/30 ring-2 ring-purple-500/30 shadow-sm'
+                    : 'border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                  <label
+                    htmlFor="input-custom-transformation-instructions"
+                    className={`block text-xs font-semibold uppercase tracking-wider ${
+                      useCustomInstructionsOnly
+                        ? 'text-purple-900 dark:text-purple-200 font-bold'
+                        : 'text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
                     Written Custom Instructions (Optional):
                   </label>
-                  {isHallwayWaterFeature && (
+                  {useCustomInstructionsOnly ? (
+                    <span className="text-[11px] font-bold text-white bg-purple-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                      <Check className="h-3 w-3" /> Active — Only Mode Enabled
+                    </span>
+                  ) : isHallwayWaterFeature ? (
                     <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                       <Check className="h-3 w-3" /> Enabled
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <textarea
+                  ref={customInstructionsRef}
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder={
-                    isHallwayWaterFeature
+                    useCustomInstructionsOnly
+                      ? `Describe ONLY what you want changed in the uploaded photo (e.g., "Paint the walls warm Swiss Coffee white, replace the sofa with a cognac leather sectional, add recessed ceiling lights, and keep the existing flooring...")`
+                      : isHallwayWaterFeature
                       ? `Describe any custom details for your Hallway & Water Feature (e.g., "Add river pebble basin with soft amber uplighting, narrow floating oak bench on opposite wall, soft warm white walls...")`
                       : `Describe any specific changes for this ${activeRoomTypeConfig.name.toLowerCase()} (e.g., "Remove the ceiling fan and install a brass pendant, paint walls Benjamin Moore Swiss Coffee, add an olive tree in ceramic pot...")`
                   }
-                  rows={3}
-                  className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                  rows={useCustomInstructionsOnly ? 4 : 3}
+                  className={`w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:outline-hidden ${
+                    useCustomInstructionsOnly
+                      ? 'border-purple-400 dark:border-purple-600 shadow-xs'
+                      : 'border-gray-300 dark:border-gray-600'
+                  }`}
                   id="input-custom-transformation-instructions"
                 />
+                {useCustomInstructionsOnly && (
+                  <p className="text-[11px] text-purple-800 dark:text-purple-300 font-medium mt-1.5 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                    <span>Room Type &amp; presets are bypassed. Your transformation will apply only the changes described here.</span>
+                  </p>
+                )}
               </div>
 
               {/* Generate Transformation Button */}
@@ -3515,7 +3695,11 @@ Quality requirements: 8k resolution, ultra-photorealistic architectural visualiz
                 id="btn-generate-transformation"
               >
                 <Sparkles className="h-5 w-5" />
-                <span>Transform Room &amp; Compare Side-by-Side</span>
+                <span>
+                  {useCustomInstructionsOnly
+                    ? 'Transform Photo & Compare Side-by-Side'
+                    : 'Transform Room & Compare Side-by-Side'}
+                </span>
               </button>
             </div>
           </div>
